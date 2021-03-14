@@ -1033,6 +1033,7 @@ union ReusableBuffer
     struct {
       char devices[MAX_BLUETOOTH_DISTANT_ADDR][LEN_BLUETOOTH_ADDR+1];
       uint8_t devicesCount;
+      char messageStatus[32];
     } bt;
 #endif
   } moduleSetup;

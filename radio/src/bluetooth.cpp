@@ -167,7 +167,7 @@ void Bluetooth::appendTrainerByte(uint8_t data)
     buffer[bufferIndex++] = data;
     // we check for "DisConnected", but the first byte could be altered (if received in state STATE_DATA_XOR)
     if (data == '\n') {
-      if (bufferIndex >= 13) {      
+      if (bufferIndex >= 13) {
         if (!strncmp((char *)&buffer[bufferIndex-13], "isConnected", 11)) {
           BLUETOOTH_TRACE("BT< DisConnected" CRLF);
           state = BLUETOOTH_STATE_DISCONNECTED;
@@ -219,7 +219,7 @@ void Bluetooth::processTrainerByte(uint8_t data)
           bufferIndex = 0;
           dataState = STATE_DATA_IN_FRAME;
           break;
-        default:  
+        default:
           // Illegal situation, start looking for a new START_STOP byte
           dataState = STATE_DATA_START;
           break;

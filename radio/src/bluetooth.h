@@ -18,7 +18,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#ifndef BLUETOOTH_H
+#define BLUETOOTH_H
 enum BluetoothStates {
 #if defined(PCBX9E)
   BLUETOOTH_INIT,
@@ -44,6 +45,8 @@ enum BluetoothStates {
   BLUETOOTH_STATE_CLEAR_REQUESTED,
   BLUETOOTH_STATE_FLASH_FIRMWARE
 };
+
+#define BT_FIFO_SIZE 64
 
 #define LEN_BLUETOOTH_ADDR              16
 #define MAX_BLUETOOTH_DISTANT_ADDR      6

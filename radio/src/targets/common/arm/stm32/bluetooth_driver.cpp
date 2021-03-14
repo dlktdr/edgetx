@@ -134,15 +134,10 @@ extern "C" void BT_USART_IRQHandler(void)
   }
 
   if (USART_GetITStatus(BT_USART, USART_IT_TXE) != RESET) {
+    USART_ClearITPendingBit(BT_USART, USART_IT_TXE);
     uint8_t byte;
-    bool result = btTxFifo.pop(byte);
-    if (result) {
-      USART_SendData(BT_USART, byte);
-    }
-    else {
-      USART_ITConfig(BT_USART, USART_IT_TXE, DISABLE);
-      bluetoothWriteState = BLUETOOTH_WRITE_DONE;
-    }
+    if (btTxFifo.pop(byte)) USART_SendData(BT_USART, byte);
+    else USART_ITConfig(BT_USART, USART_IT_TXE, DISABLE);
   }
 }
 

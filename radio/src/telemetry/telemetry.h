@@ -142,7 +142,7 @@ inline const char* getRssiLabel()
 #endif
 #if defined (PCBNV14)
   extern uint32_t NV14internalModuleFwVersion;
-  if ( (telemetryProtocol == PROTOCOL_TELEMETRY_FLYSKY_NV14) 
+  if ( (telemetryProtocol == PROTOCOL_TELEMETRY_FLYSKY_NV14)
         && (NV14internalModuleFwVersion >=  0x1000E) )
     return "Sgnl";
 #endif
@@ -306,7 +306,7 @@ struct ModuleSyncStatus
 
   tmr10ms_t lastUpdate;  // in 10ms
   int16_t   currentLag;  // in us
-  
+
   inline bool isValid() {
     // 2 seconds
     return (get_tmr10ms() - lastUpdate < 200);

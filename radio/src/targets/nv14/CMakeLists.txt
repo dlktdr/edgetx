@@ -88,7 +88,7 @@ add_definitions(-DEEPROM_VARIANT=0 -DAUDIO -DVOICE -DRTCLOCK)
 add_definitions(-DGPS_USART_BAUDRATE=${INTERNAL_GPS_BAUDRATE})
 add_definitions(-DPWR_BUTTON_${PWR_BUTTON})
 add_definitions(-DCROSSFIRE_NATIVE)
-add_definitions(-DAFHDS2) 
+add_definitions(-DAFHDS2)
 add_definitions(-DHARDWARE_EXTERNAL_MODULE)
 #add_definitions(-DAUX_SERIAL)
 #add_definitions(-DFLYSKY_AUTO_POWER_DOWN)
@@ -168,6 +168,16 @@ endif()
 
 # Make malloc() thread-safe
 add_definitions(-DTHREADSAFE_MALLOC)
+
+add_definitions(-DBLUETOOTH)
+add_definitions(-DBLUETOOTH_LE)
+
+set(TARGET_SRC
+  ${TARGET_SRC}
+  bluetoothle.cpp
+  lierda_bt.cpp
+  ../common/arm/stm32/bluetooth_driver.cpp
+  )
 
 set(STM32LIB_SRC
   STM32F4xx_StdPeriph_Driver/src/stm32f4xx_sdio.c

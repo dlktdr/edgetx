@@ -18,7 +18,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
- 
+
 #include "opentx.h"
 #include "touch.h"
 
@@ -69,7 +69,6 @@ void delay_self(int count)
                                MONITOR_RCC_AHB1Periph |\
                                KEYS_RCC_AHB1Periph |\
                                ADC_RCC_AHB1Periph |\
-                               AUX_SERIAL_RCC_AHB1Periph |\
                                TELEMETRY_RCC_AHB1Periph |\
                                TRAINER_RCC_AHB1Periph |\
                                AUDIO_RCC_AHB1Periph |\
@@ -98,9 +97,9 @@ void delay_self(int count)
 
 #define RCC_APB2PeriphOther   (ADC_RCC_APB2Periph |\
                                HAPTIC_RCC_APB2Periph |\
-                               AUX_SERIAL_RCC_APB2Periph |\
                                AUDIO_RCC_APB2Periph |\
-                               EXTMODULE_RCC_APB2Periph \
+                               EXTMODULE_RCC_APB2Periph |\
+                               BT_RCC_APB2Periph \
                               )
 
 void boardInit()
@@ -188,8 +187,8 @@ void boardInit()
  #if defined(RTCLOCK)
   rtcInit(); // RTC must be initialized before rambackupRestore() is called
 #endif
- 
-  
+
+
 #if defined(DEBUG)
   DBGMCU_APB1PeriphConfig(
       DBGMCU_IWDG_STOP | DBGMCU_TIM1_STOP | DBGMCU_TIM2_STOP |
@@ -221,7 +220,7 @@ void boardOff()
 
   pwrOff();
 
-  // We reach here only in forced power situations, such as hw-debugging with external power  
+  // We reach here only in forced power situations, such as hw-debugging with external power
   // Enter STM32 stop mode / deep-sleep
   // Code snippet from ST Nucleo PWR_EnterStopMode example
 #define PDMode             0x00000000U
@@ -235,7 +234,7 @@ void boardOff()
 
 /* Set SLEEPDEEP bit of Cortex System Control Register */
   SET_BIT(SCB->SCR, ((uint32_t)SCB_SCR_SLEEPDEEP_Msk));
-  
+
   // To avoid HardFault at return address, end in an endless loop
   while (1) {
 
