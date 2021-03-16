@@ -246,5 +246,8 @@ void flySkyNv14ProcessTelemetryPacket(const uint8_t* ptr, uint8_t size)
   }
   if (sensorCount) {
     telemetryStreaming = TELEMETRY_TIMEOUT10ms;
+#if defined(BLUETOOTH)
+    bluetooth.writeTelemetryPacket(ptr, size);
+#endif
   }
 }

@@ -879,6 +879,7 @@ enum AdjustGvarFunctionParam {
 
 enum BluetoothModes {
   BLUETOOTH_OFF,
+  BLUETOOTH_FIRST = BLUETOOTH_OFF,
   BLUETOOTH_TELEMETRY,
   BLUETOOTH_TRAINER,
 #if defined(PCBX9E)
