@@ -63,91 +63,63 @@ rm -rf build && mkdir -p build && cd build
 
 target_names=$(echo "$FLAVOR" | tr '[:upper:]' '[:lower:]' | tr ';' '\n')
 
-for target_name in $target_names
-do
-    BUILD_OPTIONS=${COMMON_OPTIONS}
+if [[ " T16 COLORLCD ALL " =~ \ ${FLAVOR}\  ]] ; then
+  # OpenTX on T16 boards
+   rm -rf ./* || true
+  cmake "${COMMON_OPTIONS}" -DPCB=X10 -DPCBREV=T16 -DHELI=YES -DLUA=YES -DGVARS=YES -DAFHDS3=NO "${SRCDIR}"
+  make -j"${CORES}" ${FIRMARE_TARGET}
+  make -j"${CORES}" libsimulator
+  make -j"${CORES}" tests-radio
+fi
 
-    echo "Testing ${target_name}"
-    case $target_name in
+if [[ " T18 COLORLCD ALL " =~ \ ${FLAVOR}\  ]] ; then
+  # OpenTX on T16 boards
+   rm -rf ./* || true
+  cmake "${COMMON_OPTIONS}" -DPCB=X10 -DPCBREV=T18 -DHELI=YES -DLUA=YES -DGVARS=YES -DAFHDS3=NO "${SRCDIR}"
+  make -j"${CORES}" ${FIRMARE_TARGET}
+  make -j"${CORES}" libsimulator
+  make -j"${CORES}" tests-radio
+fi
 
-        x9lite)
-            BUILD_OPTIONS+="-DPCB=X9LITE"
-            ;;
-        x9lites)
-            BUILD_OPTIONS+="-DPCB=X9LITES"
-            ;;
-        x7)
-            BUILD_OPTIONS+="-DPCB=X7"
-            ;;
-        x7-access)
-            BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=ACCESS -DPXX1=YES"
-            ;;
-        t12)
-            BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=T12 -DINTERNAL_MODULE_MULTI=ON"
-            ;;
-        tx12)
-            BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=TX12"
-            ;;
-        t8)
-            BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=T8"
-            ;;
-        tlite)
-            BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=TLITE"
-            ;;
-        xlite)
-            BUILD_OPTIONS+="-DPCB=XLITE"
-            ;;
-        xlites)
-            BUILD_OPTIONS+="-DPCB=XLITES"
-            ;;
-        x9d)
-            BUILD_OPTIONS+="-DPCB=X9D"
-            ;;
-        x9dp)
-            BUILD_OPTIONS+="-DPCB=X9D+"
-            ;;
-        x9dp2019)
-            BUILD_OPTIONS+="-DPCB=X9D+ -DPCBREV=2019"
-            ;;
-        x9e)
-            BUILD_OPTIONS+="-DPCB=X9E"
-            ;;
-        x10)
-            BUILD_OPTIONS+="-DPCB=X10"
-            ;;
-        x10-access)
-            BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=ACCESS -DPXX1=YES"
-            ;;
-        x12s)
-            BUILD_OPTIONS+="-DPCB=X12S"
-            ;;
-        t16)
-            BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T16 -DINTERNAL_MODULE_MULTI=ON"
-            ;;
-        t16-fs)
-            BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T16 -DINTERNAL_MODULE_MULTI=ON -DFLYSKY_HALL_STICKS=ON"
-            ;;
-        t18)
-            BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T18"
-            ;;
-        t18-fs)
-            BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T18 -DFLYSKY_HALL_STICKS=ON"
-            ;;
-        tx16s)
-            BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=TX16S"
-            ;;
-        tx16s-fs)
-            BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=TX16S -DFLYSKY_HALL_STICKS=ON"
-            ;;
-        nv14)
-            BUILD_OPTIONS+="-DPCB=NV14"
-            ;;
-    esac
+if [[ " TX16S COLORLCD ALL " =~ \ ${FLAVOR}\  ]] ; then
+  # OpenTX on TX16S boards
+   rm -rf ./* || true
+  cmake "${COMMON_OPTIONS}" -DPCB=X10 -DPCBREV=TX16S -DHELI=YES -DLUA=YES -DGVARS=YES -DTRANSLATIONS=CN "${SRCDIR}"
+  make -j"${CORES}" ${FIRMARE_TARGET}
+  make -j"${CORES}" libsimulator
+  make -j"${CORES}" tests-radio
+fi
 
-    cmake ${BUILD_OPTIONS} "${SRCDIR}"
-    make -j"${CORES}" ${FIRMARE_TARGET}
-    make -j"${CORES}" libsimulator
-    make -j"${CORES}" tests-radio
+if [[ " X12S COLORLCD ALL " =~ \ ${FLAVOR}\  ]] ; then
+  # OpenTX on X12S
+   rm -rf ./* || true
+  cmake "${COMMON_OPTIONS}" -DPCB=X12S -DHELI=YES -DLUA=YES -DGVARS=YES -DMULTIMODULE=NO "${SRCDIR}"
+  make -j"${CORES}" ${FIRMARE_TARGET}
+  make -j"${CORES}" libsimulator
+  make -j"${CORES}" tests-radio
+fi
 
-    rm -f CMakeCache.txt
-done
+if [[ " NV14 COLORLCD ALL " =~ \ ${FLAVOR}\  ]] ; then
+  rm -rf ./* || true
+  cmake "${COMMON_OPTIONS}" -DPCB=NV14 "${SRCDIR}"
+  make -j"${CORES}" ${FIRMARE_TARGET}
+  make -j"${CORES}" libsimulator
+  #TODO: make -j"${CORES}" tests-radio
+fi
+
+if [[ " COMPANION ALL " =~ \ ${FLAVOR}\  ]] ; then
+  # Companion
+   rm -rf ./* || true
+  cmake "${COMMON_OPTIONS}" "${SRCDIR}"
+  make -j"${CORES}" companion24 simulator24
+  make -j"${CORES}" tests-companion
+fi
+
+if [[ " YAML ALL " =~ \ ${FLAVOR}\  ]] ; then
+  # OpenTX on TX16S boards
+  rm -rf ./* || true
+  cmake "${COMMON_OPTIONS}" -DPCB=X10 -DPCBREV=TX16S -DHELI=YES -DLUA=YES -DGVARS=YES -DYAML_STORAGE=ON "${SRCDIR}"
+  make -j"${CORES}" yaml_data
+  make -j"${CORES}" ${FIRMARE_TARGET}
+  make -j"${CORES}" tests-radio
+fi
