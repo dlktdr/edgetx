@@ -601,6 +601,11 @@ PACK(struct CustomScreenData {
   #define SCRIPT_DATA
 #endif
 
+PACK(struct PartialModel {
+  ModelHeader header;
+  TimerData timers[MAX_TIMERS];
+});
+
 PACK(struct ModelData {
   ModelHeader header;
   TimerData timers[MAX_TIMERS];
