@@ -48,9 +48,7 @@ fi
 
 : ${SRCDIR:=$(dirname $(pwd)/"$0")/..}
 
-: ${BUILD_TYPE:=Release}
-: ${COMMON_OPTIONS:="-DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_RULE_MESSAGES=OFF -DDISABLE_COMPANION=YES -Wno-dev "}
-: ${EXTRA_OPTIONS:="$EXTRA_OPTIONS"}
+: ${EXTRA_OPTIONS:=" $EXTRA_OPTIONS "}
 
 COMMON_OPTIONS+=${EXTRA_OPTIONS}
 
@@ -62,7 +60,85 @@ rm -rf build && mkdir -p build && cd build
 GIT_SHA_SHORT=$(git rev-parse --short HEAD)
 #GIT_TAG=`git describe --tags`
 
-target_names=$(echo "$FLAVOR" | tr '[:upper:]' '[:lower:]' | tr ';' '\n')
+target_name=`echo "$FLAVOR" | tr '[:upper:]' '[:lower:]'`
+fw_name="${target_name}-${GIT_SHA_SHORT}.bin"
+
+echo "Building ${fw_name}"
+
+case $FLAVOR in
+
+    X9LITE)
+        BUILD_OPTIONS+=" -DPCB=X9LITE"
+        ;;
+    X9LITES)
+        BUILD_OPTIONS+=" -DPCB=X9LITES"
+        ;;
+    X7)
+        BUILD_OPTIONS+=" -DPCB=X7"
+        ;;
+    T12)
+        BUILD_OPTIONS+=" -DPCB=X7 -DPCBREV=T12 -DINTERNAL_MODULE_MULTI=ON"
+        ;;
+    TX12)
+        BUILD_OPTIONS+=" -DPCB=X7 -DPCBREV=TX12"
+        ;;
+    T8)
+        BUILD_OPTIONS+=" -DPCB=X7 -DPCBREV=T8"
+        ;;
+    TLITE)
+        BUILD_OPTIONS+=" -DPCB=X7 -DPCBREV=TLITE"
+        ;;
+    XLITE)
+        BUILD_OPTIONS+=" -DPCB=XLITE"
+        ;;
+    XLITES)
+        BUILD_OPTIONS+=" -DPCB=XLITES"
+        ;;
+    X9D)
+        BUILD_OPTIONS+="-DPCB=X9D"
+        ;;
+    X9DP)
+        BUILD_OPTIONS+=" -DPCB=X9D+"
+        ;;
+    X9DP2019)
+        BUILD_OPTIONS+=" -DPCB=X9D+ -DPCBREV=2019"
+        ;;
+    X9E)
+        BUILD_OPTIONS+=" -DPCB=X9E"
+        ;;
+    X10)
+        BUILD_OPTIONS+=" -DPCB=X10"
+        ;;
+    X12S)
+        BUILD_OPTIONS+=" -DPCB=X12S"
+        ;;
+    T16)
+        BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T16 -DINTERNAL_MODULE_MULTI=ON"
+        ;;
+    T16_FS)
+        BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T16 -DINTERNAL_MODULE_MULTI=ON -DFLYSKY_HALL_STICKS=ON"
+        ;;
+    T18)
+        BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T18"
+        ;;
+    T18_FS)
+        BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=T18 -DFLYSKY_HALL_STICKS=ON"
+        ;;
+    TX16S)
+        BUILD_OPTIONS+=" -DPCB=X10 -DPCBREV=TX16S"
+        ;;
+    TX16S_FS)
+        BUILD_OPTIONS+="-DPCB=X10 -DPCBREV=TX16S -DFLYSKY_HALL_STICKS=ON"
+        ;;
+    NV14)
+        BUILD_OPTIONS+="-DPCB=NV14"
+        ;;
+esac
+
+cmake ${BUILD_OPTIONS} "${SRCDIR}"
+make -j"${CORES}" ${FIRMARE_TARGET}
+
+mv firmware.bin "../${fw_name}"
 
 for target_name in $target_names
 do
