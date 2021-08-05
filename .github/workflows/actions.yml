@@ -5,9 +5,12 @@ on:
     branches:
     - '2.4'
     - 'main'
+    tags:
+    - 'v*'
     paths-ignore:
     - '**.md'
     - '.github/ISSUE_TEMPLATE/**'
+    - 'companion/**'
   pull_request:
     branches:
     - '2.4'
@@ -15,9 +18,7 @@ on:
     paths-ignore:
     - '**.md'
     - '.github/ISSUE_TEMPLATE/**'
-  create:
-    tags:
-      - v*
+    - 'companion/**'
 
 jobs:
   test:
