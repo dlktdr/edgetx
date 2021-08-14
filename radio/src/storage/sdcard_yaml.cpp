@@ -21,6 +21,7 @@
 #include "opentx.h"
 #include "storage.h"
 #include "sdcard_common.h"
+#include "sdcard_raw.h"
 
 #include "modelslist.h"
 
@@ -73,8 +74,7 @@ void storageCreateModelsList()
 // SDCARD storage interface
 //
 
-
-const char * loadRadioSettings()
+const char * loadRadioSettingsYaml()
 {
     // YAML reader
     TRACE("YAML radio settings reader");
@@ -83,6 +83,16 @@ const char * loadRadioSettings()
     tree.reset(get_radiodata_nodes(), (uint8_t*)&g_eeGeneral);
 
     return readYamlFile(RADIO_SETTINGS_YAML_PATH, YamlTreeWalker::get_parser_calls(), &tree);
+}
+
+const char * loadRadioSettings()
+{
+    FILINFO fno;
+    if (f_stat(RADIO_SETTINGS_YAML_PATH, &fno) != FR_OK) {
+        return loadRadioSettingsBin();
+    }
+
+    return loadRadioSettingsYaml();
 }
 
 struct yaml_writer_ctx {
@@ -132,7 +142,7 @@ const char * writeGeneralSettings()
 }
 
 
-const char * readModel(const char * filename, uint8_t * buffer, uint32_t size, uint8_t * version)
+const char * readModelYaml(const char * filename, uint8_t * buffer, uint32_t size, uint8_t * version)
 {
     // YAML reader
     TRACE("YAML model reader");
@@ -158,7 +168,7 @@ const char * readModel(const char * filename, uint8_t * buffer, uint32_t size, u
     // wipe memory before reading YAML
     memset(buffer,0,size);
 
-    //#if defined(FLIGHT_MODES) && defined(GVARS)
+#if defined(FLIGHT_MODES) && defined(GVARS)
     // reset GVars to default values
     // Note: taken from opentx.cpp::modelDefault()
     //TODO: new func in gvars
@@ -167,19 +177,33 @@ const char * readModel(const char * filename, uint8_t * buffer, uint32_t size, u
             g_model.flightModeData[p].gvars[i] = GVAR_MAX+1;
         }
     }
-    //#endif
+#endif
 
     *version = 255; // max version number
     return readYamlFile(path, YamlTreeWalker::get_parser_calls(), &tree);
 }
 
-const char * writeModel()
+const char* readModel(const char* filename, uint8_t* buffer, uint32_t size,
+                      uint8_t* version)
+{
+  const char* ext = strrchr(filename, '.');
+  if (ext != nullptr) {
+    if (!strncmp(ext, YAML_EXT, 4)) {
+      return readModelYaml(filename, buffer, size, version);
+    }
+
+    return readModelBin(filename, buffer, size, version);
+  }
+  return nullptr;
+}
+
+const char * writeModelYaml(const char* filename)
 {
     // YAML reader
     TRACE("YAML model writer");
 
     char path[256];
-    getModelPath(path, g_eeGeneral.currModelFilename);
+    getModelPath(path, filename);
 
     FIL file;
 
@@ -204,4 +228,9 @@ const char * writeModel()
 
     f_close(&file);
     return NULL;
+}
+
+const char * writeModel()
+{
+    return writeModelYaml(g_eeGeneral.currModelFilename);
 }

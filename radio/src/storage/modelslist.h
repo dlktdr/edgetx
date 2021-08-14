@@ -156,6 +156,11 @@ public:
 
 protected:
   FIL file;
+
+  bool loadTxt();
+#if defined(SDCARD_YAML)
+  bool loadYaml();
+#endif
 };
 
 extern ModelsList modelslist;
