@@ -694,6 +694,7 @@ void menuRadioHardware(event_t event)
         }
         break;
 
+#if defined(EEPROM)
       case ITEM_RADIO_BACKUP_EEPROM:
         if (LCD_W < 212)
           lcdDrawText(LCD_W / 2, y, BUTTON(STR_EEBACKUP), attr | CENTERED);
@@ -715,6 +716,7 @@ void menuRadioHardware(event_t event)
           POPUP_CONFIRMATION(STR_CONFIRMRESET, onFactoryResetConfirm);
         }
         break;
+#endif
     }
   }
 }
