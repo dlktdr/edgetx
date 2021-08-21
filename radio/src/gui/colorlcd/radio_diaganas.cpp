@@ -23,7 +23,7 @@
 #include "libopenui.h"
 
 #if defined (FLYSKY_HALL_STICKS) || defined (FLYSKY_HALL_STICKS_REVERSE)
-#include "flyskyHallStick_driver.h"
+#include "../../targets/horus/flyskyHallStick_driver.h"
 #endif
 
 constexpr coord_t ANA_OFFSET = 150;
