@@ -186,6 +186,7 @@ void storageReadAll()
   }
 }
 
+#if !defined(COLORLCD)
 void checkModelIdUnique(uint8_t index, uint8_t module)
 {
   if (isModuleXJTD8(module))
@@ -202,3 +203,5 @@ void checkModelIdUnique(uint8_t index, uint8_t module)
     }
   }
 }
+#endif
+
