@@ -22,6 +22,9 @@
 #include <string.h>
 #include "opentx.h"
 #include "../timers.h"
+
+#include "storage/eeprom_common.h"
+#include "storage/eeprom_rlc.h"
 #include "conversions/conversions.h"
 
 uint8_t   s_write_err = 0;    // error reasons
@@ -153,6 +156,7 @@ void eepromCheck()
   ENABLE_SYNC_WRITE(false);
 }
 
+#if !defined(SDCARD_RAW) && !defined(SDCARD_YAML)
 void storageFormat()
 {
   ENABLE_SYNC_WRITE(true);
@@ -178,6 +182,7 @@ void storageFormat()
 
   ENABLE_SYNC_WRITE(false);
 }
+#endif
 
 bool eepromOpen()
 {
@@ -443,7 +448,7 @@ bool RlcFile::copy(uint8_t i_fileDst, uint8_t i_fileSrc)
   return true;
 }
 
-#if defined(SDCARD)
+#if defined(SDCARD) && !defined(SDCARD_RAW) && !defined(SDCARD_YAML)
 const char * eeBackupModel(uint8_t i_fileSrc)
 {
   char * buf = reusableBuffer.modelsel.mainname;
@@ -826,11 +831,16 @@ void eeLoadModelName(uint8_t id, char *name)
   }
 }
 
+#if defined(SDCARD_RAW) || defined(SDCARD_YAML)
+bool eeModelExistsRlc(uint8_t id)
+#else
 bool eeModelExists(uint8_t id)
+#endif
 {
   return EFile::exists(FILE_MODEL(id));
 }
 
+#if !defined(SDCARD_RAW) && !defined(SDCARD_YAML)
 void storageCheck(bool immediately)
 {
   if (immediately) {
@@ -850,6 +860,7 @@ void storageCheck(bool immediately)
     theFile.writeRlc(FILE_MODEL(g_eeGeneral.currModel), FILE_TYP_MODEL, (uint8_t*)&g_model, sizeof(g_model), immediately);
   }
 }
+#endif
 
 void eeLoadModelHeader(uint8_t id, ModelHeader *header)
 {
