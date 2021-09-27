@@ -240,6 +240,11 @@ void ModelsCategory::moveModel(ModelCell * model, int8_t step)
   erase(current);
 }
 
+void ModelsCategory::getIcon()
+{
+  __NOP();
+}
+
 int ModelsCategory::getModelIndex(const ModelCell* model)
 {
   int idx = 0;
@@ -263,7 +268,8 @@ void ModelsCategory::save(FIL * file)
 #else
   f_puts("- ", file);
   f_puts(name, file);
-  f_putc('\n', file);
+  f_putc('\n', file);  
+  f_printf(file, "  - icon: %s\n", icon);
   //f_puts("  models:\n", file);
 #endif
   for (list<ModelCell *>::iterator it = begin(); it != end(); ++it) {

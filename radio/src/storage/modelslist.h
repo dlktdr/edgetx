@@ -71,6 +71,7 @@ class ModelsCategory: public std::list<ModelCell *>
 {
 public:
   char name[LEN_MODEL_FILENAME + 1];
+  int icon=0;
 
   explicit ModelsCategory(const char * name);
   explicit ModelsCategory(const char * name, uint8_t len);
@@ -79,6 +80,7 @@ public:
   ModelCell * addModel(const char * name);
   void removeModel(ModelCell * model);
   void moveModel(ModelCell * model, int8_t step);
+  void getIcon();
 
   int getModelIndex(const ModelCell* model);
 
