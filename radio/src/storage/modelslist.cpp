@@ -24,6 +24,7 @@ using std::list;
 #if defined(SDCARD_YAML)
 #include "yaml/yaml_parser.h"
 #include "yaml/yaml_modelslist.h"
+#include "sdcard_yaml.h"
 #endif
 
 ModelsList modelslist;
@@ -392,6 +393,74 @@ bool ModelsList::load()
   } else {
     res = loadYaml();
   }
+
+  DIR mdir;  
+  FILINFO mfio;
+  uint8_t version;
+  PACK(struct {
+      ModelHeader header;
+      TimerData timers[MAX_TIMERS];
+    })
+  partialModel;
+
+  int dirmodels = 0;
+  bool error = false;
+
+  if (f_opendir(&mdir, "/" MODELS_PATH) == FR_OK) {
+    for (;;) {
+      FRESULT res = f_readdir(&mdir, &mfio);
+      if (res != FR_OK || mfio.fname[0] == 0) break;
+      int len = strlen(mfio.fname);
+      if (len < 5 || strcasecmp(mfio.fname + len - 4, YAML_EXT) ||
+          (fno.fattrib & AM_DIR))
+        continue;
+      TRACE("Directory Scanned YAML Model %s", mfio.fname);
+      const char* mres =
+          readModelYaml(fno.fname, (uint8_t*)&partialModel.header,
+                        sizeof(partialModel), &version);
+      if (!mres)
+        error = true;
+      else {
+        dirmodels++;
+        // See if this file has already been found in the list
+        // If it doesn't exist, add it to unsorted category and save
+
+        // Scan all models
+        bool found=false;        
+        for (auto const& cats : modelslist.getCategories()) {
+          for (ModelsCategory::iterator it = cats->begin(); it != cats->end();
+               ++it) {
+            if(strcmp((*it)->modelFilename, mfio.fname) == 0) {                 
+              found = true;
+              break;
+            }
+            if(found) break;                
+          }
+        }        
+        if(found)
+          TRACE("Found the MODEL in THE YAML!, Doing Nothing");
+        else {          
+          // Get the unsorted category
+          ModelsCategory *unsorted = modelslist.getCategory("Unsorted");
+          if(!unsorted)
+            unsorted = modelslist.createCategory("Unsorted");
+          TRACE("Couldn't find %s in the YAML, Adding it to the Unsorted Category", mfio.fname);                     
+          modelslist.addModel(unsorted, mfio.fname, partialModel.header.name);
+
+        }        
+      }
+    }
+  } else {
+    TRACE("ERROR: Could not open path %s", "/" MODELS_PATH);
+    error = true;
+  }
+
+  if (!error) {
+    TRACE("Models Count %d\r\nDir Models %d", modelslist.getModelsCount(), dirmodels);
+  } else {
+    TRACE("Unable to count File Models, File system Error?");
+  }
+
 #endif
 
   if (!currentModel) {
