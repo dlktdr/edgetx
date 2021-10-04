@@ -198,11 +198,13 @@ ModelsCategory::~ModelsCategory()
   }
 }
 
-ModelCell * ModelsCategory::addModel(const char * name)
+ModelCell * ModelsCategory::addModel(const char * name, char *modelname)
 {
   if (!name) return NULL;
 
   ModelCell * result = new ModelCell(name);
+  if(modelname)
+    result->setModelName(modelname);
   push_back(result);
   return result;
 }
@@ -483,7 +485,7 @@ ModelsCategory * ModelsList::createCategory(const char* name, bool save)
   return result;
 }
 
-ModelCell * ModelsList::addModel(ModelsCategory * category, const char * name, bool save)
+ModelCell * ModelsList::addModel(ModelsCategory * category, const char * name, const char *mname, bool save)
 {
   ModelCell * result = category->addModel(name);
   modelsCount++;
