@@ -118,6 +118,14 @@ public:
 
   void setCurrentCategory(ModelsCategory * cat);
 
+  ModelsCategory *getCategory(const char *name) {
+    for(auto const& category : categories) {
+      if(strcmp(category->name, name) == 0)
+        return category;
+    }
+    return NULL;
+  }
+
   ModelsCategory * getCurrentCategory() const
   {
     return currentCategory;
