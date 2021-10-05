@@ -120,6 +120,17 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
                 }
             }
         }
+
+        else if (!strcmp(mi->current_attr,"icon")) {
+            if (!cats.empty() && fexists) {
+                ModelsCategory* cat = cats.back();
+                if (!cat->empty()) {
+                    buf[len] = '\0';
+                    strncpy(cat->icon, buf, sizeof(ModelsCategory::icon));
+                }
+            }
+        }
+
         break;
     }
 }
