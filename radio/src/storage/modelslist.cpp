@@ -386,81 +386,16 @@ bool ModelsList::load()
   if (f_stat(RADIO_MODELSLIST_YAML_PATH, &fno) != FR_OK) {
     res = loadTxt();
   } else {
-    res = loadYaml();
+    // Read all models first (skips non-existing ones)
+    res = loadYaml();    
+    // Add any missing from the models DIR
+    rebuildFromDir();
   }
-
-  DIR mdir;  
-  FILINFO mfio;
-  uint8_t version;
-  PACK(struct {
-      ModelHeader header;
-      TimerData timers[MAX_TIMERS];
-    })
-  partialModel;
-
-  int dirmodels = 0;
-  bool error = false;
-
-  if (f_opendir(&mdir, "/" MODELS_PATH) == FR_OK) {
-    for (;;) {
-      FRESULT res = f_readdir(&mdir, &mfio);
-      if (res != FR_OK || mfio.fname[0] == 0) break;
-      int len = strlen(mfio.fname);
-      if (len < 5 || strcasecmp(mfio.fname + len - 4, YAML_EXT) ||
-          (fno.fattrib & AM_DIR))
-        continue;
-      TRACE("Directory Scanned YAML Model %s", mfio.fname);
-      const char* mres =
-          readModelYaml(fno.fname, (uint8_t*)&partialModel.header,
-                        sizeof(partialModel), &version);
-      if (!mres)
-        error = true;
-      else {
-        dirmodels++;
-        // See if this file has already been found in the list
-        // If it doesn't exist, add it to unsorted category and save
-
-        // Scan all models
-        bool found=false;        
-        for (auto const& cats : modelslist.getCategories()) {
-          for (ModelsCategory::iterator it = cats->begin(); it != cats->end();
-               ++it) {
-            if(strcmp((*it)->modelFilename, mfio.fname) == 0) {                 
-              found = true;
-              break;
-            }
-            if(found) break;                
-          }
-        }        
-        if(found)
-          TRACE("Found the MODEL in THE YAML!, Doing Nothing");
-        else {          
-          // Get the unsorted category
-          ModelsCategory *unsorted = modelslist.getCategory("Unsorted");
-          if(!unsorted)
-            unsorted = modelslist.createCategory("Unsorted");
-          TRACE("Couldn't find %s in the YAML, Adding it to the Unsorted Category", mfio.fname);                     
-          modelslist.addModel(unsorted, mfio.fname, partialModel.header.name);
-
-        }        
-      }
-    }
-  } else {
-    TRACE("ERROR: Could not open path %s", "/" MODELS_PATH);
-    error = true;
-  }
-
-  if (!error) {
-    TRACE("Models Count %d\r\nDir Models %d", modelslist.getModelsCount(), dirmodels);
-  } else {
-    TRACE("Unable to count File Models, File system Error?");
-  }
-
 #endif
 
   if (!currentModel) {
     if (categories.empty()) {
-      currentCategory = new ModelsCategory("Models");
+      currentCategory = new ModelsCategory(DEFAULT_CATEGORY);
       categories.push_back(currentCategory);
     } else {
       currentCategory = *categories.begin();
@@ -473,6 +408,76 @@ bool ModelsList::load()
   loaded = true;
   return res;
 }
+
+#if defined(SDCARD_YAML)
+
+// Adds missing .yml models (/MODELS/*.yml) to RADIO/models.yml
+void ModelsList::rebuildFromDir()
+{
+  DIR mdir;
+  FILINFO mfio;
+  uint8_t version;
+  PACK(struct {
+    ModelHeader header;
+    TimerData timers[MAX_TIMERS];
+  })
+  partialModel;
+
+  int dirmodels = 0;
+  bool error = false;
+
+  if (f_opendir(&mdir, "/" MODELS_PATH) == FR_OK) {
+    for (;;) {
+      FRESULT res = f_readdir(&mdir, &mfio);
+      if (res != FR_OK || mfio.fname[0] == 0) break;
+      int len = strlen(mfio.fname);
+      if (len < 5 || strcasecmp(mfio.fname + len - 4, YAML_EXT) ||
+          (mfio.fattrib & AM_DIR))
+        continue;
+      const char* mres =
+          readModelYaml(mfio.fname, (uint8_t*)&partialModel.header,
+                        sizeof(partialModel), &version);
+      if (mres)
+        error = true;
+      else {
+        dirmodels++;
+        // Scan all models
+        bool found = false;
+        for (auto const& cats : modelslist.getCategories()) {
+          for (ModelsCategory::iterator it = cats->begin(); it != cats->end();
+               ++it) {
+            if (strcmp((*it)->modelFilename, mfio.fname) == 0) {
+              found = true;
+              break;
+            }
+            if (found) break;
+          }
+        }
+        if (!found) {
+          TRACE(
+              "Couldn't find %s in models.yml, Adding it to "
+              "the " DEFAULT_CATEGORY " Category",
+              mfio.fname);
+          // Get the unsorted category
+          ModelsCategory* unsorted = modelslist.getCategory(DEFAULT_CATEGORY);
+          if (!unsorted) unsorted = modelslist.createCategory(DEFAULT_CATEGORY);
+          modelslist.addModel(unsorted, mfio.fname);
+          unsorted->back()->setModelName(partialModel.header.name);
+        }
+      }
+    }
+  } else {
+    error = true;
+  }
+
+  if (!error) {
+    TRACE("Models Count %d\r\nDir Models %d", modelslist.getModelsCount(),
+          dirmodels);
+  } else {
+    TRACE("Unable to count File Models, File system Error?");
+  }
+}
+#endif
 
 void ModelsList::save()
 {

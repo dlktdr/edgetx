@@ -104,6 +104,7 @@ public:
   bool load();
   void save();
   void clear();
+  void rebuildFromDir();
 
   const std::list<ModelsCategory *> & getCategories() const
   {
