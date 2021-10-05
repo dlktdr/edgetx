@@ -101,18 +101,30 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
 {
     modelslist_iter* mi = (modelslist_iter*)ctx;
     list<ModelsCategory *>& cats = mi->root->getCategories();
+    static bool fexists=false;
     switch(mi->level) {
 
     case modelslist_iter::Model:
         if (!strcmp(mi->current_attr,"filename")) {
             if (!cats.empty()) {
-                ModelCell* model = new ModelCell(buf, len);
-                cats.back()->push_back(model);
-                mi->root->incModelsCount();
+                // Check if the models .yml actually exists before adding it
+                FILINFO fno;
+                char modelpath[LEN_MODEL_FILENAME + sizeof(MODELS_PATH) + 10];
+                buf[len] = '\0';
+                snprintf(modelpath, sizeof(modelpath), "%s/%s", MODELS_PATH, buf);
+                if (f_stat(modelpath, &fno) == FR_OK) {
+                    ModelCell* model = new ModelCell(buf, len);
+                    cats.back()->push_back(model);
+                    mi->root->incModelsCount();
+                    fexists = true;
+                } else {
+                    TRACE("File %s Not Found", modelpath);
+                    fexists = false;
+                }
             }
         }
         else if (!strcmp(mi->current_attr,"name")) {
-            if (!cats.empty()) {
+            if (!cats.empty() && fexists) {
                 ModelsCategory* cat = cats.back();
                 if (!cat->empty()) {
                     ModelCell* model = cat->back();
