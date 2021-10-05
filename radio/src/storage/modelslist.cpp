@@ -243,11 +243,6 @@ void ModelsCategory::moveModel(ModelCell * model, int8_t step)
   erase(current);
 }
 
-void ModelsCategory::getIcon()
-{
-  __NOP();
-}
-
 int ModelsCategory::getModelIndex(const ModelCell* model)
 {
   int idx = 0;
@@ -554,7 +549,7 @@ ModelsCategory * ModelsList::createCategory(const char* name, bool save)
   return result;
 }
 
-ModelCell * ModelsList::addModel(ModelsCategory * category, const char * name, const char *mname, bool save)
+ModelCell * ModelsList::addModel(ModelsCategory * category, const char * name, bool save)
 {
   ModelCell * result = category->addModel(name);
   modelsCount++;
