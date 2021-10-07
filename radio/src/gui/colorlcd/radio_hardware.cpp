@@ -383,6 +383,31 @@ void RadioHardwarePage::build(FormWindow * window)
   new CheckBox(window, grid.getFieldSlot(1,0), GET_SET_INVERTED(g_eeGeneral.jitterFilter));
   grid.nextLine();
 
+#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
+  
+  new StaticText(window, grid.getLabelSlot(), "Cut Off Slope", 0, COLOR_THEME_PRIMARY1);
+  NumberEdit *cos = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.cutoffSlope * 100), SET_VALUE(sf1econf.cutoffSlope, (float)newValue / 100.0) ,0, PREC2);
+  cos->setStep(5);
+  grid.nextLine();
+
+  new StaticText(window, grid.getLabelSlot(), "Frequency", 0, COLOR_THEME_PRIMARY1);
+  NumberEdit *freq = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 80000, GET_DEFAULT(sf1econf.frequency * 100), SET_VALUE(sf1econf.frequency, (float)newValue / 100.0) ,0, PREC2);
+  freq->setStep(500);
+  grid.nextLine();
+
+  new StaticText(window, grid.getLabelSlot(), "Deriv C/O Freq", 0, COLOR_THEME_PRIMARY1);
+  NumberEdit *dco = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.derivativeCutoffFrequency * 100), SET_VALUE(sf1econf.derivativeCutoffFrequency, (float)newValue / 100.0) ,0, PREC2);
+  grid.nextLine();
+  dco->setStep(5);
+  
+  new StaticText(window, grid.getLabelSlot(), "MinCutoffFrequency", 0, COLOR_THEME_PRIMARY1);
+  NumberEdit *mco = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.minCutoffFrequency * 100), SET_VALUE(sf1econf.minCutoffFrequency, (float)newValue / 100.0) ,0, PREC2);
+  mco->setStep(5);
+  grid.nextLine();
+
+#endif  
+
+
   // Debugs
   new StaticText(window, grid.getLabelSlot(), STR_DEBUG, 0, COLOR_THEME_PRIMARY1 | FONT(BOLD));
   auto debugAnas = new TextButton(window, grid.getFieldSlot(2, 0), STR_ANALOGS_BTN);
