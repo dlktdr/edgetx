@@ -1067,9 +1067,9 @@ typedef struct {
 } SF1eFilter;
 
 SF1eFilterConfiguration sf1econf = {
-  .frequency = 200,
-  .minCutoffFrequency = 0.2,
-  .cutoffSlope = 6,
+  .frequency = 500,
+  .minCutoffFrequency = 0.06,
+  .cutoffSlope = 3,
   .derivativeCutoffFrequency = 1
 };
 SF1eFilter oneeufilters[NUM_ANALOGS];
