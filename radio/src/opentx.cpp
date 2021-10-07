@@ -1030,7 +1030,11 @@ JitterMeter<uint16_t> avgJitter[NUM_ANALOGS];
 tmr10ms_t jitterResetTime = 0;
 #endif
 
+#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
+#define JITTER_FILTER_STRENGTH  1
+#else
 #define JITTER_FILTER_STRENGTH  4         // tune this value, bigger value - more filtering (range: 1-5) (see explanation below)
+#endif
 #define ANALOG_SCALE            1         // tune this value, bigger value - more filtering (range: 0-1) (see explanation below)
 
 #define JITTER_ALPHA            (1<<JITTER_FILTER_STRENGTH)
@@ -1046,8 +1050,87 @@ uint16_t anaIn(uint8_t chan)
   return ANA_FILT(chan);
 }
 
+#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
+
+typedef struct {
+	float hatxprev;
+	float xprev;
+	char usedBefore;
+} SFLowPassFilter;
+
+typedef struct {
+	SF1eFilterConfiguration config;
+	SFLowPassFilter xfilt;
+	SFLowPassFilter dxfilt;
+	double lastTime;
+	float frequency;
+} SF1eFilter;
+
+SF1eFilterConfiguration sf1econf = {
+  .frequency = 200,
+  .minCutoffFrequency = 0.2,
+  .cutoffSlope = 6,
+  .derivativeCutoffFrequency = 1
+};
+SF1eFilter oneeufilters[NUM_ANALOGS];
+
+float SFLowPassFilterDo(SFLowPassFilter *filter, float x, float alpha) {
+	if(!filter->usedBefore) {
+		filter->usedBefore = 1;
+		filter->hatxprev = x;
+	}
+	float hatx = alpha * x + (1.f - alpha) * filter->hatxprev;
+	filter->xprev = x;
+	filter->hatxprev = hatx;
+	return hatx;
+}
+
+float SF1eFilterAlpha(SF1eFilter *filter, float cutoff)
+{
+	float tau = 1.0f / (2.f * 3.14159265359 * cutoff);
+	float te = 1.0f / filter->frequency;
+	return 1.0f / (1.0f + tau / te);
+}
+
+float SF1eFilterDo(SF1eFilter *filter, float x)
+{
+	float dx = 0.f;
+
+	if(filter->lastTime == 0 && filter->frequency != filter->config.frequency) {
+		filter->frequency = filter->config.frequency;
+	}
+
+	if(filter->xfilt.usedBefore) {
+		dx = (x - filter->xfilt.xprev) * filter->frequency;
+	}
+
+	float edx = SFLowPassFilterDo(&(filter->dxfilt), dx, SF1eFilterAlpha(filter, filter->config.derivativeCutoffFrequency));
+	float cutoff = filter->config.minCutoffFrequency + filter->config.cutoffSlope * fabsf(edx);
+	return SFLowPassFilterDo(&(filter->xfilt), x, SF1eFilterAlpha(filter, cutoff));
+}
+
+#endif
+
 void getADC()
 {
+#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
+    static bool isinited=false;
+    if(!isinited) {
+      for(int i=0;i<NUM_ANALOGS;i++) {
+        oneeufilters[i].lastTime = 0;
+        oneeufilters[i].xfilt.usedBefore = 0;
+        oneeufilters[i].xfilt.hatxprev = 0;
+        oneeufilters[i].xfilt.xprev = 0;
+        oneeufilters[i].dxfilt.usedBefore = 0;
+        oneeufilters[i].dxfilt.hatxprev = 0;
+        oneeufilters[i].dxfilt.xprev = 0;
+        oneeufilters[i].config = sf1econf;
+      }
+      isinited = true;
+    }
+#endif    
+
+
 #if defined(JITTER_MEASURE)
   if (JITTER_MEASURE_ACTIVE() && jitterResetTime < get_tmr10ms()) {
     // reset jitter measurement every second
@@ -1088,6 +1171,22 @@ void getADC()
     v = getAnalogValue(x) >> (1 - ANALOG_SCALE);
 #endif
 
+#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
+    // 1E Filter
+    //
+    // A Speed based filtering low pass method, which estimates the signals speed
+    // (derivative) so not to introduce too much lag.
+    //
+    // Uses floating point so if on a target without FPU defaults to the Modified 
+    // moving average
+    // 
+    if(!g_eeGeneral.jitterFilter) {
+      oneeufilters[x].config = sf1econf; // Update configuration on the fly
+      s_anaFilt[x] = SF1eFilterDo(&oneeufilters[x], v) * JITTER_ALPHA;
+      
+    }
+
+#else
     // Jitter filter:
     //    * pass trough any big change directly
     //    * for small change use Modified moving average (MMA) filter
