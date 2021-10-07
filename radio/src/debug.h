@@ -386,7 +386,7 @@ enum DebugTimers {
   debugTimerMixer,
   debugTimerTelemetryWakeup,
   debugTimerPerMain,
-  debugTimerPerMain1,
+  debugTimerPerMain1, // 10
   debugTimerGuiMain,
   debugTimerLua,
   debugTimerLcdRefreshWait,
@@ -396,7 +396,7 @@ enum DebugTimers {
   debugTimerVersion,
   debugTimerSimpleMenu,
   debugTimerDrawText,
-  debugTimerDrawText1,
+  debugTimerDrawText1, // 20
 
   debugTimerGetAdc,
   debugTimerGetSwitches,

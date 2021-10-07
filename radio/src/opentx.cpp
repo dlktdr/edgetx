@@ -1049,6 +1049,7 @@ uint16_t anaIn(uint8_t chan)
 {
   return ANA_FILT(chan);
 }
+#endif
 
 #if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
 
@@ -1182,8 +1183,7 @@ void getADC()
     // 
     if(!g_eeGeneral.jitterFilter) {
       oneeufilters[x].config = sf1econf; // Update configuration on the fly
-      s_anaFilt[x] = SF1eFilterDo(&oneeufilters[x], v) * JITTER_ALPHA;
-      
+      s_anaFilt[x] = SF1eFilterDo(&oneeufilters[x], v) * JITTER_ALPHA;      
     }
 
 #else
