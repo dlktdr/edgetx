@@ -56,6 +56,7 @@ option(TBS_RELEASE "Used to build TBS released firmware" OFF)
 option(IMRC_RELEASE "Used to build IMRC released firmware" OFF)
 option(HARDWARE_TRAINER_MULTI "Allow multi trainer" OFF)
 option(BOOTLOADER "Include Bootloader" ON)
+option(ONEEURO_ANALOG_FILTER "Use a 1 Euro Filter on ADC" OFF)
 
 # since we reset all default CMAKE compiler flags for firmware builds, provide an alternate way for user to specify additional flags.
 set(FIRMWARE_C_FLAGS "" CACHE STRING "Additional flags for firmware target c compiler (note: all CMAKE_C_FLAGS[_*] are ignored for firmware/bootloader).")
@@ -388,6 +389,10 @@ endif()
 if(FLYSKY_HALL_STICKS_REVERSE)
   add_definitions(-DFLYSKY_HALL_STICKS_REVERSE)
 endif()
+
+if(ONEEURO_ANALOG_FILTER)
+  add_definitions(-DONEEURO_ANALOG_FILTER)
+endif()  
 
 if(IMU_LSM6DS33)
     add_definitions(-DIMU_LSM6DS33)
