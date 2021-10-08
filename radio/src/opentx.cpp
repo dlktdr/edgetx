@@ -1031,7 +1031,7 @@ tmr10ms_t jitterResetTime = 0;
 #endif
 
 #if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
-#define JITTER_FILTER_STRENGTH  1
+#define JITTER_FILTER_STRENGTH  4
 #else
 #define JITTER_FILTER_STRENGTH  4         // tune this value, bigger value - more filtering (range: 1-5) (see explanation below)
 #endif
@@ -1068,7 +1068,7 @@ typedef struct {
 } SF1eFilter;
 
 SF1eFilterConfiguration sf1econf = {
-  .frequency = 500,
+  .frequency = 143,
   .minCutoffFrequency = 0.06,
   .cutoffSlope = 3,
   .derivativeCutoffFrequency = 1
@@ -1148,6 +1148,20 @@ void getADC()
       TRACE("adcRead failed");
   DEBUG_TIMER_STOP(debugTimerAdcRead);
 
+  // Monitor Update Rate
+  static uint32_t starttime=0;
+  static uint32_t updateratecount=0;    
+  if(updateratecount == 0) {
+    starttime = g_tmr10ms;
+  }
+  
+  uint32_t elapsedtime = g_tmr10ms - starttime;
+  if(elapsedtime > 1000) {      
+    debugPrintf("Time Elapsed %.02fs, Updates %d, Frequncy %.02fHz\r\n", (float)elapsedtime/100, updateratecount, (float)updateratecount / ((float)elapsedtime/100));
+    updateratecount = 0;
+  } else 
+    updateratecount++;
+
   for (uint8_t x=0; x<NUM_ANALOGS; x++) {
     uint32_t v;
 #if defined(FLYSKY_HALL_STICKS)
@@ -1172,7 +1186,7 @@ void getADC()
     v = getAnalogValue(x) >> (1 - ANALOG_SCALE);
 #endif
 
-#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
+//#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
     // 1E Filter
     //
     // A Speed based filtering low pass method, which estimates the signals speed
@@ -1180,13 +1194,18 @@ void getADC()
     //
     // Uses floating point so if on a target without FPU defaults to the Modified 
     // moving average
-    // 
+    
+    uint32_t values[3] = {0,0,0}; // RAW, MMA, 1EURO
+    if(x == 1)
+      values[0] = v * JITTER_ALPHA;
+
     if(!g_eeGeneral.jitterFilter) {
       oneeufilters[x].config = sf1econf; // Update configuration on the fly
-      s_anaFilt[x] = SF1eFilterDo(&oneeufilters[x], v) * JITTER_ALPHA;      
+      if(x == 1)
+        values[1] = SF1eFilterDo(&oneeufilters[x], v) * JITTER_ALPHA;
     }
 
-#else
+//#else
     // Jitter filter:
     //    * pass trough any big change directly
     //    * for small change use Modified moving average (MMA) filter
@@ -1223,13 +1242,28 @@ void getADC()
     //   * <out> = s_anaFilt[x]
     uint32_t previous = s_anaFilt[x] / JITTER_ALPHA;
     uint32_t diff = (v > previous) ? (v - previous) : (previous - v);
-    if (!g_eeGeneral.jitterFilter && diff < (10*ANALOG_MULTIPLIER)) { // g_eeGeneral.jitterFilter is inverted, 0 - active
+    s_anaFilt[x] = (s_anaFilt[x] - previous) + v;
+    /*if (!g_eeGeneral.jitterFilter && diff < (10*ANALOG_MULTIPLIER)) { // g_eeGeneral.jitterFilter is inverted, 0 - active
       // apply jitter filter
-      s_anaFilt[x] = (s_anaFilt[x] - previous) + v;
+      
     }
     else {
       // use unfiltered value
       s_anaFilt[x] = v * JITTER_ALPHA;
+    }*/
+
+    if(x == 1)
+      values[2] = s_anaFilt[x];
+
+    static int datacount=0;
+    if(x == 1) {
+      if(s_anaFilt[10] > 35000 && datacount > 0)  {
+        TRACE_NOCRLF("%d\t%d\t%d\r\n",values[0]-3000,values[1]-3000,values[2]-3000);
+        datacount--;
+      } else if (s_anaFilt[10] < 30000)  {
+        datacount = 10000;
+
+      }
     }
 
 #if defined(JITTER_MEASURE)
@@ -1254,7 +1288,7 @@ void getADC()
   }
 }
 
-#endif // SIMU
+//#endif // SIMU
 
 uint8_t g_vbat100mV = 0;
 uint16_t lightOffCounter;
