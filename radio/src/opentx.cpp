@@ -1031,11 +1031,7 @@ JitterMeter<uint16_t> avgJitter[NUM_ANALOGS];
 tmr10ms_t jitterResetTime = 0;
 #endif
 
-#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
 #define JITTER_FILTER_STRENGTH  4
-#else
-#define JITTER_FILTER_STRENGTH  4         // tune this value, bigger value - more filtering (range: 1-5) (see explanation below)
-#endif
 #define ANALOG_SCALE            1         // tune this value, bigger value - more filtering (range: 0-1) (see explanation below)
 
 #define JITTER_ALPHA            (1<<JITTER_FILTER_STRENGTH)
@@ -1070,7 +1066,7 @@ void getADC()
   if (!adcRead())
       TRACE("adcRead failed");
   DEBUG_TIMER_STOP(debugTimerAdcRead);
-
+/*
   // Monitor Update Rate
   static uint32_t starttime=0;
   static uint32_t updateratecount=0;    
@@ -1084,6 +1080,7 @@ void getADC()
     updateratecount = 0;
   } else 
     updateratecount++;
+    */
 
   for (uint8_t x=0; x<NUM_ANALOGS; x++) {
     uint32_t v;
@@ -1117,8 +1114,15 @@ void getADC()
 
     // User this filter for the output
     if(i == filterchoice) {
-      s_anaFilt[x] = filt->outputs[x] * ANALOG_SCALE;
+      s_anaFilt[x] = filt->outputs[x] * JITTER_ALPHA;
     }
+  }
+
+  if(x == debugfilter) {
+    for(filt = filters.begin(); filt != filters.end(); ++filt, i++) {
+      TRACE_NOCRLF("%d\t", (uint32_t)(filt->outputs[x]));
+    }
+    TRACE_NOCRLF("\r\n");
   }
 
 #if defined(JITTER_MEASURE)
@@ -1729,6 +1733,8 @@ void moveTrimsToOffsets() // copy state of 3 primary to subtrim
 
 OneEuroFilter onefilt;
 JitterFilter jitfilt;
+OffFilter offfilt;
+AUDFilter audfilt;
 
 FilterList onefilter = {  
   .filter = &onefilt
@@ -1738,12 +1744,26 @@ FilterList jitfilter = {
   .filter = &jitfilt
 };
 
+FilterList offfilter = {
+  .filter = &offfilt
+};
+
+FilterList audfilter = {
+  .filter = &audfilt
+};
+
+std::list<FilterList> filters;
+int filterchoice=0;
+int debugfilter=-1;
+
 void opentxInit()
 {
   TRACE("opentxInit");
 
+  filters.push_back(offfilter);
   filters.push_back(onefilter);
   filters.push_back(jitfilter);
+  filters.push_back(audfilter);
 
 #if defined(LIBOPENUI)
   // create ViewMain

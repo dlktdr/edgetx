@@ -23,6 +23,7 @@
 #include "radio_calibration.h"
 #include "radio_diagkeys.h"
 #include "radio_diaganas.h"
+#include "filters.h"
 #include "opentx.h"
 #include "libopenui.h"
 #include "hal/adc_driver.h"
@@ -211,6 +212,80 @@ void restartExternalModule()
   resumeMixerCalculations();
 }
 
+class FilterWindow : public FormGroup
+{
+  public:
+    FilterWindow(FormWindow * parent, const rect_t &rect) :
+      FormGroup(parent, rect, FORWARD_SCROLL | FORM_FORWARD_FOCUS)
+    {
+      update();
+    }
+
+    void checkEvents() override
+    {
+      FormGroup::checkEvents();
+    }
+
+    void update()
+    {
+      FormGridLayout grid;
+#if LCD_W > LCD_H
+      grid.setLabelWidth(180);
+#else
+      grid.setLabelWidth(130);
+#endif
+      clear();
+
+      // ADC filter
+      new StaticText(this, grid.getLabelSlot(), "ADC Filter Test", 0, COLOR_THEME_PRIMARY1);
+      grid.nextLine();
+
+      // Filter Choices
+      new StaticText(this, grid.getLabelSlot(true), "Filter", 0, COLOR_THEME_PRIMARY1);
+      Choice *filtchoice = new Choice(this,grid.getFieldSlot(1,0), 0, filters.size(), GET_DEFAULT(filterchoice), [=](int32_t newValue) { filterchoice = newValue; update(); });
+      std::list<FilterList>::iterator filt;
+      int i=0;
+      Filter *filter=nullptr;
+      for(filt = filters.begin(); filt != filters.end(); ++filt, i++) {
+        filtchoice->addValue(filt->filter->getFilterName());    
+        if(i == filterchoice)
+          filter = filt->filter;
+      }
+      filtchoice->setMax(i-1);
+      grid.nextLine();
+
+      if(filter != nullptr) {
+        for(int i=0; i < filter->getParameterCount(); i++) {
+          new StaticText(this, grid.getLabelSlot(true), filter->getParameterStr(i), 0, COLOR_THEME_PRIMARY1);
+          NumberEdit *myedit = new NumberEdit(this, grid.getFieldSlot(1,0), 0, 10000, GET_DEFAULT(filter->getParameter(i)*100), [=](int32_t newValue) { 
+            filter->setParameter(i, (float)newValue / 100.0);
+          },0,PREC2);
+          myedit->setStep(filter->getParameterStep(i)*100.0);
+          grid.nextLine();
+        }
+      }
+
+      // Filter Choices
+      new StaticText(this, grid.getLabelSlot(true), "Debug Output Channel", 0, COLOR_THEME_PRIMARY1);
+      Choice *debugchoice = new Choice(this,grid.getFieldSlot(1,0), -1, filters.size(), GET_SET_DEFAULT(debugfilter));
+      debugchoice->addValue("Disable");
+      for(int i=0; i < NUM_ANALOGS; i++) {
+        char str[40];
+        debugchoice->addValue(itoa(i,str,10));
+      }
+      grid.nextLine();
+   
+      getParent()->moveWindowsTop(top() + 1, adjustHeight());
+      getParent()->adjustInnerHeight();
+    }
+
+   protected:
+
+   private:
+};
+
+
+
 void RadioHardwarePage::build(FormWindow * window)
 {
   FormGridLayout grid;
@@ -337,12 +412,10 @@ void RadioHardwarePage::build(FormWindow * window)
 #endif
 
 #if defined(BLUETOOTH)
-  // Bluetooth mode
-  {
+  // Bluetooth mode  
     new Subtitle(window, grid.getLineSlot(), STR_BLUETOOTH, 0, COLOR_THEME_PRIMARY1);
     grid.nextLine();
-    grid.addWindow(new BluetoothConfigWindow(window, {0, grid.getWindowHeight(), LCD_W, 0}));
-  }
+    grid.addWindow(new BluetoothConfigWindow(window, {0, grid.getWindowHeight(), LCD_W, 0}));  
 #endif
 
 #if defined(AUX_SERIAL)
@@ -378,36 +451,9 @@ void RadioHardwarePage::build(FormWindow * window)
   grid.nextLine();
 #endif
 
-  // ADC filter
-  new StaticText(window, grid.getLabelSlot(), STR_JITTER_FILTER, 0, COLOR_THEME_PRIMARY1);
-  new CheckBox(window, grid.getFieldSlot(1,0), GET_SET_INVERTED(g_eeGeneral.jitterFilter));
+  new Subtitle(window, grid.getLineSlot(), "Analog Filter", 0, COLOR_THEME_PRIMARY1);
   grid.nextLine();
-
-
-  // 
-
-  
-  /*new StaticText(window, grid.getLabelSlot(), "Cut Off Slope", 0, COLOR_THEME_PRIMARY1);
-  NumberEdit *cos = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.cutoffSlope * 100), SET_VALUE(sf1econf.cutoffSlope, (float)newValue / 100.0) ,0, PREC2);
-  cos->setStep(5);
-  grid.nextLine();
-
-  new StaticText(window, grid.getLabelSlot(), "Frequency", 0, COLOR_THEME_PRIMARY1);
-  NumberEdit *freq = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 80000, GET_DEFAULT(sf1econf.frequency * 100), SET_VALUE(sf1econf.frequency, (float)newValue / 100.0) ,0, PREC2);
-  freq->setStep(500);
-  grid.nextLine();
-
-  new StaticText(window, grid.getLabelSlot(), "Deriv C/O Freq", 0, COLOR_THEME_PRIMARY1);
-  NumberEdit *dco = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.derivativeCutoffFrequency * 100), SET_VALUE(sf1econf.derivativeCutoffFrequency, (float)newValue / 100.0) ,0, PREC2);
-  grid.nextLine();
-  dco->setStep(5);
-  
-  new StaticText(window, grid.getLabelSlot(), "MinCutoffFrequency", 0, COLOR_THEME_PRIMARY1);
-  NumberEdit *mco = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.minCutoffFrequency * 100), SET_VALUE(sf1econf.minCutoffFrequency, (float)newValue / 100.0) ,0, PREC2);
-  mco->setStep(1);
-  grid.nextLine();*/
-
-
+  grid.addWindow(new FilterWindow(window, {0, grid.getWindowHeight(), LCD_W, 0}));
 
 
   // Debugs
