@@ -22,6 +22,7 @@
 #include "opentx.h"
 #include "io/frsky_firmware_update.h"
 #include "hal/adc_driver.h"
+#include "filters.h"
 
 #if defined(LIBOPENUI)
   #include "libopenui.h"
@@ -1051,87 +1052,9 @@ uint16_t anaIn(uint8_t chan)
 }
 #endif
 
-#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
-
-typedef struct {
-	float hatxprev;
-	float xprev;
-	char usedBefore;
-} SFLowPassFilter;
-
-typedef struct {
-	SF1eFilterConfiguration config;
-	SFLowPassFilter xfilt;
-	SFLowPassFilter dxfilt;
-	double lastTime;
-	float frequency;
-} SF1eFilter;
-
-SF1eFilterConfiguration sf1econf = {
-  .frequency = 143,
-  .minCutoffFrequency = 0.06,
-  .cutoffSlope = 3,
-  .derivativeCutoffFrequency = 1
-};
-SF1eFilter oneeufilters[NUM_ANALOGS];
-
-float SFLowPassFilterDo(SFLowPassFilter *filter, float x, float alpha) {
-	if(!filter->usedBefore) {
-		filter->usedBefore = 1;
-		filter->hatxprev = x;
-	}
-	float hatx = alpha * x + (1.f - alpha) * filter->hatxprev;
-	filter->xprev = x;
-	filter->hatxprev = hatx;
-	return hatx;
-}
-
-float SF1eFilterAlpha(SF1eFilter *filter, float cutoff)
-{
-	float tau = 1.0f / (2.f * 3.14159265359 * cutoff);
-	float te = 1.0f / filter->frequency;
-	return 1.0f / (1.0f + tau / te);
-}
-
-float SF1eFilterDo(SF1eFilter *filter, float x)
-{
-	float dx = 0.f;
-
-	if(filter->lastTime == 0 && filter->frequency != filter->config.frequency) {
-		filter->frequency = filter->config.frequency;
-	}
-
-	if(filter->xfilt.usedBefore) {
-		dx = (x - filter->xfilt.xprev) * filter->frequency;
-	}
-
-	float edx = SFLowPassFilterDo(&(filter->dxfilt), dx, SF1eFilterAlpha(filter, filter->config.derivativeCutoffFrequency));
-	float cutoff = filter->config.minCutoffFrequency + filter->config.cutoffSlope * fabsf(edx);
-	return SFLowPassFilterDo(&(filter->xfilt), x, SF1eFilterAlpha(filter, cutoff));
-}
-
-#endif
 
 void getADC()
 {
-#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
-    static bool isinited=false;
-    if(!isinited) {
-      for(int i=0;i<NUM_ANALOGS;i++) {
-        oneeufilters[i].lastTime = 0;
-        oneeufilters[i].xfilt.usedBefore = 0;
-        oneeufilters[i].xfilt.hatxprev = 0;
-        oneeufilters[i].xfilt.xprev = 0;
-        oneeufilters[i].dxfilt.usedBefore = 0;
-        oneeufilters[i].dxfilt.hatxprev = 0;
-        oneeufilters[i].dxfilt.xprev = 0;
-        oneeufilters[i].config = sf1econf;
-      }
-      isinited = true;
-    }
-#endif    
-
-
 #if defined(JITTER_MEASURE)
   if (JITTER_MEASURE_ACTIVE() && jitterResetTime < get_tmr10ms()) {
     // reset jitter measurement every second
@@ -1186,85 +1109,17 @@ void getADC()
     v = getAnalogValue(x) >> (1 - ANALOG_SCALE);
 #endif
 
-//#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
-    // 1E Filter
-    //
-    // A Speed based filtering low pass method, which estimates the signals speed
-    // (derivative) so not to introduce too much lag.
-    //
-    // Uses floating point so if on a target without FPU defaults to the Modified 
-    // moving average
-    
-    uint32_t values[3] = {0,0,0}; // RAW, MMA, 1EURO
-    if(x == 1)
-      values[0] = v * JITTER_ALPHA;
+  // Run all filters, store all outputs for diganostic.
+  std::list<FilterList>::iterator filt;
+  int i=0;
+  for(filt = filters.begin(); filt != filters.end(); ++filt, i++) {
+    filt->outputs[x] = filt->filter->doFilter(x,v);
 
-    if(!g_eeGeneral.jitterFilter) {
-      oneeufilters[x].config = sf1econf; // Update configuration on the fly
-      if(x == 1)
-        values[1] = SF1eFilterDo(&oneeufilters[x], v) * JITTER_ALPHA;
+    // User this filter for the output
+    if(i == filterchoice) {
+      s_anaFilt[x] = filt->outputs[x] * ANALOG_SCALE;
     }
-
-//#else
-    // Jitter filter:
-    //    * pass trough any big change directly
-    //    * for small change use Modified moving average (MMA) filter
-    //
-    // Explanation:
-    //
-    // Normal MMA filter has this formula:
-    //            <out> = ((ALPHA-1)*<out> + <in>)/ALPHA
-    //
-    // If calculation is done this way with integer arithmetics, then any small change in
-    // input signal is lost. One way to combat that, is to rearrange the formula somewhat,
-    // to store a more precise (larger) number between iterations. The basic idea is to
-    // store undivided value between iterations. Therefore an new variable <filtered> is
-    // used. The new formula becomes:
-    //           <filtered> = <filtered> - <filtered>/ALPHA + <in>
-    //           <out> = <filtered>/ALPHA  (use only when out is needed)
-    //
-    // The above formula with a maximum allowed ALPHA value (we are limited by
-    // the 16 bit s_anaFilt[]) was tested on the radio. The resulting signal still had
-    // some jitter (a value of 1 was observed). The jitter might be bigger on other
-    // radios.
-    //
-    // So another idea is to use larger input values for filtering. So instead of using
-    // input in a range from 0 to 2047, we use twice larger number (temp[x] is divided less)
-    //
-    // This also means that ALPHA must be lowered (remember 16 bit limit), but test results
-    // have proved that this kind of filtering gives better results. So the recommended values
-    // for filter are:
-    //     JITTER_FILTER_STRENGTH  4
-    //     ANALOG_SCALE            1
-    //
-    // Variables mapping:
-    //   * <in> = v
-    //   * <out> = s_anaFilt[x]
-    uint32_t previous = s_anaFilt[x] / JITTER_ALPHA;
-    uint32_t diff = (v > previous) ? (v - previous) : (previous - v);
-    s_anaFilt[x] = (s_anaFilt[x] - previous) + v;
-    /*if (!g_eeGeneral.jitterFilter && diff < (10*ANALOG_MULTIPLIER)) { // g_eeGeneral.jitterFilter is inverted, 0 - active
-      // apply jitter filter
-      
-    }
-    else {
-      // use unfiltered value
-      s_anaFilt[x] = v * JITTER_ALPHA;
-    }*/
-
-    if(x == 1)
-      values[2] = s_anaFilt[x];
-
-    static int datacount=0;
-    if(x == 1) {
-      if(s_anaFilt[10] > 35000 && datacount > 0)  {
-        TRACE_NOCRLF("%d\t%d\t%d\r\n",values[0]-3000,values[1]-3000,values[2]-3000);
-        datacount--;
-      } else if (s_anaFilt[10] < 30000)  {
-        datacount = 10000;
-
-      }
-    }
+  }
 
 #if defined(JITTER_MEASURE)
     if (JITTER_MEASURE_ACTIVE()) {
@@ -1287,8 +1142,6 @@ void getADC()
     }
   }
 }
-
-//#endif // SIMU
 
 uint8_t g_vbat100mV = 0;
 uint16_t lightOffCounter;
@@ -1874,9 +1727,24 @@ void moveTrimsToOffsets() // copy state of 3 primary to subtrim
   uint8_t rotencSpeed;
 #endif
 
+OneEuroFilter onefilt;
+JitterFilter jitfilt;
+
+FilterList onefilter = {  
+  .filter = &onefilt
+};
+
+FilterList jitfilter = {
+  .filter = &jitfilt
+};
+
 void opentxInit()
 {
   TRACE("opentxInit");
+
+  filters.push_back(onefilter);
+  filters.push_back(jitfilter);
+
 #if defined(LIBOPENUI)
   // create ViewMain
   ViewMain::instance();

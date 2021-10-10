@@ -1296,19 +1296,6 @@ extern JitterMeter<uint16_t> avgJitter[NUM_ANALOGS];
 #endif
 #endif
 
-#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
-
-typedef struct {
-  float frequency;
-  float minCutoffFrequency;
-  float cutoffSlope;
-  float derivativeCutoffFrequency;
-} SF1eFilterConfiguration;
-
-extern SF1eFilterConfiguration sf1econf;
-
-#endif
-
 #if defined(INTERNAL_GPS)
   #include "gps.h"
 #endif
