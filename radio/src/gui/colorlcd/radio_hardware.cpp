@@ -383,9 +383,11 @@ void RadioHardwarePage::build(FormWindow * window)
   new CheckBox(window, grid.getFieldSlot(1,0), GET_SET_INVERTED(g_eeGeneral.jitterFilter));
   grid.nextLine();
 
-#if defined(__FPU_PRESENT) && defined(ONEEURO_ANALOG_FILTER)
+
+  // 
+
   
-  new StaticText(window, grid.getLabelSlot(), "Cut Off Slope", 0, COLOR_THEME_PRIMARY1);
+  /*new StaticText(window, grid.getLabelSlot(), "Cut Off Slope", 0, COLOR_THEME_PRIMARY1);
   NumberEdit *cos = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.cutoffSlope * 100), SET_VALUE(sf1econf.cutoffSlope, (float)newValue / 100.0) ,0, PREC2);
   cos->setStep(5);
   grid.nextLine();
@@ -402,10 +404,10 @@ void RadioHardwarePage::build(FormWindow * window)
   
   new StaticText(window, grid.getLabelSlot(), "MinCutoffFrequency", 0, COLOR_THEME_PRIMARY1);
   NumberEdit *mco = new NumberEdit(window, grid.getFieldSlot(1,0), 1, 1000, GET_DEFAULT(sf1econf.minCutoffFrequency * 100), SET_VALUE(sf1econf.minCutoffFrequency, (float)newValue / 100.0) ,0, PREC2);
-  mco->setStep(5);
-  grid.nextLine();
+  mco->setStep(1);
+  grid.nextLine();*/
 
-#endif  
+
 
 
   // Debugs
