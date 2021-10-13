@@ -127,11 +127,11 @@ class BluetoothConfigWindow : public FormGroup
     void checkEvents() override
     {
       FormGroup::checkEvents();
-      if (!rte) return;
+   /*   if (!rte) return;
       if (bluetooth.state != lastbluetoothstate) {
         lastbluetoothstate = bluetooth.state;
         if (!(modechoiceopen || rte->hasFocus())) update();
-      }
+      }*/
     }
 
     void update()
@@ -146,7 +146,7 @@ class BluetoothConfigWindow : public FormGroup
 
       new StaticText(this, grid.getLabelSlot(true), STR_MODE, 0,
                      COLOR_THEME_PRIMARY1);
-      modechoiceopen = false;
+      //modechoiceopen = false;
       btMode = new ModeChoice(
           this, grid.getFieldSlot(), STR_BLUETOOTH_MODES, BLUETOOTH_OFF,
           BLUETOOTH_TRAINER, GET_DEFAULT(g_eeGeneral.bluetoothMode),
@@ -154,8 +154,8 @@ class BluetoothConfigWindow : public FormGroup
             g_eeGeneral.bluetoothMode = newValue;
             update();
             SET_DIRTY();
-            btMode->setFocus(SET_FOCUS_DEFAULT);
-            modechoiceopen = false;
+//            btMode->setFocus(SET_FOCUS_DEFAULT);
+            //modechoiceopen = false;
           },
           &modechoiceopen);
       grid.nextLine();
@@ -170,7 +170,7 @@ class BluetoothConfigWindow : public FormGroup
 
         // Local MAC
         new StaticText(this, grid.getLabelSlot(true), STR_BLUETOOTH_LOCAL_ADDR, 0, COLOR_THEME_PRIMARY1);
-        new StaticText(this, grid.getFieldSlot(), bluetooth.localAddr[0] == '\0' ? "---" : bluetooth.localAddr, 0, COLOR_THEME_PRIMARY1);
+        new StaticText(this, grid.getFieldSlot(), bluetooth.localAddr[0] == '\0' ? "---" : bluetooth.localAddr, REFRESH_ALWAYS, COLOR_THEME_PRIMARY1);
         grid.nextLine();
 
         // Remote MAC
@@ -211,6 +211,38 @@ void restartExternalModule()
   resumePulses();
   resumeMixerCalculations();
 }
+
+class StaticNumber : public StaticText
+{
+  public:
+    StaticNumber(Window * parent, const rect_t & rect, std::function<int()> getValue, WindowFlags windowFlags = 0, LcdFlags textFlags = 0) :
+    StaticText(parent, rect, "", windowFlags, textFlags),
+    _getValue(std::move(getValue))
+    {    
+    }
+
+  void paint(BitmapBuffer * dc) {
+    auto curval = _getValue();
+    char buf[25];
+    if(textFlags & PREC1)
+      snprintf(buf, sizeof(buf), "%d.%.1d %s", curval / 10, abs(curval % 10), suffix);
+    else if(textFlags & PREC2)
+      snprintf(buf, sizeof(buf), "%d.%.2d %s", curval / 100, abs(curval % 100), suffix);
+    else
+      snprintf(buf, sizeof(buf), "%d %s", curval, suffix);
+    text = buf;
+    StaticText::paint(dc);
+  }
+
+  void setSuffix(const char* s) {
+    strncpy(suffix, s, sizeof(suffix));
+    suffix[sizeof(suffix)-1] = '\0';
+  }
+
+  protected:
+    std::function<int()> _getValue;
+    char suffix[10];
+};
 
 class FilterWindow : public FormGroup
 {
@@ -254,13 +286,26 @@ class FilterWindow : public FormGroup
       filtchoice->setMax(i-1);
       grid.nextLine();
 
+      new StaticText(this, grid.getLabelSlot(true), "Debug Plot Output", 0, COLOR_THEME_PRIMARY1);
+      grid.nextLine();
+      for(filt = filters.begin(); filt != filters.end(); ++filt, i++) {
+        new StaticText(this, grid.getLabelSlot(true), filt->filter->getFilterName(), 0, COLOR_THEME_PRIMARY1);
+        new CheckBox(this, grid.getFieldSlot(), GET_SET_DEFAULT(filt->filter->plot));
+        grid.nextLine();
+      }
+      
       if(filter != nullptr) {
         for(int i=0; i < filter->getParameterCount(); i++) {
           new StaticText(this, grid.getLabelSlot(true), filter->getParameterStr(i), 0, COLOR_THEME_PRIMARY1);
-          NumberEdit *myedit = new NumberEdit(this, grid.getFieldSlot(1,0), 0, 10000, GET_DEFAULT(filter->getParameter(i)*100), [=](int32_t newValue) { 
-            filter->setParameter(i, (float)newValue / 100.0);
-          },0,PREC2);
-          myedit->setStep(filter->getParameterStep(i)*100.0);
+          NumberEdit *myedit = new NumberEdit(this, grid.getFieldSlot(2,0), 0, 10000, GET_DEFAULT(filter->getParameter(i)*1000), [=](int32_t newValue) { 
+            filter->setParameter(i, (float)newValue / 1000.0);
+          },0);
+          uint32_t stepsize = filter->getParameterStep(i)*1000.0;
+          if(stepsize < 1) {
+            stepsize = 1;
+          }
+          myedit->setStep(stepsize);
+          new StaticText(this, grid.getFieldSlot(2,1), "  Divided by 1000");
           grid.nextLine();
         }
       }
@@ -274,7 +319,23 @@ class FilterWindow : public FormGroup
         debugchoice->addValue(itoa(i,str,10));
       }
       grid.nextLine();
-   
+
+      new StaticText(this, grid.getLabelSlot(true), "Disable Debug Output");
+      new CheckBox(this, grid.getFieldSlot(), [=]() {return debugfilter==-1;}, [=](int32_t newValue) {if(newValue) debugfilter=-1;update();} );;
+      grid.nextLine();
+
+      // Filter Run Time
+      new StaticText(this, grid.getLabelSlot(true), "Filter Time");
+      StaticNumber *mt = new StaticNumber(this, grid.getFieldSlot(),GET_VALUE(debugTimers[debugTimerFilter].getLast()), REFRESH_ALWAYS);
+      mt->setSuffix("us");
+      grid.nextLine();
+
+      // Filter Frequency
+      new StaticText(this, grid.getLabelSlot(true), "Filter Frequency");
+      StaticNumber *ms = new StaticNumber(this, grid.getFieldSlot(),[=] { if(filter != NULL) return (int)(1.0f/filter->getPeriod()); return 0; }, REFRESH_ALWAYS);
+      ms->setSuffix("Hz");
+      grid.nextLine();
+
       getParent()->moveWindowsTop(top() + 1, adjustHeight());
       getParent()->adjustInnerHeight();
     }

@@ -402,6 +402,7 @@ enum DebugTimers {
   debugTimerGetSwitches,
   debugTimerEvalMixes,
   debugTimerMixes10ms,
+  debugTimerFilter,
 
   debugTimerAdcRead,
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math.h>
+#include "opentx.h"
 
 #define MAX_PARAMS 5
 #define PARAM_CHAR_LEN 15
@@ -14,9 +15,11 @@ class Filter
     for (int i = 0; i < MAX_PARAMS; i++) {
       params[i] = 0;
       paramstr[i][0] = '\0';
-      paramstep[i] = 0.01;
+      paramstep[i] = 0.005;
     }
   }
+
+  bool plot=true;
 
   virtual float doFilter(int channel, float value) = 0;
   virtual const char *getFilterName() = 0;
@@ -30,11 +33,22 @@ class Filter
   const char *getParameterStr(int p) { return paramstr[p]; }
   int getParameterCount() { return paramcount; }
   float getParameterStep(int p) { return paramstep[p]; }
+  void calcPeriod() {    
+    uint16_t curtime = getTmr2MHz();
+    uint16_t elapsed = curtime - lasttime;
+    period = (float)elapsed / 2000000.0f;
+    lasttime = curtime;
+  }
+
+  float getPeriod()
+  {
+    return period;
+  }
 
  protected:
   void addFilter(std::string filt) {}
 
-  void addParameter(const char *str, float initialval, float step = 0.01)
+  void addParameter(const char *str, float initialval, float step = 0.02)
   {
     if (paramcount < MAX_PARAMS) {
       strncpy(paramstr[paramcount], str, PARAM_CHAR_LEN);
@@ -45,11 +59,9 @@ class Filter
     }
   };
 
-  float getPeriod()
-  {
-    return 1.0f / 143.0f;  // *** fixme
-  }
 
+  uint16_t lasttime = getTmr2MHz(); // First run will be wrong (*** FIXme)
+  float period =0.001; // Non-zero starting value
   int paramcount = 0;
   float params[MAX_PARAMS];
   float paramstep[MAX_PARAMS];
@@ -84,9 +96,9 @@ class OneEuroFilter : public Filter
  public:
   OneEuroFilter() : Filter()
   {
-    addParameter("Min Cut Off Freq", 0.01);
-    addParameter("Cut Off Slope", 0.03);
-    addParameter("Derv C/O Freq", 7.0);
+    addParameter("Min Cut Off Freq", 0.02, 0.002);
+    addParameter("Cut Off Slope", 0.03, 0.002);
+    addParameter("Derv C/O Freq", 7.0, 0.002);
 
     for (int i = 0; i < NUM_ANALOGS; i++) {
       oneeufilters[i].xfilt.usedBefore = 0;
@@ -106,7 +118,6 @@ class OneEuroFilter : public Filter
     sf1econf.cutoffSlope = params[1];  // addParameter("Cut Off Slope", 0.1);
     sf1econf.derivativeCutoffFrequency =
         params[2];  // addParameter("Derv C/O Freq", 1.0);
-    curperiod = getPeriod();
     oneeufilters[channel].config = sf1econf;  // Update configuration on the fly
     return SF1eFilterDo(&oneeufilters[channel], value);
   }
@@ -116,7 +127,6 @@ class OneEuroFilter : public Filter
  private:
   SF1eFilter oneeufilters[NUM_ANALOGS];
   SF1eFilterConfiguration sf1econf;
-  float curperiod = 1.0f / 100.0;
 
   float SFLowPassFilterDo(SFLowPassFilter *filter, float x, float alpha)
   {
@@ -133,7 +143,7 @@ class OneEuroFilter : public Filter
   float SF1eFilterAlpha(SF1eFilter *filter, float cutoff)
   {
     float tau = 1.0f / (2.f * 3.14159265359 * cutoff);
-    return 1.0f / (1.0f + tau / curperiod);
+    return 1.0f / (1.0f + tau / period);
   }
 
   float SF1eFilterDo(SF1eFilter *filter, float x)
@@ -141,7 +151,7 @@ class OneEuroFilter : public Filter
     float dx = 0.f;
 
     if (filter->xfilt.usedBefore) {
-      dx = (x - filter->xfilt.xprev) * (1.0f / curperiod);
+      dx = (x - filter->xfilt.xprev) * (1.0f / period);
     }
 
     float edx = SFLowPassFilterDo(
@@ -164,7 +174,7 @@ class JitterFilter : public Filter
  public:
   JitterFilter() : Filter()
   {
-    addParameter("Jitter Alpha", 4, 1);  // Can't add to more than 5
+    addParameter("Jitter Alpha", 4, 1);
   }
 
   float doFilter(int channel, float value) override
@@ -422,9 +432,9 @@ class AUDFilter : public Filter
 
   float doFilter(int channel, float value) override
   {
+    audfilt[channel].setSampleRate(1.0f/getPeriod());
     audfilt[channel].setParameters(params[0], params[1], params[2], params[3],
                                    params[4]);
-    audfilt[channel].setSampleRate(1/getPeriod());
     return audfilt[channel].update(value);
   }
 
@@ -445,7 +455,6 @@ class OffFilter : public Filter
   OffFilter() : Filter() {}
 
   float doFilter(int channel, float value) override { return value; }
-
   const char *getFilterName() override { return "Off"; }
 };
 

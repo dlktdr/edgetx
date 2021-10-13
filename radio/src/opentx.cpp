@@ -1049,6 +1049,14 @@ uint16_t anaIn(uint8_t chan)
 #endif
 
 
+// Read Analog Channels at a high rate for easy filtering.
+
+void adcInputTask() {
+  while (true) {
+    RTOS_WAIT_MS(10);
+  }
+}
+
 void getADC()
 {
 #if defined(JITTER_MEASURE)
@@ -1066,21 +1074,11 @@ void getADC()
   if (!adcRead())
       TRACE("adcRead failed");
   DEBUG_TIMER_STOP(debugTimerAdcRead);
-/*
-  // Monitor Update Rate
-  static uint32_t starttime=0;
-  static uint32_t updateratecount=0;    
-  if(updateratecount == 0) {
-    starttime = g_tmr10ms;
-  }
-  
-  uint32_t elapsedtime = g_tmr10ms - starttime;
-  if(elapsedtime > 1000) {      
-    debugPrintf("Time Elapsed %.02fs, Updates %d, Frequncy %.02fHz\r\n", (float)elapsedtime/100, updateratecount, (float)updateratecount / ((float)elapsedtime/100));
-    updateratecount = 0;
-  } else 
-    updateratecount++;
-    */
+
+   // Calculate period from last run for all filters
+  std::list<FilterList>::iterator filt; 
+  for(filt = filters.begin(); filt != filters.end(); ++filt) 
+    filt->filter->calcPeriod();
 
   for (uint8_t x=0; x<NUM_ANALOGS; x++) {
     uint32_t v;
@@ -1108,19 +1106,27 @@ void getADC()
 
   // Run all filters, store all outputs for diganostic.
   std::list<FilterList>::iterator filt;
-  int i=0;
-  for(filt = filters.begin(); filt != filters.end(); ++filt, i++) {
-    filt->outputs[x] = filt->filter->doFilter(x,v);
-
-    // User this filter for the output
+  int i=0;  
+  for(filt = filters.begin(); filt != filters.end(); ++filt, i++) {    
+    // User selected filter for output
     if(i == filterchoice) {
+      DEBUG_TIMER_START(debugTimerFilter);
+      filt->outputs[x] = filt->filter->doFilter(x,v);
+      DEBUG_TIMER_STOP(debugTimerFilter);
+
       s_anaFilt[x] = filt->outputs[x] * JITTER_ALPHA;
+    } else {
+      filt->outputs[x] = filt->filter->doFilter(x,v);
     }
   }
-
+  
+  // Graph all filter outputs
   if(x == debugfilter) {
     for(filt = filters.begin(); filt != filters.end(); ++filt, i++) {
-      TRACE_NOCRLF("%d\t", (uint32_t)(filt->outputs[x]));
+      if(filt->filter->plot)
+        TRACE_NOCRLF("%d\t", (uint32_t)(filt->outputs[x]));
+      else 
+        TRACE_NOCRLF("%d\t", (uint32_t)(0));
     }
     TRACE_NOCRLF("\r\n");
   }
