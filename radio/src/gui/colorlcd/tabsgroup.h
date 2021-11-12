@@ -60,6 +60,11 @@ class PageTab {
       title = std::move(value);
     }
 
+    std::string getTitle()
+    {
+      return title;
+    }
+
     void setIcon(unsigned icon)
     {
       this->icon = icon;
@@ -188,7 +193,7 @@ class TabsGroup: public Window
     {
       return tabs.size();
     }
-  
+
     void addTab(PageTab * page);
 
     // Return the index of the found tab
@@ -206,7 +211,7 @@ class TabsGroup: public Window
         setVisibleTab(tabs[index]);
       }
     }
-  
+
     void checkEvents() override;
     void onEvent(event_t event) override;
 

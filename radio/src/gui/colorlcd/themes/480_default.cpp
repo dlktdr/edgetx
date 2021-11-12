@@ -78,7 +78,7 @@ class Theme480: public OpenTxTheme
     void loadMenuIcon(uint8_t index, const uint8_t * lbm, bool reload) const
     {
       BitmapBuffer * mask;
-      
+
       if (reload) {
         mask = BitmapBuffer::load8bitMaskLZ4(lbm);
         if (mask) {
@@ -93,12 +93,12 @@ class Theme480: public OpenTxTheme
         }
       } else
         mask = iconMask[index];
-      
+
       if (menuIconNormal[index]) {
         menuIconNormal[index]->clear(COLOR_THEME_SECONDARY1);
         menuIconNormal[index]->drawMask(0, 0, mask, COLOR_THEME_PRIMARY2);
       }
-  
+
       if (menuIconSelected[index]) {
         menuIconSelected[index]->clear(COLOR_THEME_FOCUS);
         menuIconSelected[index]->drawMask(0, 0, mask, COLOR_THEME_PRIMARY2);
@@ -118,29 +118,32 @@ class Theme480: public OpenTxTheme
       unique_ptr<BitmapBuffer> topleft(BitmapBuffer::load8bitMaskLZ4(mask_topleft));
 
       if (!currentMenuBackground) {
-        // TODO: get rid of fixed size!!!
-        currentMenuBackground = new BitmapBuffer(BMP_RGB565, 36, 53);
+        currentMenuBackground = new BitmapBuffer(BMP_RGB565, 36, MENU_HEADER_HEIGHT);
       }
 
       if (currentMenuBackground) {
-
         currentMenuBackground->drawSolidFilledRect(
             0, 0, currentMenuBackground->width(), MENU_HEADER_HEIGHT,
             COLOR_THEME_SECONDARY1);
 
-        currentMenuBackground->drawSolidFilledRect(
+        /*currentMenuBackground->drawSolidFilledRect(
             0, MENU_HEADER_HEIGHT, currentMenuBackground->width(),
-            MENU_TITLE_TOP - MENU_HEADER_HEIGHT, COLOR_THEME_SECONDARY3);
+            MENU_TITLE_TOP - MENU_HEADER_HEIGHT, COLOR_THEME_SECONDARY3);*/
 
         currentMenuBackground->drawSolidFilledRect(
             0, MENU_TITLE_TOP, currentMenuBackground->width(),
             currentMenuBackground->height() - MENU_TITLE_TOP, COLOR_THEME_SECONDARY1);
 
-        currentMenuBackground->drawMask(0, 0, background.get(),
-                                        COLOR_THEME_FOCUS);
 
-        currentMenuBackground->drawMask(0, 0, shadow.get(), COLOR_THEME_PRIMARY1);
-        currentMenuBackground->drawMask(10, 39, dot.get(), COLOR_THEME_PRIMARY2);
+        currentMenuBackground->drawMask(0, 0, background, COLOR_THEME_FOCUS);
+
+        //currentMenuBackground->drawMask(0, 0, shadow, COLOR_THEME_PRIMARY1);
+
+        BitmapBuffer * dotback = new BitmapBuffer(BMP_RGB565, dot->width(), dot->height());
+        dotback->clear(WHITE);
+        dotback->drawBitmap(0,0,dot);
+        currentMenuBackground->drawMask(13, 3, dotback, COLOR_THEME_WARNING);
+
       }
 
       if (!topleftBitmap) {
@@ -204,7 +207,7 @@ class Theme480: public OpenTxTheme
       if (topleftBitmap) {
         dc->drawBitmap(0, 0, topleftBitmap);
         uint16_t width = topleftBitmap->width();
-        dc->drawSolidFilledRect(width, 0, LCD_W - width, MENU_HEADER_HEIGHT, COLOR_THEME_SECONDARY1);
+        dc->drawSolidFilledRect(width, 0, LCD_W - width, MENU_TITLE_TOP, COLOR_THEME_SECONDARY1);
       }
       else {
         dc->drawSolidFilledRect(0, 0, LCD_W, MENU_HEADER_HEIGHT, COLOR_THEME_SECONDARY1);
@@ -214,16 +217,6 @@ class Theme480: public OpenTxTheme
         dc->drawBitmap(4, 10, menuIconSelected[ICON_OPENTX]);
       else
         dc->drawBitmap(5, 7, menuIconSelected[icon]);
-
-      dc->drawSolidFilledRect(0, MENU_HEADER_HEIGHT, LCD_W,
-                              MENU_TITLE_TOP - MENU_HEADER_HEIGHT,
-                              COLOR_THEME_SECONDARY3);  // the white separation line
-
-      dc->drawSolidFilledRect(0, MENU_TITLE_TOP, LCD_W, MENU_TITLE_HEIGHT,
-                              COLOR_THEME_SECONDARY1);  // the title line background
-      if (title) {
-        dc->drawText(MENUS_MARGIN_LEFT, MENU_TITLE_TOP + 3, title, COLOR_THEME_PRIMARY2);
-      }
 
       drawMenuDatetime(dc);
     }
@@ -240,8 +233,26 @@ class Theme480: public OpenTxTheme
 
     void drawCurrentMenuBackground(BitmapBuffer *dc) const override
     {
-      dc->drawBitmap(0, 0,
+      dc->drawBitmap(currentIndex * MENU_HEADER_BUTTON_WIDTH, 0,
                      currentMenuBackground);
+
+      for (unsigned index = 0; index < tabs.size(); index++) {
+        if (index != currentIndex) {
+          dc->drawBitmap(index * MENU_HEADER_BUTTON_WIDTH + 2, MENU_ICON_TOP,
+                         menuIconNormal[tabs[index]->getIcon()]);
+        }
+      }
+      dc->drawBitmap(currentIndex * MENU_HEADER_BUTTON_WIDTH + 2, MENU_ICON_TOP,
+                     menuIconSelected[tabs[currentIndex]->getIcon()]);
+
+      uint title_left = (currentIndex) * MENU_HEADER_BUTTON_WIDTH + MENU_HEADER_BUTTON_WIDTH / 2 + 22;
+      if(title_left + MENU_HEADER_BUTTON_WIDTH > LCD_W / 2) {
+        title_left -= getTextWidth(tabs[currentIndex]->getTitle().c_str(), 0, MENU_FONT);
+        title_left -= MENU_HEADER_BUTTON_WIDTH + 3;
+      }
+
+      dc->drawText(title_left, MENU_TITLE_TEXT_TOP , tabs[currentIndex]->getTitle().c_str(), COLOR_THEME_PRIMARY2|MENU_FONT);
+
     }
 
     void drawMenuDatetime(BitmapBuffer * dc) const
