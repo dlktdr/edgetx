@@ -47,13 +47,13 @@ typedef uint16_t pixel_t;
 constexpr bool WRAP_FORM_FIELDS_WITHIN_PAGE = true;
 constexpr short SLIDE_SPEED_REDUCTION = 5;
 
-constexpr uint32_t MENU_HEADER_BUTTON_WIDTH =      33;
+constexpr uint32_t MENU_HEADER_BUTTON_WIDTH =      37;
 constexpr uint32_t MENU_HEADER_BUTTONS_LEFT =      50;
 
 constexpr uint32_t MENU_HEADER_HEIGHT =            48;
 constexpr uint32_t MENU_TITLE_TOP =                MENU_HEADER_HEIGHT;
 constexpr uint32_t MENU_TITLE_TEXT_TOP =           1;
-constexpr uint32_t MENU_ICON_TOP =                 17;
+constexpr uint32_t MENU_ICON_TOP =                 16;
 constexpr uint32_t MENU_TITLE_HEIGHT =             0;
 constexpr uint32_t MENU_BODY_TOP =                 MENU_TITLE_TOP + MENU_TITLE_HEIGHT;
 constexpr uint32_t MENU_CONTENT_TOP =              MENU_BODY_TOP + 1;

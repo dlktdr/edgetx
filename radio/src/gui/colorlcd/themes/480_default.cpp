@@ -67,6 +67,7 @@ class Theme480: public OpenTxTheme
       lcdColorTable[COLOR_THEME_SECONDARY1_INDEX] = RGB(18, 94, 153);
       lcdColorTable[COLOR_THEME_SECONDARY2_INDEX] = RGB(182, 224, 242);
       lcdColorTable[COLOR_THEME_SECONDARY3_INDEX] = RGB(228, 238, 242);
+      lcdColorTable[COLOR_THEME_MENUFOCUS_INDEX] = RGB(225, 133, 0);
       lcdColorTable[COLOR_THEME_FOCUS_INDEX] = RGB(20, 161, 229);
       lcdColorTable[COLOR_THEME_EDIT_INDEX] = RGB(0, 153, 9);
       lcdColorTable[COLOR_THEME_ACTIVE_INDEX] = RGB(255, 222, 0);
@@ -100,7 +101,7 @@ class Theme480: public OpenTxTheme
       }
 
       if (menuIconSelected[index]) {
-        menuIconSelected[index]->clear(COLOR_THEME_FOCUS);
+        menuIconSelected[index]->clear(COLOR_THEME_MENUFOCUS);
         menuIconSelected[index]->drawMask(0, 0, mask, COLOR_THEME_PRIMARY2);
       }
     }
@@ -118,7 +119,7 @@ class Theme480: public OpenTxTheme
       unique_ptr<BitmapBuffer> topleft(BitmapBuffer::load8bitMaskLZ4(mask_topleft));
 
       if (!currentMenuBackground) {
-        currentMenuBackground = new BitmapBuffer(BMP_RGB565, 36, MENU_HEADER_HEIGHT);
+        currentMenuBackground = new BitmapBuffer(BMP_RGB565, MENU_HEADER_BUTTON_WIDTH, MENU_HEADER_HEIGHT);
       }
 
       if (currentMenuBackground) {
@@ -134,6 +135,7 @@ class Theme480: public OpenTxTheme
             0, MENU_TITLE_TOP, currentMenuBackground->width(),
             currentMenuBackground->height() - MENU_TITLE_TOP, COLOR_THEME_SECONDARY1);
 
+<<<<<<< HEAD
 
         currentMenuBackground->drawMask(0, 0, background, COLOR_THEME_FOCUS);
 
@@ -144,6 +146,11 @@ class Theme480: public OpenTxTheme
         dotback->drawBitmap(0,0,dot);
         currentMenuBackground->drawMask(13, 3, dotback, COLOR_THEME_WARNING);
 
+=======
+        currentMenuBackground->drawMask(0, 0, shadow, COLOR_THEME_PRIMARY1);
+        currentMenuBackground->drawMask(0, 0, background, COLOR_THEME_MENUFOCUS);
+        currentMenuBackground->drawMask(16, 0, dot, COLOR_THEME_PRIMARY1);
+>>>>>>> 810cd8586 (Looks okay.. Need Alpha!)
       }
 
       if (!topleftBitmap) {
@@ -218,7 +225,7 @@ class Theme480: public OpenTxTheme
       else
         dc->drawBitmap(5, 7, menuIconSelected[icon]);
 
-      drawMenuDatetime(dc);
+      //drawMenuDatetime(dc);
     }
 
     const BitmapBuffer * getIconMask(uint8_t index) const override
@@ -233,26 +240,37 @@ class Theme480: public OpenTxTheme
 
     void drawCurrentMenuBackground(BitmapBuffer *dc) const override
     {
-      dc->drawBitmap(currentIndex * MENU_HEADER_BUTTON_WIDTH, 0,
+      const static uint8_t backgroundXoffset=0;
+      const static uint8_t buttonXoffset=3;
+      const static uint8_t textoffsetright=22;
+      const static uint8_t textoffsetleft=6;
+
+      dc->drawBitmap(currentIndex * MENU_HEADER_BUTTON_WIDTH + backgroundXoffset, 0,
                      currentMenuBackground);
 
       for (unsigned index = 0; index < tabs.size(); index++) {
         if (index != currentIndex) {
-          dc->drawBitmap(index * MENU_HEADER_BUTTON_WIDTH + 2, MENU_ICON_TOP,
+          dc->drawBitmap(index * MENU_HEADER_BUTTON_WIDTH + buttonXoffset, MENU_ICON_TOP,
                          menuIconNormal[tabs[index]->getIcon()]);
         }
       }
-      dc->drawBitmap(currentIndex * MENU_HEADER_BUTTON_WIDTH + 2, MENU_ICON_TOP,
+
+      dc->drawBitmap(currentIndex * MENU_HEADER_BUTTON_WIDTH + buttonXoffset, MENU_ICON_TOP-2,
                      menuIconSelected[tabs[currentIndex]->getIcon()]);
 
-      uint title_left = (currentIndex) * MENU_HEADER_BUTTON_WIDTH + MENU_HEADER_BUTTON_WIDTH / 2 + 22;
+      uint title_left = (currentIndex) * MENU_HEADER_BUTTON_WIDTH + MENU_HEADER_BUTTON_WIDTH / 2 + textoffsetright;
       if(title_left + MENU_HEADER_BUTTON_WIDTH > LCD_W / 2) {
         title_left -= getTextWidth(tabs[currentIndex]->getTitle().c_str(), 0, MENU_FONT);
-        title_left -= MENU_HEADER_BUTTON_WIDTH + 3;
+        title_left -= MENU_HEADER_BUTTON_WIDTH + textoffsetleft;
       }
 
       dc->drawText(title_left, MENU_TITLE_TEXT_TOP , tabs[currentIndex]->getTitle().c_str(), COLOR_THEME_PRIMARY2|MENU_FONT);
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 810cd8586 (Looks okay.. Need Alpha!)
     }
 
     void drawMenuDatetime(BitmapBuffer * dc) const
