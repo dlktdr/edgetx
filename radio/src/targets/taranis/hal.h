@@ -467,7 +467,7 @@
   #define HARDWARE_SWITCH_C
   #define SWITCHES_GPIO_REG_C_L         GPIOD->IDR
   #define SWITCHES_GPIO_PIN_C_L         GPIO_Pin_11 // PD.11
-  #if defined(PCBX7ACCESS)    
+  #if defined(PCBX7ACCESS)
     #define SWITCHES_GPIO_REG_C_H       GPIOD->IDR
     #define SWITCHES_GPIO_PIN_C_H       GPIO_Pin_10 // PD.10
   #else
@@ -1480,25 +1480,25 @@
 #endif
 
 // Serial Port
-#if defined(PCBX7) || defined(PCBXLITE) || defined(PCBX9LITE) || defined(RADIO_X9DP2019)
+#if defined(PCBX7) || defined(PCBXLITE) || defined(PCBX9LITE)
   #define AUX_SERIAL_RCC_AHB1Periph         0
   #define AUX_SERIAL_RCC_APB1Periph         0
   #define AUX_SERIAL_RCC_APB2Periph         0
 #else
   #define HARDWARE_TRAINER_AUX_SERIAL
-  #define AUX_SERIAL_RCC_AHB1Periph         (RCC_AHB1Periph_GPIOB | RCC_AHB1Periph_DMA1)
-  #define AUX_SERIAL_RCC_APB1Periph         RCC_APB1Periph_USART3
-  #define AUX_SERIAL_RCC_APB2Periph         0
-  #define AUX_SERIAL_GPIO                   GPIOB
-  #define AUX_SERIAL_GPIO_PIN_TX            GPIO_Pin_10 // PB.10
-  #define AUX_SERIAL_GPIO_PIN_RX            GPIO_Pin_11 // PB.11
-  #define AUX_SERIAL_GPIO_PinSource_TX      GPIO_PinSource10
-  #define AUX_SERIAL_GPIO_PinSource_RX      GPIO_PinSource11
-  #define AUX_SERIAL_GPIO_AF                GPIO_AF_USART3
-  #define AUX_SERIAL_USART                  USART3
-  #define AUX_SERIAL_USART_IRQHandler       USART3_IRQHandler
-  #define AUX_SERIAL_USART_IRQn             USART3_IRQn
-  #define AUX_SERIAL_DMA_Stream_RX          DMA1_Stream1
+  #define AUX_SERIAL_RCC_AHB1Periph         (RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_DMA1)
+  #define AUX_SERIAL_RCC_APB1Periph         RCC_APB1Periph_USART2
+  #define AUX_SERIAL_RCC_APB2Periph         RCC_APB2Periph_TIM11
+  #define AUX_SERIAL_GPIO                   GPIOD
+  #define AUX_SERIAL_GPIO_PIN_TX            GPIO_Pin_5
+  #define AUX_SERIAL_GPIO_PIN_RX            GPIO_Pin_6 // PB.11
+  #define AUX_SERIAL_GPIO_PinSource_TX      GPIO_PinSource5
+  #define AUX_SERIAL_GPIO_PinSource_RX      GPIO_PinSource6
+  #define AUX_SERIAL_GPIO_AF                GPIO_AF_USART2
+  #define AUX_SERIAL_USART                  USART2
+  #define AUX_SERIAL_USART_IRQHandler       USART2_IRQHandler
+  #define AUX_SERIAL_USART_IRQn             USART2_IRQn
+  #define AUX_SERIAL_DMA_Stream_RX          DMA1_Stream6
   #define AUX_SERIAL_DMA_Channel_RX         DMA_Channel_4
 #endif
 
@@ -1508,7 +1508,7 @@
 #define AUX2_SERIAL_RCC_APB2Periph           0
 
 // Telemetry
-#define TELEMETRY_RCC_AHB1Periph        (RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_DMA1)
+/*#define TELEMETRY_RCC_AHB1Periph        (RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_DMA1)
 #define TELEMETRY_RCC_APB1Periph        RCC_APB1Periph_USART2
 #define TELEMETRY_RCC_APB2Periph        RCC_APB2Periph_TIM11
 #define TELEMETRY_DIR_GPIO              GPIOD
@@ -1517,8 +1517,8 @@
   #define TELEMETRY_DIR_OUTPUT()          TELEMETRY_DIR_GPIO->BSRRH = TELEMETRY_DIR_GPIO_PIN
   #define TELEMETRY_DIR_INPUT()           TELEMETRY_DIR_GPIO->BSRRL = TELEMETRY_DIR_GPIO_PIN
 #else
-  #define TELEMETRY_DIR_OUTPUT()          TELEMETRY_DIR_GPIO->BSRRL = TELEMETRY_DIR_GPIO_PIN
-  #define TELEMETRY_DIR_INPUT()           TELEMETRY_DIR_GPIO->BSRRH = TELEMETRY_DIR_GPIO_PIN
+  #define TELEMETRY_DIR_OUTPUT()        //  TELEMETRY_DIR_GPIO->BSRRL = TELEMETRY_DIR_GPIO_PIN
+  #define TELEMETRY_DIR_INPUT()         //  TELEMETRY_DIR_GPIO->BSRRH = TELEMETRY_DIR_GPIO_PIN
 #endif
 #define TELEMETRY_GPIO                  GPIOD
 #define TELEMETRY_TX_GPIO_PIN           GPIO_Pin_5  // PD.05
@@ -1551,7 +1551,7 @@
 #define TELEMETRY_TIMER                 TIM11
 #define TELEMETRY_TIMER_IRQn            TIM1_TRG_COM_TIM11_IRQn
 #define TELEMETRY_TIMER_IRQHandler      TIM1_TRG_COM_TIM11_IRQHandler
-
+*/
 // PCBREV
 #if defined(RADIO_X7)
   #define PCBREV_RCC_AHB1Periph         RCC_AHB1Periph_GPIOA
@@ -1581,7 +1581,7 @@
   #define SPORT_UPDATE_PWR_GPIO_PIN     GPIO_Pin_8  // PD.08
   #define GPIO_SPORT_UPDATE_PWR_GPIO_ON  GPIO_SetBits
   #define GPIO_SPORT_UPDATE_PWR_GPIO_OFF GPIO_ResetBits
-#elif defined(PCBX7ACCESS)  
+#elif defined(PCBX7ACCESS)
   #define SPORT_MAX_BAUDRATE            400000
   #define SPORT_UPDATE_RCC_AHB1Periph   RCC_AHB1Periph_GPIOB
   #define SPORT_UPDATE_PWR_GPIO         GPIOB

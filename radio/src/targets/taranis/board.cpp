@@ -89,7 +89,7 @@ void boardInit()
                          HAPTIC_RCC_AHB1Periph |
                          INTMODULE_RCC_AHB1Periph |
                          EXTMODULE_RCC_AHB1Periph |
-                         TELEMETRY_RCC_AHB1Periph |
+//                         TELEMETRY_RCC_AHB1Periph |
                          SPORT_UPDATE_RCC_AHB1Periph |
                          AUX_SERIAL_RCC_AHB1Periph |
                          TRAINER_RCC_AHB1Periph |
@@ -110,7 +110,7 @@ void boardInit()
                          I2C_B1_RCC_APB1Periph |
                          SD_RCC_APB1Periph |
                          TRAINER_RCC_APB1Periph |
-                         TELEMETRY_RCC_APB1Periph |
+   //                      TELEMETRY_RCC_APB1Periph |
                          AUX_SERIAL_RCC_APB1Periph |
                          INTMODULE_RCC_APB1Periph |
                          TRAINER_MODULE_RCC_APB1Periph |
@@ -126,8 +126,8 @@ void boardInit()
                          INTMODULE_RCC_APB2Periph |
                          EXTMODULE_RCC_APB2Periph |
                          TRAINER_MODULE_RCC_APB2Periph |
-                         BT_RCC_APB2Periph |
-                         TELEMETRY_RCC_APB2Periph,
+                         BT_RCC_APB2Periph,
+   //                      TELEMETRY_RCC_APB2Periph,
                          ENABLE);
 
 #if defined(BLUETOOTH) && !defined(PCBX9E)
@@ -281,7 +281,7 @@ void boardOff()
   #define BATTERY_DIVIDER 50000
 #else
   #define BATTERY_DIVIDER 26214
-#endif 
+#endif
 
 uint16_t getBatteryVoltage()
 {
