@@ -140,9 +140,12 @@ void stop_trainer_capture();
 #define BLUETOOTH_FACTORY_BAUDRATE     9600
 #define BLUETOOTH_DEFAULT_BAUDRATE     115200
 
-void bluetoothInit(uint32_t baudrate);
+void bluetoothInit(uint32_t baudrate, bool enable);
 void bluetoothWriteWakeup(void);
 void bluetoothDone(void);
+
+#define BT_TX_FIFO_SIZE    64
+#define BT_RX_FIFO_SIZE    256
 
 #define IS_BT_CONNECTED()               (GPIO_ReadInputDataBit(BT_CONNECTED_GPIO, BT_CONNECTED_GPIO_PIN) == Bit_SET)
 #define IS_BT_COMMAND_MODE()            (GPIO_ReadInputDataBit(BT_CMD_MODE_GPIO, BT_CMD_MODE_GPIO_PIN) == Bit_RESET)

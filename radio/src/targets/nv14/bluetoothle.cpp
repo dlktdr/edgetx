@@ -104,11 +104,11 @@ int32_t getBtPlatfrom() {
   TRACE("ADV %d", bluetooth.config.advertising_interval);
   TRACE("BROADCAST %d", bluetooth.config.broadcast_interval);
 
-  if (bluetooth.config.advertising_interval == ANDROID_ADV_INTERVAL && 
+  if (bluetooth.config.advertising_interval == ANDROID_ADV_INTERVAL &&
     bluetooth.config.broadcast_interval == ANDROID_BROADCAST_INTERVAL) {
     return static_cast<int>(BLUETOOTH_TARGET_PLATFORM_ANDROID);
   }
-  if (bluetooth.config.advertising_interval == IOS_ADV_INTERVAL && 
+  if (bluetooth.config.advertising_interval == IOS_ADV_INTERVAL &&
     bluetooth.config.broadcast_interval == IOS_BROADCAST_INTERVAL) {
     return static_cast<int>(BLUETOOTH_TARGET_PLATFORM_IOS);
   }
@@ -219,7 +219,7 @@ void BluetoothLE::readline(char * buffer, uint8_t length)
 
 
 BluetoothLE::BluetoothLE() {
-  state = BLUETOOTH_LE_STATE_OFF;
+  state = BLUETOOTH_STATE_OFF;
   currentMode = BLUETOOTH_UNKNOWN;
   rxDataState = STATE_DATA_IDLE;
   sensorMode = BT_SENSOR_MODE_DEFINITIONS;
@@ -231,21 +231,21 @@ BluetoothLE::BluetoothLE() {
   sensorDefinitionsPerFrame = (BLUETOOTH_LE_LINE_LENGTH - (SENSOR_HEADER_SIZE + SENSOR_CRC_SIZE)) / (sizeof(BtSensor) + SENSOR_TAG_HEADER_SIZE);
 }
 
-void BluetoothLE::getStatus(char* buffer, size_t bufferSize) { 
+void BluetoothLE::getStatus(char* buffer, size_t bufferSize) {
   switch(state) {
-   case BLUETOOTH_LE_STATE_OFF:
+   case BLUETOOTH_STATE_OFF:
       strncpy(buffer, "Off", bufferSize);
       break;
-    case BLUETOOTH_LE_STATE_BAUD_DETECT: 
+    case BLUETOOTH_LE_STATE_BAUD_DETECT:
       strncpy(buffer, "Detecting...", bufferSize);
       break;
-    case BLUETOOTH_LE_STATE_REQUESTING_CONFIG: 
+    case BLUETOOTH_LE_STATE_REQUESTING_CONFIG:
       strncpy(buffer, "Loading config...", bufferSize);
       break;
-    case BLUETOOTH_LE_STATE_SAVING_CONFIG: 
+    case BLUETOOTH_LE_STATE_SAVING_CONFIG:
       strncpy(buffer, "Saving config...", bufferSize);
       break;
-    case BLUETOOTH_STATE_CONNECTED: 
+    case BLUETOOTH_STATE_CONNECTED:
       strncpy(buffer, "Connected", bufferSize);
       break;
     case BLUETOOTH_LE_STATE_READY:
@@ -258,15 +258,15 @@ void BluetoothLE::getStatus(char* buffer, size_t bufferSize) {
 }
 
 void BluetoothLE::start() {
-  setState(g_eeGeneral.bluetoothMode != BLUETOOTH_OFF ? BLUETOOTH_LE_STATE_BAUD_DETECT : BLUETOOTH_LE_STATE_OFF);
+  setState(g_eeGeneral.bluetoothMode != BLUETOOTH_OFF ? BLUETOOTH_LE_STATE_BAUD_DETECT : BLUETOOTH_STATE_OFF);
 }
 
 void BluetoothLE::stop() {
-  setState(BLUETOOTH_LE_STATE_OFF);
+  setState(BLUETOOTH_STATE_OFF);
 }
 
 
-void BluetoothLE::pushByte(uint8_t * buffer, uint8_t byte, unsigned& bufferIndex, uint8_t& crc) { 
+void BluetoothLE::pushByte(uint8_t * buffer, uint8_t byte, unsigned& bufferIndex, uint8_t& crc) {
   crc ^= byte;
   if (byte == START_STOP || byte == BYTE_STUFF) {
     buffer[bufferIndex++] = BYTE_STUFF;
@@ -363,11 +363,11 @@ void BluetoothLE::appendTrainerByte(uint8_t byte)
 
 void BluetoothLE::sendTrainer() {
   int16_t PPM_range = g_model.extendedLimits ? 640*2 : 512*2;
-  int firstCh = g_model.moduleData[TRAINER_MODULE].channelsStart;
-  int lastCh = firstCh + 8;
+  int firstCh = g_model.trainerData.channelsStart;
+  int lastCh = firstCh + BLUETOOTH_TRAINER_CHANNELS;
   uint8_t crc = 0x00;
   unsigned i = 0;
-  
+
   bt_data[i++] = START_STOP; // start byte
   pushByte(bt_data, 0x80, i, crc); // trainer frame type?
   for (int channel=0; channel<lastCh; channel+=2) {
@@ -403,12 +403,11 @@ void BluetoothLE::setState(enum BluetoothLeStates state) {
   switch(state) {
     case BLUETOOTH_LE_STATE_BAUD_DETECT:
       BT_COMMAND_ON();
-      bluetoothInit(btle::baudRateMap[currentBaudrate]);
+      bluetoothInit(btle::baudRateMap[currentBaudrate], true);
       break;
-    case BLUETOOTH_LE_STATE_OFF:
+    case BLUETOOTH_STATE_OFF:
       TRACE("SET OFF");
-      bluetoothDone();
-      //BT_COMMAND_OFF();
+      //bluetoothDisable(); *** TODO
       config.reset();
     case BLUETOOTH_LE_STATE_REQUESTING_CONFIG:
       BT_COMMAND_ON();
@@ -425,7 +424,7 @@ void BluetoothLE::setState(enum BluetoothLeStates state) {
         sub_sensor_index = 0;
         sub_sensor_index_total = 0;
         sensorMode = BT_SENSOR_MODE_DEFINITIONS;
-      } 
+      }
       BT_COMMAND_OFF();
       break;
   }
@@ -456,9 +455,9 @@ uint32_t BluetoothLE::handleConfiguration() {
   while (btRxFifo.pop(byte) && rxIndex < sizeof(bt_data)) {
     bt_data[rxIndex++] = byte;
   }
-  
+
   btle::ResponseFoxware* foxwareFrame = reinterpret_cast<btle::ResponseFoxware*>(bt_data);
-  
+
   switch(state) {
     case BLUETOOTH_LE_STATE_BAUD_DETECT:
       if (btle::valid(foxwareFrame, btle::GET_FW_VERSION, rxIndex)) {
@@ -530,7 +529,7 @@ size_t itemSize(int sensorIndex) {
 
 
 size_t virtualItemSize(int sensorIndex) {
-  int index = sensorIndex - MAX_TELEMETRY_SENSORS;
+  //int index = sensorIndex - MAX_TELEMETRY_SENSORS;
 
   //get default size
   TelemetryItem& telemetryItem = telemetryItems[0];
@@ -582,7 +581,7 @@ size_t getValue(uint8_t* target, int sensorIndex) {
 }
 
 void BluetoothLE::sendSensors()
-{ 
+{
   static uint8_t frameIndex = 0;
   static uint8_t countSensorData = 0;
   uint8_t* frame = bt_data;
@@ -653,7 +652,7 @@ void BluetoothLE::sendSensors()
         }
         if (sensor_index >= SENSOR_COUNT + MAX_TELEMETRY_SENSORS) {
           sensorMode = BT_SENSOR_MODE_VALUES;
-        } 
+        }
       }
       break;
     case BT_SENSOR_MODE_VALUES:
@@ -696,10 +695,10 @@ void BluetoothLE::sendSensors()
           size -= sizeof(header);
           //set default totla count
           sub_sensor_index_total = 1;
-          int32_t value = 0;
+          //int32_t value = 0; *** TODO
           switch(index) {
-            case SENSOR_TX_BATTERY: 
-            value = g_vbat10mV;
+            case SENSOR_TX_BATTERY:
+            //value = g_vbat10mV; // *** TODO
             break;
             // case SENSOR_TX_DATE_TIME:
             // break;
@@ -723,12 +722,12 @@ void BluetoothLE::sendSensors()
             // break;
             case SENSOR_TX_OUTPUTS:
               sub_sensor_index_total = MAX_OUTPUT_CHANNELS;
-              value = channelOutputs[sub_sensor_index];
+              //value = channelOutputs[sub_sensor_index]; *** TODO
             break;
           }
 
-          frame += size; 
-          TRACE("SENSOR %02d NAME: %s", sensor_index, names[index]); 
+          frame += size;
+          TRACE("SENSOR %02d NAME: %s", sensor_index, names[index]);
           if (++sub_sensor_index >= sub_sensor_index_total) {
             sub_sensor_index = 0;
             sensor_index++;
@@ -738,7 +737,7 @@ void BluetoothLE::sendSensors()
         if (sensor_index >= SENSOR_COUNT + MAX_TELEMETRY_SENSORS) {
           sensor_index = 0;
           sensorMode = BT_SENSOR_MODE_VALUES;
-        } 
+        }
       }
       break;
   }
@@ -762,16 +761,16 @@ uint32_t BluetoothLE::wakeup()
 {
   if (currentMode != g_eeGeneral.bluetoothMode) {
     currentMode = g_eeGeneral.bluetoothMode;
-    setState(g_eeGeneral.bluetoothMode == BLUETOOTH_OFF ? BLUETOOTH_LE_STATE_OFF : BLUETOOTH_LE_STATE_BAUD_DETECT);
+    setState(g_eeGeneral.bluetoothMode == BLUETOOTH_OFF ? BLUETOOTH_STATE_OFF : BLUETOOTH_LE_STATE_BAUD_DETECT);
     return WAIT_100MS;
   }
-  
+
   if (currentBaudrate != g_eeGeneral.bluetoothBaudrate) {
     currentBaudrate = g_eeGeneral.bluetoothBaudrate;
     setState(BLUETOOTH_LE_STATE_BAUD_DETECT);
     rxIndex = 0;
     return send(bt_data, btle::fw_version(bt_data));
-  } 
+  }
 
   if (setBaudrateFromConfig) {
     setBaudrateFromConfig = false;
@@ -789,7 +788,7 @@ uint32_t BluetoothLE::wakeup()
   if (state == BLUETOOTH_STATE_CONNECTED) {
     if (g_eeGeneral.bluetoothMode == BLUETOOTH_TRAINER) {
       char line[BLUETOOTH_LE_LINE_LENGTH];
-      switch(g_model.trainerMode) {
+      switch(g_model.trainerData.mode) {
         case TRAINER_MODE_MASTER_BLUETOOTH:
           receiveTrainer();
           break;
@@ -805,12 +804,12 @@ uint32_t BluetoothLE::wakeup()
     }
     else if (g_eeGeneral.bluetoothMode == BLUETOOTH_SENSORS) {
       sendSensors();
-    } 
-  
+    }
+
     size_t fifoSize = btTxFifo.size();
     bluetoothWriteWakeup();
     return btle::transmit_time_ms(fifoSize, (btle::Baudrate)currentBaudrate, btle::DeviceType::ANDROID) / 2;
-  } 
+  }
   return handleConfiguration();
 }
 

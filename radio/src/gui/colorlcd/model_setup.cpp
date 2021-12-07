@@ -272,7 +272,7 @@ class TrainerModuleWindow : public FormGroup
 
   void checkEvents() override
   {
-#if defined(BLUETOOTH)
+#if defined(BLUETOOTH) && !defined(PCBNV14)
     if (popupopen) {
       if (bluetooth.state == BLUETOOTH_STATE_DISCOVER_START ||
           bluetooth.state == BLUETOOTH_STATE_DISCOVER_END) {
@@ -322,7 +322,7 @@ class TrainerModuleWindow : public FormGroup
     grid.nextLine();
 
     if (g_model.isTrainerTraineeEnable()) {
-#if defined(BLUETOOTH)
+#if defined(BLUETOOTH) && !defined(PCBNV14)
       if (g_model.trainerData.mode == TRAINER_MODE_MASTER_BLUETOOTH) {
         btDistAddress = new StaticText(this, grid.getFieldSlot(true), "---", 0,
                                        COLOR_THEME_PRIMARY1);
@@ -352,7 +352,6 @@ class TrainerModuleWindow : public FormGroup
               }
               return 0;
             });
-
         if (bluetooth.distantAddr[0]) {
           btDistAddress->setText(bluetooth.distantAddr);
           btMasterButton->setText(STR_CLEAR);
@@ -361,7 +360,6 @@ class TrainerModuleWindow : public FormGroup
         } else {
           btMasterButton->setText(STR_DISCOVER);
         }
-
         grid.nextLine();
 
       } else if (g_model.trainerData.mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
@@ -477,7 +475,7 @@ class TrainerModuleWindow : public FormGroup
   NumberEdit *channelStart = nullptr;
   NumberEdit *channelEnd = nullptr;
   bool trChoiceOpen = false;
-#if defined(BLUETOOTH)
+#if defined(BLUETOOTH) && !defined(PCBNV14)
   StaticText *btChannelEnd = nullptr;
   StaticText *btDistAddress = nullptr;
   TextButton *btMasterButton = nullptr;

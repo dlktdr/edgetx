@@ -47,6 +47,7 @@ enum BluetoothStates {
 };
 
 #define BT_FIFO_SIZE 64
+#define BLUETOOTH_TRAINER_CHANNELS      8
 
 #define LEN_BLUETOOTH_ADDR              16
 #define MAX_BLUETOOTH_DISTANT_ADDR      6
@@ -108,3 +109,5 @@ class Bluetooth
 };
 
 extern Bluetooth bluetooth;
+
+#endif

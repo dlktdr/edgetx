@@ -1,4 +1,5 @@
 #include "opentx.h"
+#include "lierda_bt.h"
 #include <string>
 namespace btle {
 
@@ -51,15 +52,15 @@ bool valid(ResponseFoxware* frame, Command cmd, size_t length) {
   if ((size_t)(frame->length + 4) != length) {
     TRACE("INVALID LENGTH %02", frame->length);
     return false;
-  } 
+  }
   return true;
-} 
+}
 
 uint32_t transmit_time_ms(size_t frameSize, Baudrate baudrate, DeviceType device){
   int mcuDelayMs = IdleTimeUs[(uint32_t)baudrate] / 1000;
   if (mcuDelayMs < BT_MIN_IDLE_TIME) mcuDelayMs = BT_MIN_IDLE_TIME;
   uint32_t d = (uint32_t)device;
-  uint16_t I = (CIMins[d] + CIMaxs[d]) / 2; 
+  uint16_t I = (CIMins[d] + CIMaxs[d]) / 2;
   return mcuDelayMs + ((frameSize * (I+1))/60);
 }
 
@@ -75,7 +76,7 @@ size_t set_baudrate(uint8_t* frame, Baudrate baudrate) {
 }
 
 size_t advertising_interval(uint8_t* frame) {
-  auto cmd = initReqest(frame, GET_FOX_ADVERTISING_INTERNVAL, 0); 
+  auto cmd = initReqest(frame, GET_FOX_ADVERTISING_INTERNVAL, 0);
   return frameSize(cmd);
 }
 
@@ -83,7 +84,7 @@ size_t advertising_interval(uint8_t* frame) {
 size_t set_advertising_interval(uint8_t* frame, uint16_t interval) {
   if (interval < 6) interval = 6;
   if (interval > 1600) interval = 1600;
-  auto cmd = initReqest(frame, SET_FOX_ADVERTISING_INTERNVAL, sizeof(uint16_t)); 
+  auto cmd = initReqest(frame, SET_FOX_ADVERTISING_INTERNVAL, sizeof(uint16_t));
   cmd->data.foxware.internval = interval; //make sure it is little endian
   return frameSize(cmd);
 }
@@ -97,7 +98,7 @@ size_t set_passcode(uint8_t* frame, uint32_t code) {
   if (!code) code = 1;
   if (code > 999999) code = 999999;
   char passcode[FOXWARE_MAX_PASSCODE_LEN + 1];
-  sprintf(passcode, "%06lu", code);
+  sprintf(passcode, "%06u", code);
   auto cmd = initReqest(frame, SET_FOX_PASSCODE, FOXWARE_MAX_PASSCODE_LEN);
   strncpy(cmd->data.foxware.passcode, passcode, FOXWARE_MAX_PASSCODE_LEN);
   return frameSize(cmd);
@@ -135,7 +136,7 @@ size_t set_passcode_protection(uint8_t* frame, bool enabled) {
 }
 
 size_t broadcast_interval(uint8_t* frame) {
-  auto cmd = initReqest(frame, GET_FOX_BROADCAST_INTERNVAL, 0); 
+  auto cmd = initReqest(frame, GET_FOX_BROADCAST_INTERNVAL, 0);
   return frameSize(cmd);
 }
 
@@ -144,7 +145,7 @@ size_t set_broadcast_interval(uint8_t* frame, uint16_t interval) {
   if (interval < 32) interval = 32;
   if (interval > 8000) interval = 8000;
 
-  auto cmd = initReqest(frame, SET_FOX_BROADCAST_INTERNVAL, sizeof(uint16_t)); 
+  auto cmd = initReqest(frame, SET_FOX_BROADCAST_INTERNVAL, sizeof(uint16_t));
   cmd->data.foxware.internval = interval; //make sure it is little endian
   return frameSize(cmd);
 }
@@ -198,7 +199,7 @@ void configFoxware::preSave() {
   retry = 0;
   dirty = false;
 };
-      
+
 const desc loadList[] =  {
   { Command::GET_FOX_BAUDRATE, baudrate },
   { Command::GET_FOX_ADVERTISING_INTERNVAL, advertising_interval},
@@ -237,25 +238,25 @@ ResponseStatus configFoxware::response(btle::ResponseFoxware* response, size_t s
     return ResponseStatus::ResponseFailed;
   }
   switch(loadList[next].cmd) {
-    case Command::GET_FOX_BAUDRATE: 
+    case Command::GET_FOX_BAUDRATE:
       TRACE("baudrate %d", response->data.baudrate);
       this->baudrate = response->data.baudrate;
     break;
-    case Command::GET_FOX_ADVERTISING_INTERNVAL: 
+    case Command::GET_FOX_ADVERTISING_INTERNVAL:
       TRACE("advertising_interval %d", response->data.internval);
       this->advertising_interval = response->data.internval;
     break;
-    case Command::GET_FOX_PASSCODE: 
+    case Command::GET_FOX_PASSCODE:
       //make sure it is string
       response->data.passcode[response->length] = 0;
       this->passcode = (uint32_t)std::stoi(response->data.passcode);
       TRACE("passcode %06d", this->passcode);
       break;
-    case Command::GET_FOX_MAC: 
+    case Command::GET_FOX_MAC:
       sprintf(this->mac, "%02X:%02X:%02X:%02X:%02X:%02X", response->data.bytes[5], response->data.bytes[4], response->data.bytes[3], response->data.bytes[2], response->data.bytes[1], response->data.bytes[0]);
       TRACE("mac %d", this->mac);
       break;
-    case Command::GET_FOX_NAME: 
+    case Command::GET_FOX_NAME:
       response->data.name[response->length] = 0;
       if (response->length > FOXWARE_MAX_NAME_LEN - 1)  {
         response->length = FOXWARE_MAX_NAME_LEN - 1;
@@ -263,19 +264,19 @@ ResponseStatus configFoxware::response(btle::ResponseFoxware* response, size_t s
       strncpy(this->name, response->data.name, response->length);
       TRACE("name %d", this->name);
     break;
-    case Command::GET_FOX_PASSCODE_PROTECTION: 
+    case Command::GET_FOX_PASSCODE_PROTECTION:
       this->passcode_protection = response->data.bytes[0] == 0x02;
       TRACE("passcode_protection %d", this->passcode_protection);
       break;
-    case Command::GET_FOX_BROADCAST_INTERNVAL: 
+    case Command::GET_FOX_BROADCAST_INTERNVAL:
       this->broadcast_interval = response->data.internval;
       TRACE("broadcast_interval %d", this->broadcast_interval);
       break;
-    case Command::GET_FOX_TX_POWER: 
+    case Command::GET_FOX_TX_POWER:
       this->tx_power = response->data.power;
       TRACE("power %d", this->tx_power);
       break;
-    case Command::GET_FW_VERSION: 
+    case Command::GET_FW_VERSION:
       this->fw_version = ((uint16_t)response->data.bytes[0] << 8) | ((uint16_t)response->data.bytes[1]);
       TRACE("fw %02X.%02X", (this->fw_version & 0xFF00) >> 8, this->fw_version & 0xFF);
       break;

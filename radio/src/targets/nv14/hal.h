@@ -533,7 +533,7 @@
 #define BT_USART                        USART3
 #define BT_GPIO_AF                      GPIO_AF_USART3
 #define BT_USART_IRQn                   USART3_IRQn
-#define BT_GPIO_TXRX                    GPIOB
+#define BT_USART_GPIO                   GPIOB
 #define BT_TX_GPIO_PIN                  GPIO_Pin_10  // PB.10
 #define BT_RX_GPIO_PIN                  GPIO_Pin_11  // PB.11
 #define BT_TX_GPIO_PinSource            GPIO_PinSource10

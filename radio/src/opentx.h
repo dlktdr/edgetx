@@ -1002,7 +1002,11 @@ constexpr uint8_t SD_SCREEN_FILE_LENGTH = 64;
 #endif
 
 #if defined(BLUETOOTH)
+#if defined(BLUETOOTH_LE)
+#include "bluetoothle.h"
+#else
 #include "bluetooth.h"
+#endif
 #endif
 
 constexpr uint8_t TEXT_FILENAME_MAXLEN = 40;

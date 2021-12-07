@@ -21,7 +21,7 @@
 #define BLUETOOTH_LE_H
 
 enum BluetoothLeStates {
-  BLUETOOTH_LE_STATE_OFF,
+  BLUETOOTH_STATE_OFF,
   BLUETOOTH_LE_STATE_BAUD_DETECT,
   BLUETOOTH_LE_STATE_REQUESTING_CONFIG,
   BLUETOOTH_LE_STATE_SAVING_CONFIG,
@@ -36,6 +36,7 @@ enum BluetoothLeStates {
 #define LEN_BLUETOOTH_ADDR            16
 #define MAX_BLUETOOTH_DISTANT_ADDR    6
 #define BLUETOOTH_TRAINER_PACKET_SIZE 14
+#define BLUETOOTH_TRAINER_CHANNELS      8
 
 #define SENSOR_HEADER_SIZE            1
 #define SENSOR_CRC_SIZE               2
@@ -85,10 +86,12 @@ class BluetoothLE
     //returns task delay in COOS ticks (ms / 2)
     uint32_t wakeup();
     void getStatus(char* buffer, size_t bufferSize);
+    char localAddr[LEN_BLUETOOTH_ADDR+1];
+    char distantAddr[LEN_BLUETOOTH_ADDR+1];
 
     volatile uint8_t state;
     struct btle::configFoxware config;
-    
+
   protected:
     uint32_t send(uint8_t* frame, size_t cmd_size);
     void setState(enum BluetoothLeStates state);
