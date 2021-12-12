@@ -20,11 +20,16 @@
  */
 
 #include "modelslist.h"
+#include <algorithm>
+
 using std::list;
 
 #if defined(SDCARD_YAML)
+#include "opentx.h"
+#include "storage/sdcard_yaml.h"
 #include "yaml/yaml_parser.h"
 #include "yaml/yaml_modelslist.h"
+#include "yaml/yaml_labelslist.h"
 #endif
 
 #include "myeeprom.h"
@@ -35,6 +40,7 @@ using std::list;
 #include <cstring>
 
 ModelsList modelslist;
+ModelMap modelslabels;
 
 ModelCell::ModelCell(const char* name) : valid_rfData(false)
 {
@@ -172,10 +178,10 @@ bool ModelCell::fetchRfData()
     setRfModuleData(i, &modData);
   }
 
-  valid_rfData = true;  
+  valid_rfData = true;
   f_close(&file);
   return true;
-  
+
  error:
   f_close(&file);
   return false;
@@ -267,7 +273,7 @@ void ModelsCategory::save(FIL * file)
   f_puts("[", file);
   f_puts(name, file);
   f_puts("]", file);
-  f_putc('\n', file);
+  f_putc('\n', file);get_labelslist_parser_calls
 #else
   f_puts("- \"", file);
   f_puts(name, file);
@@ -346,33 +352,163 @@ bool ModelsList::loadTxt()
 }
 
 #if defined(SDCARD_YAML)
+
+/* updateModelCell
+ *     Opens a YAML file, reads the data and updates the ModelCell
+ */
+
+void updateModelCell(ModelCell *cell)
+{
+  readModelYaml(cell->modelFilename, (uint8_t*)&g_model, sizeof(g_model));
+  strcpy(cell->modelName, g_model.header.name);
+  // Add the labels for this model
+  char *cma;
+  cma = strtok(g_model.header.labels, ",");
+  while(cma != NULL) {
+    modelslabels.insert(std::pair<std::string, ModelCell *>(cma,cell));
+    cma = strtok(NULL, ",");
+  }
+  for(int i=0; i < NUM_MODULES; i++) {
+    // TODO Keep track of the Receiver Numbers for quick scanning what's used
+    //mi->curmodel->modules_rxno[i] = g_model.moduleData[NUM_MODULES].
+  }
+  cell->staleData = false;
+}
+
+char *FILInfoToHexStr(char buffer[17], FILINFO *finfo)
+{
+  FInfoH fh;
+  fh.fdate = finfo->fdate;
+  fh.fsize = finfo->fsize;
+  fh.ftime = finfo->ftime;
+  char *str = buffer;
+  for(unsigned int i=0; i < sizeof(FInfoH::data); i++) {
+    sprintf(str,"%02x",fh.data[i]);
+    str+=2;
+  }
+  return buffer;
+}
+
+LabelsVector getLabels(ModelCell *mc)
+{
+  LabelsVector labels;
+  for (auto it = modelslabels.begin(); it != modelslabels.end(); ++it) {
+    if(it->second == mc)
+      labels.push_back(it->first);
+  }
+  return labels;
+}
+
+ModelLabelsVector getUniqueModelCells()
+{
+  // Print all labels
+  ModelLabelsVector rval;
+
+  std::unique_copy(modelslabels.begin(),
+                   modelslabels.end(),
+                   back_inserter(rval),
+                    [](const std::pair<std::string,ModelCell *> &entry1,
+                      const std::pair<std::string,ModelCell *> &entry2) {
+                        return (entry1.second == entry2.second);
+                    }
+             );
+  return rval;
+}
+
+ModelLabelsVector getUniqueLabels()
+{
+  // Print all labels
+  ModelLabelsVector rval;
+
+  std::unique_copy(modelslabels.begin(),
+                   modelslabels.end(),
+                   back_inserter(rval),
+                    [](const std::pair<std::string,ModelCell *> &entry1,
+                      const std::pair<std::string,ModelCell *> &entry2) {
+                        return (entry1.first == entry2.first);
+                    }
+             );
+  return rval;
+}
+
 bool ModelsList::loadYaml()
 {
-  char line[LEN_MODELS_IDX_LINE+1];
-  FRESULT result = f_open(&file, MODELSLIST_YAML_PATH, FA_OPEN_EXISTING | FA_READ);
+  // 1) Scan /MODELS/ for all .yml models
+  //    - Create a ModelCell for each model in ModelList
+  //    - Create a hash based on a the file info (name,size,modified,etc...) Used to detect a change in the file
 
-  if (result != FR_OK) {
-    // move the YaML models list from the old to the new place
-    FILINFO fno;
-    if (f_stat(FALLBACK_MODELSLIST_YAML_PATH, &fno) == FR_OK) {
-      if (!sdCopyFile(FALLBACK_MODELSLIST_YAML_PATH, MODELSLIST_YAML_PATH)) {
-        f_unlink(FALLBACK_MODELSLIST_YAML_PATH);
-        result =
-            f_open(&file, MODELSLIST_YAML_PATH, FA_OPEN_EXISTING | FA_READ);
+  // 2) Read Labels.yml
+  //    - Check if the modelfile name exists in Modellist. Ignore if the file isn't there
+  //    - If file exists in modelslist compare the file hash to the Modellist one.
+  //    - If different open the .yml file and grab all information, update modelslist
+  //         Labels
+  //         Model Name
+  //         Module ID's
+  //         Set Last Opened to now() (Sort by last used option)
+
+  // 3) Loop over all ModelsList items which are now synced to real files
+  //     Add label to ModelLabelsUnorderedMultiMap<std::string, ModelCell*>
+
+  // 4) Fav label will always be created if it doesn't already exist
+
+  // 1)
+
+  // Remove All Category items. Eventually
+  modelslist.clear();
+  categories.clear();
+  ModelsCategory *category = new ModelsCategory("ALL");
+  categories.push_back(category);
+  currentCategory = category;
+  // REMOVE MEEE
+
+  DEBUG_TIMER_START(debugTimerYamlScan);
+
+  DIR moddir;
+  FILINFO finfo;
+  if (f_opendir(&moddir, PATH_SEPARATOR MODELS_PATH) == FR_OK) {
+    for (;;) {
+      FRESULT res = f_readdir(&moddir, &finfo);
+      if (res != FR_OK || finfo.fname[0] == 0) break;
+      if(finfo.fattrib & AM_DIR) continue;
+      int len = strlen(finfo.fname);
+      if (len < 5 ||
+          strcasecmp(finfo.fname + len - 4, YAML_EXT) || // Skip non .yml files
+          strcasecmp(finfo.fname, LABELS_FILENAME) == 0  || // Skip labels.yml file
+          strcasecmp(finfo.fname, MODELS_FILENAME) == 0  || // Skip models.yml file
+          (finfo.fattrib & AM_DIR)) { // Skip sub dirs
+        continue;
+      }
+
+      char hbuf[FILE_HASH_LENGTH + 1];
+      FILInfoToHexStr(hbuf, &finfo);
+      TRACE("File - %s \r\n  HASH - %s", finfo.fname, hbuf);
+
+      // Create and add the model
+      ModelCell *model = new ModelCell(finfo.fname);
+      strcpy(model->modelFinfoHash, hbuf);
+      modelslist.push_back(model);
+
+      // See if this is the current model
+      if (!strncmp(finfo.fname, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME)) {
+        TRACE("FOUND CURRENT MODEL, loading");
+        currentModel = model;
       }
     }
+    f_closedir(&moddir);
   }
 
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE("  $$$$$$$$$$$  Time to scan models and create file hashes %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
+
+  // 2)
+
+  char line[LEN_MODELS_IDX_LINE+1];
+  FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_OPEN_EXISTING | FA_READ);
   if (result == FR_OK) {
-    // YAML reader
-    TRACE("YAML modelslist reader");
-
     YamlParser yp;
-    void* ctx = get_modelslist_iter(
-        g_eeGeneral.currModelFilename,
-        strnlen(g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME));
+    void* ctx = get_labelslist_iter();
 
-    yp.init(get_modelslist_parser_calls(), ctx);
+    yp.init(get_labelslist_parser_calls(), ctx);
 
     UINT bytes_read=0;
     while (f_read(&file, line, sizeof(line), &bytes_read) == FR_OK) {
@@ -386,8 +522,32 @@ bool ModelsList::loadYaml()
     }
 
     f_close(&file);
-    return true;
   }
+
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE("  $$$$$$$$$$$  Time to compare models %lu us", debugTimers[debugTimerYamlScan].getLast());
+
+  // Scan all models, see which ones need updating
+  for(const auto &model: modelslist) {
+    if(model->staleData) {
+      updateModelCell(model);
+    }
+  }
+
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE("  $$$$$$$$$$$  Time to scan all models that needed updating %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
+
+  ModelLabelsVector keys_dedup = getUniqueLabels();
+
+  /* Print unique keys, just to confirm. */
+  for (const auto &entry : keys_dedup)
+    TRACE("LABELS %s", entry.first.c_str());
+
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE("  $$$$$$$$$$$  Time to find unique 2 %lu us", debugTimers[debugTimerYamlScan].getLast());
+
+  // Save output
+  modelslist.save();
 
   return false;
 }
@@ -435,15 +595,61 @@ void ModelsList::save()
 #if !defined(SDCARD_YAML)
   FRESULT result = f_open(&file, RADIO_MODELSLIST_PATH, FA_CREATE_ALWAYS | FA_WRITE);
 #else
-  FRESULT result = f_open(&file, MODELSLIST_YAML_PATH, FA_CREATE_ALWAYS | FA_WRITE);
+  //FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_CREATE_ALWAYS | FA_WRITE);
+  FRESULT result = f_open(&file, "/MODELS/testyamlouy.txt", FA_CREATE_ALWAYS | FA_WRITE);
 #endif
   if (result != FR_OK) return;
+  f_puts("- Models:\r\n", &file);
+  for (auto const& model : modelslist) {
+    f_puts("  - ", &file);
+    f_puts(model->modelFilename, &file);
+    f_puts(":\r\n", &file);
 
-  for (list<ModelsCategory *>::iterator it = categories.begin();
-       it != categories.end(); ++it) {
-    (*it)->save(&file);
+      f_puts("    - hash: \"", &file);
+      f_puts(model->modelFinfoHash, &file);
+      f_puts("\"\r\n", &file);
+
+      f_puts("      name: \"", &file);
+      f_puts(model->modelName, &file);
+      f_puts("\"\r\n", &file);
+
+      f_puts("      labels: \"", &file);
+      LabelsVector labels = getLabels(model);
+      bool comma=false;
+      for(auto const& label: labels) {
+        if(comma) {
+          f_puts(",", &file);
+        }
+        f_puts(label.c_str(), &file);
+        comma = true;
+      }
+
+      f_puts("\"\r\n", &file);
+
+      // *** TODO: Keep track of last opened for filtering
+      f_puts("      lastopen: ", &file);
+      f_puts("\r\n", &file);
+
+      // *** TODO: Keep track of Receiver numbers for easy search later
+      char buffer[10];
+      for(int i=0; i < NUM_MODULES; i++) {
+        f_puts("      module", &file);
+        snprintf(buffer, sizeof(buffer), "%drxno: %d", i, model->moduleRXno[i]);
+        buffer[sizeof(buffer)-1] = '\0';
+        f_puts(buffer, &file);
+        f_puts("\r\n", &file);
+      }
   }
 
+  f_puts("\r\nLabels:\r\n", &file);
+  // Build Labels List
+  ModelLabelsVector  labels = getUniqueLabels();
+  for(auto const &label: labels) {
+    f_puts(" - ", &file);
+    f_puts(label.first.c_str(), &file);
+    f_puts(":\r\n", &file);
+  }
+  f_puts("\r\n", &file);
   f_close(&file);
 }
 
@@ -456,7 +662,7 @@ int ModelsList::getCurrentCategoryIdx() const
 {
   if (!currentCategory)
     return -1;
-  
+
   int idx = 0;
   for (auto cat : categories) {
     if (currentCategory == cat)
@@ -534,7 +740,7 @@ void ModelsList::moveModel(ModelsCategory * category, ModelCell * model, int8_t 
 }
 
 void ModelsList::moveModel(ModelCell * model, ModelsCategory * previous_category, ModelsCategory * new_category)
-{  
+{
   previous_category->remove(model);
   new_category->push_back(model);
   save();
@@ -617,7 +823,7 @@ uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
 
   uint8_t usedModelIds[(MAX_RXNUM + 7) / 8];
   memset(usedModelIds, 0, sizeof(usedModelIds));
-  
+
   const std::list<ModelsCategory *> & cats = modelslist.getCategories();
   for (auto catIt = cats.begin(); catIt != cats.end(); catIt++) {
     for (auto it = (*catIt)->begin(); it != (*catIt)->end(); it++) {

@@ -24,6 +24,9 @@
 
 #include <stdint.h>
 #include <list>
+#include <map>
+#include <string>
+#include <vector>
 
 #include "sdcard.h"
 #if !defined(SDCARD_YAML)
@@ -47,11 +50,26 @@ struct SimpleModuleData
   uint8_t rfProtocol;
 };
 
+typedef union {
+  struct {
+	  FSIZE_t	fsize;			/* File size */
+	  WORD	fdate;			/* Modified date */
+	  WORD	ftime;			/* Modified time */
+  };
+  uint8_t data[8];
+} FInfoH;
+
+#define FILE_HASH_LENGTH (sizeof(FInfoH::data) * 2)
+
 class ModelCell
 {
   public:
     char modelFilename[LEN_MODEL_FILENAME + 1];
     char modelName[LEN_MODEL_NAME + 1] = {};
+    char modelFinfoHash[FILE_HASH_LENGTH + 1];
+    int moduleRXno[NUM_MODULES];
+    time_t lastOpened;
+    bool staleData = true;
 
     bool             valid_rfData;
     uint8_t          modelId[NUM_MODULES];
@@ -91,11 +109,20 @@ public:
   void save(FIL * file);
 };
 
-class ModelsList
+class ModelMap : public std::multimap<std::string, ModelCell *>
+{
+  public:
+
+};
+
+
+class ModelsList : public std::list<ModelCell *>
 {
   bool loaded;
-  std::list<ModelsCategory *> categories;
-  ModelsCategory * currentCategory;
+
+  std::list<ModelsCategory *> categories; // To be removed
+  ModelsCategory * currentCategory; // To be removed
+
   ModelCell * currentModel;
   unsigned int modelsCount;
 
@@ -113,7 +140,7 @@ public:
     load_default = txt,
 #endif
   };
-  
+
   ModelsList();
   ~ModelsList();
 
@@ -125,7 +152,7 @@ public:
   {
     return categories;
   }
-  
+
   std::list<ModelsCategory *>& getCategories()
   {
     return categories;
@@ -177,9 +204,15 @@ protected:
   bool loadTxt();
 #if defined(SDCARD_YAML)
   bool loadYaml();
+  bool loadYamlDirScanner();
 #endif
 };
 
+typedef std::vector<std::pair<std::string,ModelCell *>> ModelLabelsVector;
+typedef std::vector<std::string> LabelsVector;
+ModelLabelsVector getUniqueLabels();
+
 extern ModelsList modelslist;
+extern ModelMap modelslabels;
 
 #endif // _MODELSLIST_H_
