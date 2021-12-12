@@ -24,6 +24,12 @@
 
 #include "tabsgroup.h"
 
+class ModelSeletWidget: public Window {
+  public:
+    ModelSeletWidget();
+    void build();
+};
+
 class ModelSelectMenu: public TabsGroup {
   public:
     ModelSelectMenu();
