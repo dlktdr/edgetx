@@ -433,6 +433,10 @@ ModelLabelsVector getUniqueLabels()
 
 bool ModelsList::loadYaml()
 {
+  static bool hasscanned=false;
+  if(hasscanned)
+    return true;
+  hasscanned = true;
   // 1) Scan /MODELS/ for all .yml models
   //    - Create a ModelCell for each model in ModelList
   //    - Create a hash based on a the file info (name,size,modified,etc...) Used to detect a change in the file
@@ -492,6 +496,7 @@ bool ModelsList::loadYaml()
       if (!strncmp(finfo.fname, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME)) {
         TRACE("FOUND CURRENT MODEL, loading");
         currentModel = model;
+
       }
     }
     f_closedir(&moddir);
@@ -546,10 +551,15 @@ bool ModelsList::loadYaml()
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
   TRACE("  $$$$$$$$$$$  Time to find unique 2 %lu us", debugTimers[debugTimerYamlScan].getLast());
 
+  // TEMPORARY.. add all models to ALL category
+  for(const auto &model: modelslist) {
+      category->push_back(model);
+  }
+
   // Save output
   modelslist.save();
 
-  return false;
+  return true;
 }
 #endif
 
