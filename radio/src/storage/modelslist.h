@@ -109,6 +109,9 @@ public:
   void save(FIL * file);
 };
 
+
+// TODO... Replace the std::string with a pointer list of unique labels instead of multiple copies of the same.. save some ram
+// no need to keep multiple copies of the same data in memory.
 class ModelMap : public std::multimap<std::string, ModelCell *>
 {
   public:
