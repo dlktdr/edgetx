@@ -27,6 +27,13 @@
 #include "storage/modelslist.h"
 
 #include <cstring>
+#define DEBUG_LABELS
+
+#ifdef DEBUG_LABELS
+#define TRACE_LABELS(...) TRACE(__VA_ARGS__)
+#else
+#define TRACE_LABELS(...)
+#endif
 
 using std::list;
 
@@ -42,9 +49,6 @@ struct labelslist_iter
         LabelData=6,
     };
 
-    //ModelsList* root;
-    //const char* currentModel;
-    //unsigned    currentModel_len;
     ModelCell   *curmodel;
     bool        modeldatavalid;
     uint8_t     level;
@@ -55,13 +59,16 @@ static labelslist_iter __labelslist_iter_inst;
 
 void* get_labelslist_iter()
 {
-    __labelslist_iter_inst.modeldatavalid = false;
-    __labelslist_iter_inst.curmodel = NULL;
-    __labelslist_iter_inst.level = 0;
+  // Thoughts... record the time here.
+  // If time > xxx while parsing models. pop up a window showing updating?
 
-    TRACE("YAML Label Reader Start %u", 0);
+  __labelslist_iter_inst.modeldatavalid = false;
+  __labelslist_iter_inst.curmodel = NULL;
+  __labelslist_iter_inst.level = 0;
 
-    return &__labelslist_iter_inst;
+  TRACE_LABELS("YAML Label Reader Start %u", 0);
+
+  return &__labelslist_iter_inst;
 }
 
 static bool to_parent(void* ctx)
@@ -76,7 +83,7 @@ static bool to_parent(void* ctx)
     else
       mi->level--;
 
-    TRACE("YAML To Parent %u", mi->level);
+    TRACE_LABELS("YAML To Parent %u", mi->level);
 
     return true;
 }
@@ -85,15 +92,10 @@ static bool to_child(void* ctx)
 {
     labelslist_iter* mi = (labelslist_iter*)ctx;
 
-/*    if (mi->level == labelslist_iter::LabelsRoot) {
-      mi->level == labelslist_iter::Root
-        return false;
-    }*/
-
     mi->level++;
 
-    TRACE("YAML To Child");
-    TRACE("YAML Level %u", mi->level);
+    TRACE_LABELS("YAML To Child");
+    TRACE_LABELS("YAML Level %u", mi->level);
     return true;
 }
 
@@ -104,8 +106,8 @@ static bool to_next_elmt(void* ctx)
         return false;
     }
 
-    TRACE("YAML To Next Element");
-    TRACE("YAML Current Level %u", mi->level);
+    TRACE_LABELS("YAML To Next Element");
+    TRACE_LABELS("YAML Current Level %u", mi->level);
     return true;
 }
 
@@ -116,25 +118,33 @@ static bool find_node(void* ctx, char* buf, uint8_t len)
     memcpy(mi->current_attr, buf, len);
     mi->current_attr[len] = '\0';
 
-    if(mi->level == 1 && strcasecmp(mi->current_attr,"labels") == 0) {
-      TRACE("Forced root");
+    TRACE_LABELS("YAML On Node %s", mi->current_attr);
+    TRACE_LABELS("YAML Current Level %u", mi->level);
+
+    // If in the labels node, force to labelsroot enum
+    if(mi->level == labelslist_iter::ModelsRoot && strcasecmp(mi->current_attr,"labels") == 0) {
+      TRACE_LABELS("Forced root");
       mi->level = labelslist_iter::LabelsRoot;
+      TRACE_LABELS("YAML New Level %u", mi->level);
     }
 
-    if(mi->level == 2)  { // Model List
+    if(mi->level == labelslist_iter::ModelName)  { // Model List
+      bool found=false;
       for (auto const& i : modelslist) {
-          TRACE("Comparing %s <-> %s", i->modelFilename, mi->current_attr);
+          TRACE_LABELS("Comparing %s <-> %s", mi->current_attr, i->modelFilename);
           if(!strcmp(i->modelFilename, mi->current_attr)) {
-            TRACE("This file actually exists. Saving it");
+            TRACE_LABELS("This file actually exists. Saving the pointer");
             mi->modeldatavalid = false;
             mi->curmodel = i;
+            found=true;
             break;
           }
         }
+      if(!found) {
+        mi->curmodel = NULL;
+        TRACE_LABELS("File does not exist in /MODELS");
+      }
     }
-
-    TRACE("YAML Find Node %s", mi->current_attr);
-    TRACE("YAML Current Level %u", mi->level);
     return true;
 }
 
@@ -145,66 +155,43 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
   value[len] = '\0';
 
   labelslist_iter* mi = (labelslist_iter*)ctx;
-  TRACE("YAML Setting Attr Level %u, %s = %s", mi->level, mi->current_attr, value);
+  TRACE_LABELS("YAML Attr Level %u, %s = %s", mi->level, mi->current_attr, value);
 
-  if(mi->level == 3) {
+  if(mi->level == labelslist_iter::ModelData) {
     if(!strcasecmp(mi->current_attr, "hash")) {
       if(mi->curmodel != NULL) {
           if(!strcmp(mi->curmodel->modelFinfoHash, value)) {
-            TRACE("FILE HASH MATCHES, No need to scan this model, just load the settings");
-
+            TRACE_LABELS("FILE HASH MATCHES, No need to scan this model, just load the settings");
             mi->modeldatavalid = true;
+            mi->curmodel->staleData = false;
           } else {
-            TRACE("FILE HASH Does not Match, Open model and rebuild modelcell");
+            TRACE_LABELS("FILE HASH Does not Match, Open model and rebuild modelcell");
+            mi->modeldatavalid = false;
+            mi->curmodel->staleData = true;
           }
       }
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "name")) {
       if(mi->curmodel != NULL)
         mi->curmodel->setModelName(value);
-        TRACE("Set the models name");
+        TRACE_LABELS("Set the models name");
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "labels")) {
       if(mi->curmodel != NULL) {
         char *cma;
         cma = strtok(value, ",");
         while(cma != NULL) {
           modelslabels.insert(std::pair<std::string, ModelCell *>(cma,mi->curmodel));
-          TRACE(" Added A Label to the Model - %s", cma);
+          TRACE_LABELS(" Adding the label - %s", cma);
           cma = strtok(NULL, ",");
         }
       }
     }
+  } else if(mi->level == labelslist_iter::LabelData) {
+    if(!strcasecmp(mi->current_attr, "icon")) {
+      TRACE_LABELS("Label Icon - %s", value);
+      // TODO - Check icon exists, or ignore it.
+
+    }
   }
-
-/*
-  auto ml = mi->root;
-  list<ModelsCategory*>& cats = ml->getCategories();
-
-  switch (mi->level) {
-    case modelslist_iter::Model:
-      if (!strcmp(mi->current_attr, "filename")) {
-        if (!cats.empty()) {
-          ModelCell* model = new ModelCell(buf, len);
-          auto cat = cats.back();
-          cat->push_back(model);
-          ml->incModelsCount();
-
-          if (!strncmp(model->modelFilename, mi->currentModel,
-                       mi->currentModel_len)) {
-            ml->setCurrentCategory(cat);
-            ml->setCurrentModel(model);
-          }
-        }
-      } else if (!strcmp(mi->current_attr, "name")) {
-        if (!cats.empty()) {
-          auto cat = cats.back();
-          if (!cat->empty()) {
-            auto model = cat->back();
-            model->setModelName(buf, len);
-          }
-        }
-      }
-      break;
-  }*/
 }
 
 static const YamlParserCalls labelslistCalls = {
