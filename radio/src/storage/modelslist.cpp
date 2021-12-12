@@ -647,7 +647,8 @@ void ModelsList::save()
   for(auto const &label: labels) {
     f_puts(" - ", &file);
     f_puts(label.first.c_str(), &file);
-    f_puts(":\r\n", &file);
+    f_puts(":\r\n    - icon: TODO.png\r\n", &file);
+
   }
   f_puts("\r\n", &file);
   f_close(&file);
