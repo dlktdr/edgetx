@@ -210,6 +210,7 @@ protected:
 
 typedef std::vector<std::pair<std::string,ModelCell *>> ModelLabelsVector;
 typedef std::vector<std::string> LabelsVector;
+typedef std::map<std::string, std::string> LabelIcons;
 ModelLabelsVector getUniqueLabels();
 
 extern ModelsList modelslist;
