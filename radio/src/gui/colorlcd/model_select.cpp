@@ -56,7 +56,7 @@ class ModelButton : public Button
   {
     if (buffer) { delete buffer; }
   }
-  
+
   void load()
   {
 #if defined(SDCARD_RAW)
@@ -243,7 +243,7 @@ class ModelCategoryPageBody : public FormWindow
             if(modelslist.getCategories().size() > 1) {
               menu->addLine(STR_MOVE_MODEL, [=]() {
               auto moveToMenu = new Menu(parent);
-              moveToMenu->setTitle(STR_MOVE_MODEL);              
+              moveToMenu->setTitle(STR_MOVE_MODEL);
                 for (auto newcategory: modelslist.getCategories()) {
                   if(category != newcategory) {
                     moveToMenu->addLine(std::string(newcategory->name, sizeof(newcategory->name)), [=]() {
@@ -300,7 +300,7 @@ class ModelCategoryPageBody : public FormWindow
 
   void addFirstModel() {
     Menu *menu = new Menu(this);
-    menu->addLine(STR_CREATE_MODEL, getCreateModelAction());      
+    menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
   }
 
 #if defined(HARDWARE_KEYS)
@@ -324,7 +324,7 @@ class ModelCategoryPageBody : public FormWindow
       return true;
     }
 #endif
-  
+
 
   void setFocus(uint8_t flag = SET_FOCUS_DEFAULT,
                 Window *from = nullptr) override
@@ -395,12 +395,12 @@ class CategoryGroup: public FormGroup
 class CategoryEditPage : public PageTab
 {
   public:
-    explicit CategoryEditPage(ModelSelectMenu *modelselectmenu, bool scrolltobot=false) : 
+    explicit CategoryEditPage(ModelSelectMenu *modelselectmenu, bool scrolltobot=false) :
 
       PageTab(STR_MODEL_CATEGORIES, ICON_MODEL_SETUP),
-      modelselectmenu(modelselectmenu), 
+      modelselectmenu(modelselectmenu),
       scrolltobot(scrolltobot)
-    {     
+    {
     }
 
   protected:
@@ -421,9 +421,9 @@ class CategoryEditPage : public PageTab
       for (auto category: modelslist.getCategories()) {
         // NAME
         auto catname = new TextEdit(window, grid.getFieldSlot(3,0), category->name, sizeof(category->name));
-        catname->setChangeHandler([=]() {          
+        catname->setChangeHandler([=]() {
           if(category->name[0] == '\0') {
-            category->name[0] = ' '; category->name[1] = '\0';            
+            category->name[0] = ' '; category->name[1] = '\0';
           }
           modelslist.save();
           update();
@@ -431,7 +431,7 @@ class CategoryEditPage : public PageTab
 
         // Details
         char cnt[19];
-        snprintf(cnt, sizeof(cnt), "%u %s", category->size(), STR_MODELS);
+        snprintf(cnt, sizeof(cnt), "%u %s", (unsigned int)category->size(), STR_MODELS);
         new StaticText(window, grid.getFieldSlot(3,1), cnt);
 
         if(category->empty()) {
@@ -439,7 +439,7 @@ class CategoryEditPage : public PageTab
             new ConfirmDialog(window, STR_DELETE_CATEGORY,
               std::string(category->name, sizeof(category->name)).c_str(),
               [=] {
-                modelslist.removeCategory(category);    
+                modelslist.removeCategory(category);
                 modelslist.save();
                 update();
               });
@@ -461,7 +461,7 @@ class CategoryEditPage : public PageTab
         //window->setHeight(height);
         y += height + 2;
       }
-            
+
       new TextButton(window, grid.getCenteredSlot(LCD_W/2), STR_CREATE_CATEGORY, [=]() -> uint8_t {
         modelslist.createCategory("New");
         update();
@@ -470,11 +470,11 @@ class CategoryEditPage : public PageTab
 
       grid.nextLine();
 
-      window->setInnerHeight(grid.getWindowHeight()); 
+      window->setInnerHeight(grid.getWindowHeight());
 
       if(scrolltobot)
         window->setScrollPositionY(y+40);
-    }  
+    }
   private:
     ModelSelectMenu *modelselectmenu;
     bool scrolltobot;
@@ -482,19 +482,18 @@ class CategoryEditPage : public PageTab
 
 ModelSelectMenu::ModelSelectMenu():
   TabsGroup(ICON_MODEL_SELECT)
-{  
+{
   build();
 }
 
-void ModelSelectMenu::build(int index) 
-{  
-  modelslist.clear();
+void ModelSelectMenu::build(int index)
+{
   modelslist.load();
 
   removeAllTabs();
 
-  TRACE("TabsGroup: %p", this);  
-  
+  TRACE("TabsGroup: %p", this);
+
   addTab(new CategoryEditPage(this));
 
   for (auto category: modelslist.getCategories()) {
