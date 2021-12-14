@@ -132,13 +132,12 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     int addLabel(std::string);
     void addMapping(std::string, ModelCell *);
     LabelsVector getLabels();
-
+    int size() {return std::multimap<int, ModelCell *>::size();}
     void clear() {
       labels.clear();
       std::multimap<int, ModelCell *>::clear();
     }
 
-    // Returns a list of
     /*ModelLabelsVector getUniqueModelCells()
     {
       ModelLabelsVector rval;

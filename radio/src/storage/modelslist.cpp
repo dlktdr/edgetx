@@ -426,6 +426,7 @@ void updateModelCell(ModelCell *cell)
 
   readModelYaml(cell->modelFilename, (uint8_t*)model, sizeof(ModelData));
   strcpy(cell->modelName, model->header.name);
+  strcpy(cell->modelBitmap, model->header.bitmap);
   char *cma;
   cma = strtok(model->header.labels, ",");
   while(cma != NULL) {
@@ -620,8 +621,7 @@ void ModelsList::save()
 #if !defined(SDCARD_YAML)
   FRESULT result = f_open(&file, RADIO_MODELSLIST_PATH, FA_CREATE_ALWAYS | FA_WRITE);
 #else
-  //FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_CREATE_ALWAYS | FA_WRITE);
-  FRESULT result = f_open(&file, "/MODELS/testyamlouy.txt", FA_CREATE_ALWAYS | FA_WRITE);
+  FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_CREATE_ALWAYS | FA_WRITE);
 #endif
   if (result != FR_OK) return;
   f_puts("- Models:\r\n", &file);
@@ -660,7 +660,7 @@ void ModelsList::save()
       f_puts("      lastopen: ", &file);
       f_puts("\r\n", &file);
 
-      // *** TODO: Keep track of Receiver numbers for easy search later
+      // *** TODO: Keep track of rfData for easy search later (don't duplicate receiver numbers)
       char buffer[10];
       for(int i=0; i < NUM_MODULES; i++) {
         // Rework with simple rf model data

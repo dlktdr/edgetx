@@ -27,7 +27,7 @@
 #include "storage/modelslist.h"
 
 #include <cstring>
-#define DEBUG_LABELS
+//#define DEBUG_LABELS
 
 #ifdef DEBUG_LABELS
 #define TRACE_LABELS(...) TRACE(__VA_ARGS__)
@@ -157,7 +157,10 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
   labelslist_iter* mi = (labelslist_iter*)ctx;
   TRACE_LABELS("YAML Attr Level %u, %s = %s", mi->level, mi->current_attr, value);
 
+  // Model Section
   if(mi->level == labelslist_iter::ModelData) {
+
+    // File Hash
     if(!strcasecmp(mi->current_attr, "hash")) {
       if(mi->curmodel != NULL) {
           if(!strcmp(mi->curmodel->modelFinfoHash, value)) {
@@ -170,10 +173,25 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
             mi->curmodel->staleData = true;
           }
       }
+
+    // Model Name
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "name")) {
-      if(mi->curmodel != NULL)
+      if(mi->curmodel != NULL) {
         mi->curmodel->setModelName(value);
         TRACE_LABELS("Set the models name");
+      }
+
+    // Model Bitmap
+#if LEN_BITMAP_NAME > 0
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "bitmap")) {
+      if(mi->curmodel != NULL) {
+        // TODO Check if it exists ?
+        strcpy(mi->curmodel->modelBitmap, value);
+        TRACE_LABELS("Set the models bitmap");
+      }
+#endif
+
+    // Model Labels
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "labels")) {
       if(mi->curmodel != NULL) {
         char *cma;
@@ -185,6 +203,8 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         }
       }
     }
+
+  // Label Section
   } else if(mi->level == labelslist_iter::LabelData) {
     if(!strcasecmp(mi->current_attr, "icon")) {
       TRACE_LABELS("Label Icon - %s", value);
