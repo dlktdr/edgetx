@@ -22,9 +22,10 @@
 #ifndef _MODELSLIST_H_
 #define _MODELSLIST_H_
 
+#include <algorithm>
 #include <stdint.h>
 #include <list>
-#include <map>
+                                                                                                                                       #include <map>
 #include <string>
 #include <vector>
 
@@ -67,7 +68,9 @@ class ModelCell
     char modelFilename[LEN_MODEL_FILENAME + 1];
     char modelName[LEN_MODEL_NAME + 1] = {};
     char modelFinfoHash[FILE_HASH_LENGTH + 1];
-    int moduleRXno[NUM_MODULES];
+#if LEN_BITMAP_NAME > 0
+    char modelBitmap[LEN_BITMAP_NAME];
+#endif
     time_t lastOpened;
     bool staleData = true;
 
@@ -77,7 +80,6 @@ class ModelCell
 
     explicit ModelCell(const char * name);
     explicit ModelCell(const char * name, uint8_t len);
-    ~ModelCell();
 
     void save(FIL * file);
 
@@ -88,9 +90,20 @@ class ModelCell
     void setModelId(uint8_t moduleIdx, uint8_t id);
     void setRfModuleData(uint8_t moduleIdx, ModuleData* modData);
 
-    bool  fetchRfData();
+    bool fetchRfData();
 };
 
+typedef struct {
+  std::string icon;
+  // Anything else?
+} SLabelDetail;
+
+typedef std::vector<std::pair<int, ModelCell *>> ModelLabelsVector;
+typedef std::vector<std::string> LabelsVector;
+typedef std::vector<ModelCell *> ModelsVector;
+typedef std::map<int, SLabelDetail> LabelIcons;
+
+// REMOVE MEEE
 class ModelsCategory: public std::list<ModelCell *>
 {
 public:
@@ -108,23 +121,68 @@ public:
 
   void save(FIL * file);
 };
+// REMOVE MEEE ^^^^^
 
 
-// TODO... Replace the std::string with a pointer list of unique labels instead of multiple copies of the same.. save some ram
-// no need to keep multiple copies of the same data in memory.
-class ModelMap : public std::multimap<std::string, ModelCell *>
+class ModelMap : protected std::multimap<int, ModelCell *>
 {
   public:
+    ModelsVector getModelsByLabel(std::string);
+    LabelsVector getLabelsByModel(ModelCell *);
+    int addLabel(std::string);
+    void addMapping(std::string, ModelCell *);
+    LabelsVector getLabels();
 
+    void clear() {
+      labels.clear();
+      std::multimap<int, ModelCell *>::clear();
+    }
+
+    // Returns a list of
+    /*ModelLabelsVector getUniqueModelCells()
+    {
+      ModelLabelsVector rval;
+
+      std::unique_copy(begin(),
+                       end(),
+                       std::back_inserter(rval),
+                         [](const std::pair<std::string,ModelCell *> &entry1,
+                           const std::pair<std::string,ModelCell *> &entry2) {
+                             return (entry1.second == entry2.second);
+                         });
+      return rval;
+    }*/
+
+  private:
+    // Storage for the label strings, keep here to so only one copy
+    // of a each label required.
+    LabelsVector labels;
+
+    int getIndexByLabel(std::string str) {
+      std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+      for(uint16_t i=0; i < (uint16_t)labels.size(); i++) {
+        if(labels.at(i) == str) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    std::string getLabelByIndex(uint16_t index) {
+      if(index < (uint16_t)labels.size())
+        return labels.at(index);
+      else
+        return std::string();
+    }
 };
 
 
-class ModelsList : public std::list<ModelCell *>
+class ModelsList : public std::vector<ModelCell *>
 {
   bool loaded;
 
   std::list<ModelsCategory *> categories; // To be removed
-  ModelsCategory * currentCategory; // To be removed
+  ModelsCategory * currentCategory;       // To be removed
 
   ModelCell * currentModel;
   unsigned int modelsCount;
@@ -211,9 +269,7 @@ protected:
 #endif
 };
 
-typedef std::vector<std::pair<std::string,ModelCell *>> ModelLabelsVector;
-typedef std::vector<std::string> LabelsVector;
-typedef std::map<std::string, std::string> LabelIcons;
+
 ModelLabelsVector getUniqueLabels();
 
 extern ModelsList modelslist;
