@@ -46,6 +46,10 @@ ModelCell::ModelCell(const char* name) : valid_rfData(false)
 {
   strncpy(modelFilename, name, sizeof(modelFilename)-1);
   modelFilename[sizeof(modelFilename)-1] = '\0';
+#if LEN_BITMAP_NAME > 0
+    modelBitmap[0] = '\0';
+#endif
+
 }
 
 ModelCell::ModelCell(const char* name, uint8_t len) : valid_rfData(false)
@@ -54,10 +58,9 @@ ModelCell::ModelCell(const char* name, uint8_t len) : valid_rfData(false)
 
   memcpy(modelFilename, name, len);
   modelFilename[len] = '\0';
-}
-
-ModelCell::~ModelCell()
-{
+#if LEN_BITMAP_NAME > 0
+    modelBitmap[0] = '\0';
+#endif
 }
 
 void ModelCell::setModelName(char * name)
@@ -95,7 +98,6 @@ void ModelCell::setModelId(uint8_t moduleIdx, uint8_t id)
 {
   modelId[moduleIdx] = id;
 }
-
 
 void ModelCell::save(FIL* file)
 {
@@ -284,6 +286,59 @@ void ModelsCategory::save(FIL * file)
   }
 }
 
+//-----------------------------------------------------------------------------
+
+ModelsVector ModelMap::getModelsByLabel(std::string lbl)
+{
+  int index = getIndexByLabel(lbl);
+  if(index < 0)
+    return ModelsVector();
+  ModelsVector rv;
+  for (auto it = begin(); it != end(); ++it) {
+    if(it->first == index)
+      rv.push_back(it->second);
+  }
+  return rv;
+}
+
+LabelsVector ModelMap::getLabelsByModel(ModelCell *mdl)
+{
+  if(mdl == nullptr) return LabelsVector();
+  LabelsVector rv;
+  for (auto it = begin(); it != end(); ++it) {
+    if(it->second == mdl) {
+      rv.push_back(getLabelByIndex(it->first));
+    }
+  }
+  return rv;
+}
+
+int ModelMap::addLabel(std::string lbl)
+{
+  int ind = getIndexByLabel(lbl);
+  if(ind < 0) {
+    std::transform(lbl.begin(), lbl.end(), lbl.begin(), ::tolower);
+    labels.push_back(lbl);
+    TRACE("Added a label %s", lbl.c_str());
+    return labels.size() - 1;
+  }
+  return ind;
+}
+
+void ModelMap::addMapping(std::string lbl, ModelCell *cell)
+{
+  int labelindex = addLabel(lbl);
+  insert(std::pair<int, ModelCell *>(labelindex,cell));
+}
+
+LabelsVector ModelMap::getLabels()
+{
+  return labels;
+}
+
+
+//-----------------------------------------------------------------------------
+
 ModelsList::ModelsList()
 {
   init();
@@ -355,25 +410,38 @@ bool ModelsList::loadTxt()
 
 /* updateModelCell
  *     Opens a YAML file, reads the data and updates the ModelCell
- */
+  */
 
 void updateModelCell(ModelCell *cell)
 {
-  readModelYaml(cell->modelFilename, (uint8_t*)&g_model, sizeof(g_model));
-  strcpy(cell->modelName, g_model.header.name);
-  // Add the labels for this model
+  // TODO.. should remove all modelcells from map first
+
+  ModelData *model = (ModelData*)malloc(sizeof(ModelData)); // TODO HOPE this isn't too much extra ram on some targets... :()
+  if(!model) {
+    TRACE("Labels: Out Of Memory");
+    return;
+  }
+  // ??? To I need the whole model.. double check. or just a partialmodel to include
+  // rfdata?
+
+  readModelYaml(cell->modelFilename, (uint8_t*)model, sizeof(ModelData));
+  strcpy(cell->modelName, model->header.name);
   char *cma;
-  cma = strtok(g_model.header.labels, ",");
+  cma = strtok(model->header.labels, ",");
   while(cma != NULL) {
-    modelslabels.insert(std::pair<std::string, ModelCell *>(cma,cell));
+    modelslabels.addMapping(cma,cell);
     cma = strtok(NULL, ",");
   }
   for(int i=0; i < NUM_MODULES; i++) {
     // TODO Keep track of the Receiver Numbers for quick scanning what's used
     //mi->curmodel->modules_rxno[i] = g_model.moduleData[NUM_MODULES].
   }
+  // TODO: Should also keep track of
   cell->staleData = false;
+  free(model);
 }
+
+// Simple Hash of the Files
 
 char *FILInfoToHexStr(char buffer[17], FILINFO *finfo)
 {
@@ -389,62 +457,18 @@ char *FILInfoToHexStr(char buffer[17], FILINFO *finfo)
   return buffer;
 }
 
-LabelsVector getLabels(ModelCell *mc)
-{
-  LabelsVector labels;
-  for (auto it = modelslabels.begin(); it != modelslabels.end(); ++it) {
-    if(it->second == mc)
-      labels.push_back(it->first);
-  }
-  return labels;
-}
-
-ModelLabelsVector getUniqueModelCells()
-{
-  // Print all labels
-  ModelLabelsVector rval;
-
-  std::unique_copy(modelslabels.begin(),
-                   modelslabels.end(),
-                   back_inserter(rval),
-                    [](const std::pair<std::string,ModelCell *> &entry1,
-                      const std::pair<std::string,ModelCell *> &entry2) {
-                        return (entry1.second == entry2.second);
-                    }
-             );
-  return rval;
-}
-
-ModelLabelsVector getUniqueLabels()
-{
-  // Print all labels
-  ModelLabelsVector rval;
-
-  std::unique_copy(modelslabels.begin(),
-                   modelslabels.end(),
-                   back_inserter(rval),
-                    [](const std::pair<std::string,ModelCell *> &entry1,
-                      const std::pair<std::string,ModelCell *> &entry2) {
-                        return (entry1.first == entry2.first);
-                    }
-             );
-  return rval;
-}
-
 bool ModelsList::loadYaml()
 {
-  static bool hasscanned=false;
-  if(hasscanned)
-    return true;
-  hasscanned = true;
+  modelslist.clear();
+
   // 1) Scan /MODELS/ for all .yml models
   //    - Create a ModelCell for each model in ModelList
   //    - Create a hash based on a the file info (name,size,modified,etc...) Used to detect a change in the file
 
   // 2) Read Labels.yml
-  //    - Check if the modelfile name exists in Modellist. Ignore if the file isn't there
+  //    - Check if the modelfile name exists in Modellist. Ignore if the file isn't there will be removed from labels.yml on next write
   //    - If file exists in modelslist compare the file hash to the Modellist one.
-  //    - If different open the .yml file and grab all information, update modelslist
+  //    - If has different open the .yml file and grab all information, update modelslist
   //         Labels
   //         Model Name
   //         Module ID's
@@ -453,17 +477,7 @@ bool ModelsList::loadYaml()
   // 3) Loop over all ModelsList items which are now synced to real files
   //     Add label to ModelLabelsUnorderedMultiMap<std::string, ModelCell*>
 
-  // 4) Fav label will always be created if it doesn't already exist
-
-  // 1)
-
-  // Remove All Category items. Eventually
-  modelslist.clear();
-  categories.clear();
-  ModelsCategory *category = new ModelsCategory("ALL");
-  categories.push_back(category);
-  currentCategory = category;
-  // REMOVE MEEE
+  // 4) Fav label will always be created if it doesn't already exist *** TODO
 
   DEBUG_TIMER_START(debugTimerYamlScan);
 
@@ -496,7 +510,6 @@ bool ModelsList::loadYaml()
       if (!strncmp(finfo.fname, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME)) {
         TRACE("FOUND CURRENT MODEL, loading");
         currentModel = model;
-
       }
     }
     f_closedir(&moddir);
@@ -542,20 +555,22 @@ bool ModelsList::loadYaml()
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
   TRACE("  $$$$$$$$$$$  Time to scan all models that needed updating %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
 
-  ModelLabelsVector keys_dedup = getUniqueLabels();
+  for (const auto &label : modelslabels.getLabels()) {
+    TRACE("Label %s", label.c_str());
+    // TEMP, make a category for each label
+    ModelsCategory *category = new ModelsCategory(label.c_str());
+    categories.push_back(category);
 
-  /* Print unique keys, just to confirm. */
-  for (const auto &entry : keys_dedup)
-    TRACE("LABELS %s", entry.first.c_str());
+  }
 
-  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
-  TRACE("  $$$$$$$$$$$  Time to find unique 2 %lu us", debugTimers[debugTimerYamlScan].getLast());
+/*  if(categories.size())
+    currentCategory = categories.begin();
 
   // TEMPORARY.. add all models to ALL category
   for(const auto &model: modelslist) {
       category->push_back(model);
   }
-
+*/
   // Save output
   modelslist.save();
 
@@ -624,7 +639,7 @@ void ModelsList::save()
       f_puts("\"\r\n", &file);
 
       f_puts("      labels: \"", &file);
-      LabelsVector labels = getLabels(model);
+      LabelsVector labels = modelslabels.getLabelsByModel(model);
       bool comma=false;
       for(auto const& label: labels) {
         if(comma) {
@@ -633,8 +648,13 @@ void ModelsList::save()
         f_puts(label.c_str(), &file);
         comma = true;
       }
-
       f_puts("\"\r\n", &file);
+
+#if LEN_BITMAP_NAME > 0
+      f_puts("      bitmap: \"", &file);
+      f_puts(model->modelBitmap, &file);
+      f_puts("\"\r\n", &file);
+#endif
 
       // *** TODO: Keep track of last opened for filtering
       f_puts("      lastopen: ", &file);
@@ -643,20 +663,22 @@ void ModelsList::save()
       // *** TODO: Keep track of Receiver numbers for easy search later
       char buffer[10];
       for(int i=0; i < NUM_MODULES; i++) {
-        f_puts("      module", &file);
+        // Rework with simple rf model data
+        //model->moduleData[0].
+
+        /*f_puts("      module", &file);
         snprintf(buffer, sizeof(buffer), "%drxno: %d", i, model->moduleRXno[i]);
         buffer[sizeof(buffer)-1] = '\0';
         f_puts(buffer, &file);
-        f_puts("\r\n", &file);
+        f_puts("\r\n", &file);*/
       }
   }
 
   f_puts("\r\nLabels:\r\n", &file);
   // Build Labels List
-  ModelLabelsVector  labels = getUniqueLabels();
-  for(auto const &label: labels) {
+  for(auto const &label: modelslabels.getLabels()) {
     f_puts(" - ", &file);
-    f_puts(label.first.c_str(), &file);
+    f_puts(label.c_str(), &file);
     f_puts(":\r\n    - icon: TODO.png\r\n", &file);
 
   }

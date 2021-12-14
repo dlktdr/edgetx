@@ -179,7 +179,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         char *cma;
         cma = strtok(value, ",");
         while(cma != NULL) {
-          modelslabels.insert(std::pair<std::string, ModelCell *>(cma,mi->curmodel));
+          modelslabels.addMapping(cma,mi->curmodel);
           TRACE_LABELS(" Adding the label - %s", cma);
           cma = strtok(NULL, ",");
         }
