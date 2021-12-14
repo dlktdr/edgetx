@@ -1319,6 +1319,15 @@ void ModelSetupPage::build(FormWindow * window)
   });
   grid.nextLine();
 
+  // Model labels
+  new StaticText(window, grid.getLabelSlot(), "Labels", 0, COLOR_THEME_PRIMARY1);
+  auto lblchoice = new Choice(window,grid.getFieldSlot(),0,0, [=] { return 0; });
+  lblchoice->clear();
+  for(auto const &label: modelslabels.getLabels()) {
+    lblchoice->addValue(label.c_str());
+  }
+  grid.nextLine();
+
   // Bitmap
   new StaticText(window, grid.getLabelSlot(), STR_BITMAP, 0, COLOR_THEME_PRIMARY1);
   new FileChoice(window, grid.getFieldSlot(), BITMAPS_PATH, BITMAPS_EXT, sizeof(g_model.header.bitmap),
