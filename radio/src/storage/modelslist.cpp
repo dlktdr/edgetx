@@ -36,11 +36,12 @@ using std::list;
 #include "datastructs.h"
 #include "pulses/modules_helpers.h"
 #include "strhelpers.h"
+#include "datastructs.h"
 
 #include <cstring>
 
 ModelsList modelslist;
-ModelMap modelslabels;
+ModelMap modelsLabels;
 
 ModelCell::ModelCell(const char* name) : valid_rfData(false)
 {
@@ -313,8 +314,40 @@ LabelsVector ModelMap::getLabelsByModel(ModelCell *mdl)
   return rv;
 }
 
+std::map<std::string, bool> ModelMap::getSelectedLabels(ModelCell *cell)
+{
+  std::map<std::string, bool> rval;
+  // Loop through all labels and add to the map default to false
+  for(const auto& lbl : labels) {
+      rval[lbl] = false;
+  }
+  // Loop through all labels selected by the model, set them true
+  LabelsVector modlbl = getLabelsByModel(cell);
+  for(const auto& ml : modlbl) {
+    rval[ml] = true;
+  }
+  return rval;
+}
+
+bool ModelMap::isLabelSelected(std::string label, ModelCell *cell)
+{
+  auto lbm = getLabelsByModel(cell);
+  if(std::find(lbm.begin(), lbm.end(), label) == lbm.end()) {
+    return false;
+  }
+  return true;
+}
+
+LabelsVector ModelMap::getLabels()
+{
+  return labels;
+}
+
 int ModelMap::addLabel(std::string lbl)
 {
+  // Add a new label if if doesn't already exist in the list
+  // Returns the index to the label
+  isValid=false;
   int ind = getIndexByLabel(lbl);
   if(ind < 0) {
     std::transform(lbl.begin(), lbl.end(), lbl.begin(), ::tolower);
@@ -325,17 +358,51 @@ int ModelMap::addLabel(std::string lbl)
   return ind;
 }
 
-void ModelMap::addMapping(std::string lbl, ModelCell *cell)
+bool ModelMap::addLabelToModel(std::string lbl, ModelCell *cell)
 {
+  // First check that there aren't too many labels on this model
+  LabelsVector lbs = getLabelsByModel(cell);
+  int sz = 0;
+  for(auto const &it : lbs) {
+    sz = it.size() + 1; // Label length + ','
+  }
+  sz += lbl.size() + 1; // New label + ','
+  if(sz > LABELS_LENGTH - 1) {
+    TRACE("Cannot add the %s label to the model. Too many labels", lbl.c_str());
+    return false;
+  }
+
+  isValid=false;
   int labelindex = addLabel(lbl);
   insert(std::pair<int, ModelCell *>(labelindex,cell));
+  return true;
 }
 
-LabelsVector ModelMap::getLabels()
+bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 {
-  return labels;
+  int lblind=getIndexByLabel(label);
+  if(lblind < 0)
+    return false;
+  bool rv=false;
+  // Erase members that satisfy needs_removing(itr)
+  for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
+    itr = (itr->first == lblind && itr->second == cell) ? erase(itr) : std::next(itr);
+    rv = true;
+  }
+  return rv;
 }
 
+void ModelMap::getModelCSV(std::string &dest, ModelCell *cell)
+{
+  dest.clear();
+  bool comma=false;
+  for(auto const&lbl : getLabelsByModel(cell)) {
+    if(comma)
+      dest.push_back(',');
+    dest.append(lbl);
+    comma = true;
+  }
+}
 
 //-----------------------------------------------------------------------------
 
@@ -430,7 +497,7 @@ void updateModelCell(ModelCell *cell)
   char *cma;
   cma = strtok(model->header.labels, ",");
   while(cma != NULL) {
-    modelslabels.addMapping(cma,cell);
+    modelsLabels.addLabelToModel(cma,cell);
     cma = strtok(NULL, ",");
   }
   for(int i=0; i < NUM_MODULES; i++) {
@@ -482,6 +549,8 @@ bool ModelsList::loadYaml()
 
   DEBUG_TIMER_START(debugTimerYamlScan);
 
+  // 1) Scan /MODELS/ for all .yml models
+
   DIR moddir;
   FILINFO finfo;
   if (f_opendir(&moddir, PATH_SEPARATOR MODELS_PATH) == FR_OK) {
@@ -519,7 +588,7 @@ bool ModelsList::loadYaml()
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
   TRACE("  $$$$$$$$$$$  Time to scan models and create file hashes %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
 
-  // 2)
+  // 2) Read Labels.yml
 
   char line[LEN_MODELS_IDX_LINE+1];
   FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_OPEN_EXISTING | FA_READ);
@@ -556,22 +625,25 @@ bool ModelsList::loadYaml()
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
   TRACE("  $$$$$$$$$$$  Time to scan all models that needed updating %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
 
-  for (const auto &label : modelslabels.getLabels()) {
+
+  /// TEMP
+  for (const auto &label : modelsLabels.getLabels()) {
     TRACE("Label %s", label.c_str());
     // TEMP, make a category for each label
     ModelsCategory *category = new ModelsCategory(label.c_str());
     categories.push_back(category);
-
   }
 
-/*  if(categories.size())
-    currentCategory = categories.begin();
-
-  // TEMPORARY.. add all models to ALL category
-  for(const auto &model: modelslist) {
-      category->push_back(model);
+  if(modelslist.currentModel) {
+    std::string csv;
+    modelsLabels.getModelCSV(csv, modelslist.currentModel);
+    TRACE("Current Models Labels String as generated %s", csv.c_str());
+  } else {
+    TRACE("ERRROR no Current Model Found");
   }
-*/
+
+  modelsLabels.addLabel("Favorite");
+
   // Save output
   modelslist.save();
 
@@ -638,8 +710,19 @@ void ModelsList::save()
       f_puts(model->modelName, &file);
       f_puts("\"\r\n", &file);
 
+      // TODO Maybe make sub-items.. or not use at all?
+      f_printf(&file, "      id1: %u\r\n",(unsigned int)model->modelId[0]);
+#if NUM_MODULES == 2
+      f_printf(&file, "      id2: %u\r\n",(unsigned int)model->modelId[1]);
+#endif
+
+      f_printf(&file, "      mod1type: %u\r\n",(unsigned int)model->moduleData[0].type);
+#if NUM_MODULES == 2
+      f_printf(&file, "      mod2type: %u\r\n",(unsigned int)model->moduleData[1].type);
+#endif
+
       f_puts("      labels: \"", &file);
-      LabelsVector labels = modelslabels.getLabelsByModel(model);
+      LabelsVector labels = modelsLabels.getLabelsByModel(model);
       bool comma=false;
       for(auto const& label: labels) {
         if(comma) {
@@ -659,24 +742,11 @@ void ModelsList::save()
       // *** TODO: Keep track of last opened for filtering
       f_puts("      lastopen: ", &file);
       f_puts("\r\n", &file);
-
-      // *** TODO: Keep track of rfData for easy search later (don't duplicate receiver numbers)
-      char buffer[10];
-      for(int i=0; i < NUM_MODULES; i++) {
-        // Rework with simple rf model data
-        //model->moduleData[0].
-
-        /*f_puts("      module", &file);
-        snprintf(buffer, sizeof(buffer), "%drxno: %d", i, model->moduleRXno[i]);
-        buffer[sizeof(buffer)-1] = '\0';
-        f_puts(buffer, &file);
-        f_puts("\r\n", &file);*/
-      }
   }
 
   f_puts("\r\nLabels:\r\n", &file);
   // Build Labels List
-  for(auto const &label: modelslabels.getLabels()) {
+  for(auto const &label: modelsLabels.getLabels()) {
     f_puts(" - ", &file);
     f_puts(label.c_str(), &file);
     f_puts(":\r\n    - icon: TODO.png\r\n", &file);

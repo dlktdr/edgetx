@@ -166,7 +166,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
           if(!strcmp(mi->curmodel->modelFinfoHash, value)) {
             TRACE_LABELS("FILE HASH MATCHES, No need to scan this model, just load the settings");
             mi->modeldatavalid = true;
-            mi->curmodel->staleData = false;
+            mi->curmodel->staleData = false; // TODO is this redundant?
           } else {
             TRACE_LABELS("FILE HASH Does not Match, Open model and rebuild modelcell");
             mi->modeldatavalid = false;
@@ -180,6 +180,23 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         mi->curmodel->setModelName(value);
         TRACE_LABELS("Set the models name");
       }
+
+    // Model ID0
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "id0")) {
+      if(mi->curmodel != NULL) {
+        mi->curmodel->setModelId(0, atoi(value));
+        TRACE_LABELS("Set the models id0 to %s", value);
+      }
+
+#if NUM_MODULES == 2
+    // Model ID0
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "id1")) {
+      if(mi->curmodel != NULL) {
+        mi->curmodel->setModelId(1, atoi(value));
+        TRACE_LABELS("Set the models id1 to %s", value);
+      }
+#endif
+
 
     // Model Bitmap
 #if LEN_BITMAP_NAME > 0
@@ -197,7 +214,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         char *cma;
         cma = strtok(value, ",");
         while(cma != NULL) {
-          modelslabels.addMapping(cma,mi->curmodel);
+          modelsLabels.addLabelToModel(cma,mi->curmodel);
           TRACE_LABELS(" Adding the label - %s", cma);
           cma = strtok(NULL, ",");
         }
