@@ -75,7 +75,7 @@ class ModelCell
     bool staleData = true;
 
     bool             valid_rfData;
-    uint8_t          modelId[NUM_MODULES];
+    uint8_t           modelId[NUM_MODULES];
     SimpleModuleData moduleData[NUM_MODULES];
 
     explicit ModelCell(const char * name);
@@ -127,36 +127,26 @@ public:
 class ModelMap : protected std::multimap<int, ModelCell *>
 {
   public:
+    bool isValid=false; // If false, map does not match input labels.csv
     ModelsVector getModelsByLabel(std::string);
     LabelsVector getLabelsByModel(ModelCell *);
-    int addLabel(std::string);
-    void addMapping(std::string, ModelCell *);
+    std::map<std::string, bool> getSelectedLabels(ModelCell *);
+    bool isLabelSelected(std::string, ModelCell *);
     LabelsVector getLabels();
+    int addLabel(std::string);
+    bool addLabelToModel(std::string, ModelCell *);
+    bool removeLabelFromModel(const std::string &label, ModelCell *);
+    void getModelCSV(std::string &dest, ModelCell *cell);
     int size() {return std::multimap<int, ModelCell *>::size();}
     void clear() {
+      isValid=false;
       labels.clear();
       std::multimap<int, ModelCell *>::clear();
     }
 
-    /*ModelLabelsVector getUniqueModelCells()
-    {
-      ModelLabelsVector rval;
-
-      std::unique_copy(begin(),
-                       end(),
-                       std::back_inserter(rval),
-                         [](const std::pair<std::string,ModelCell *> &entry1,
-                           const std::pair<std::string,ModelCell *> &entry2) {
-                             return (entry1.second == entry2.second);
-                         });
-      return rval;
-    }*/
-
   private:
-    // Storage for the label strings, keep here to so only one copy
-    // of a each label required.
+    // Storage space for discovered labels
     LabelsVector labels;
-
     int getIndexByLabel(std::string str) {
       std::transform(str.begin(), str.end(), str.begin(), ::tolower);
       for(uint16_t i=0; i < (uint16_t)labels.size(); i++) {
@@ -166,7 +156,6 @@ class ModelMap : protected std::multimap<int, ModelCell *>
       }
       return -1;
     }
-
     std::string getLabelByIndex(uint16_t index) {
       if(index < (uint16_t)labels.size())
         return labels.at(index);
@@ -272,6 +261,6 @@ protected:
 ModelLabelsVector getUniqueLabels();
 
 extern ModelsList modelslist;
-extern ModelMap modelslabels;
+extern ModelMap modelsLabels;
 
 #endif // _MODELSLIST_H_
