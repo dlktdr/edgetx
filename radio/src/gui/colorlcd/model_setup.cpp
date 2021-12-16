@@ -1304,15 +1304,15 @@ void ModelSetupPage::build(FormWindow * window)
   grid.spacer(PAGE_PADDING);
 
   // Model name
+  ModelCell *curmod = modelslist.getCurrentModel();
   new StaticText(window, grid.getLabelSlot(), STR_MODELNAME, 0, COLOR_THEME_PRIMARY1);
   auto text =
       new ModelTextEdit(window, grid.getFieldSlot(), g_model.header.name,
                         sizeof(g_model.header.name), 0, MODEL_NAME_EXTRA_CHARS);
   text->setChangeHandler([=] {
     modelslist.load();
-    auto model = modelslist.getCurrentModel();
-    if (model) {
-      model->setModelName(g_model.header.name);
+    if (curmod) {
+      curmod->setModelName(g_model.header.name);
       modelslist.save();
     }
     SET_DIRTY();
@@ -1321,10 +1321,33 @@ void ModelSetupPage::build(FormWindow * window)
 
   // Model labels
   new StaticText(window, grid.getLabelSlot(), "Labels", 0, COLOR_THEME_PRIMARY1);
-  auto lblchoice = new Choice(window,grid.getFieldSlot(),0,0, [=] { return 0; });
-  lblchoice->clear();
-  for(auto const &label: modelslabels.getLabels()) {
-    lblchoice->addValue(label.c_str());
+  grid.nextLine();
+
+  for(auto const &lbl : modelsLabels.getSelectedLabels(curmod)) {
+    new StaticText(window, grid.getLabelSlot(true), lbl.first, 0, COLOR_THEME_PRIMARY1);
+    new CheckBox(window, grid.getFieldSlot(), [=] {
+      return modelsLabels.isLabelSelected(lbl.first, curmod);
+    }, [=](int32_t newValue) {
+      // Remove a label from the model
+      if(!newValue) {
+        modelsLabels.removeLabelFromModel(lbl.first, curmod);
+        SET_DIRTY();
+        modelslist.save();
+        return;
+      // Add a label
+      }
+
+      if(modelsLabels.addLabelToModel(lbl.first, curmod)) {
+        SET_DIRTY();
+        modelslist.save();
+
+      // Unable to add the label
+      } else {
+        // TODO Popup a message.. too many labels
+        TRACE("TOO MANY");
+      }
+    });
+    grid.nextLine();
   }
   grid.nextLine();
 
