@@ -56,7 +56,7 @@ ViewMainMenu::ViewMainMenu(Window* parent) :
 
   carousel->addButton(ICON_MODEL_SELECT, "Select\nModel", [=]() -> uint8_t {
     deleteLater();
-    new ModelSelectMenu();
+    new ModelSelectMenu(parent, {});
     return 0;
   });
 

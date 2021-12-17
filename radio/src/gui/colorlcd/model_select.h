@@ -30,10 +30,18 @@ class ModelSeletWidget: public Window {
     void build();
 };
 
-class ModelSelectMenu: public TabsGroup {
+class ModelSelectMenu: public Window {
   public:
-    ModelSelectMenu();
+    ModelSelectMenu(Window * parent, const rect_t & rect, WindowFlags windowFlags = 0, LcdFlags textFlags = 0);
     void build(int index=-1);
+    void paint(BitmapBuffer * dc) override;
+#if defined(HARDWARE_KEYS)
+    void onEvent(event_t event) override;
+#endif
+//TODO ADD IF
+    bool onTouchEnd(coord_t x, coord_t y) override;
+  protected:
+    int sidebarWidth=50;
 };
 
 #endif // _MODEL_SELECT_H_

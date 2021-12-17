@@ -480,19 +480,56 @@ class CategoryEditPage : public PageTab
     bool scrolltobot;
 };
 
-ModelSelectMenu::ModelSelectMenu():
-  TabsGroup(ICON_MODEL_SELECT)
+ModelSelectMenu::ModelSelectMenu(Window * parent, const rect_t & rect, WindowFlags windowFlags, LcdFlags textFlags):
+  Window(parent, rect, windowFlags, textFlags)
 {
+  setLeft(0);
+  setTop(0);
+  setWidth(parent->width());
+  setHeight(parent->height());
   build();
 }
 
+void ModelSelectMenu::paint(BitmapBuffer * dc)
+{
+  // Draw top left icon
+  dc->drawSolidFilledRect(0, 0, rect.w, rect.h, COLOR_THEME_SECONDARY2);
+  dc->drawBitmap(0,0,theme->getIcon(ICON_MODEL_SELECT,STATE_DEFAULT));
+}
+
+#if defined(HARDWARE_KEYS)
+void ModelSelectMenu::onEvent(event_t event)
+{
+  Window::onEvent(event);
+}
+#endif
+
+bool ModelSelectMenu::onTouchEnd(coord_t x, coord_t y)
+{
+  Window::onTouchEnd(x,y);
+}
+
+
 void ModelSelectMenu::build(int index)
 {
-  modelslist.load();
+  FormGridLayout grid;
+  rect_t sz = {sidebarWidth,0,rect.w-sidebarWidth,rect.h};
+  auto pb = new ModelCategoryPage(modelslist.getCurrentCategory());
 
-  removeAllTabs();
+/*  auto menu = new Menu(this);
+//  addTab(new CategoryEditPage(this));
+//  setCurrentTab(0);
 
-  TRACE("TabsGroup: %p", this);
+  for(auto const &lbl: modelsLabels.getLabels()) {
+    menu->addLine(lbl,[=]() {
+
+    },[=]() -> bool {
+      return false;
+
+    });
+  }*/
+
+/*  TRACE("TabsGroup: %p", this);
 
   addTab(new CategoryEditPage(this));
 
@@ -508,5 +545,5 @@ void ModelSelectMenu::build(int index)
   } else {
     if(index < static_cast<int>(modelslist.getCategories().size()))
       setCurrentTab(index);
-  }
+  }*/
 }
