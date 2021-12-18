@@ -93,8 +93,14 @@ do
         t8)
             BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=T8"
             ;;
+        zorro)
+            BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=ZORRO"
+            ;;
         tlite)
             BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=TLITE"
+            ;;
+        tpro)
+            BUILD_OPTIONS+="-DPCB=X7 -DPCBREV=TPRO"
             ;;
         xlite)
             BUILD_OPTIONS+="-DPCB=XLITE"

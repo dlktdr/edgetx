@@ -461,7 +461,6 @@ void menuMainView(event_t event)
       POPUP_MENU_START(onMainViewMenu);
       break;
 
-#if MENUS_LOCK != 2 /*no menus*/
 #if defined(EVT_KEY_LAST_MENU)
     case EVT_KEY_LAST_MENU:
       pushMenu(lastPopMenu());
@@ -478,7 +477,7 @@ void menuMainView(event_t event)
       pushMenu(menuTabGeneral[0]);
       killEvents(event);
       break;
-#endif
+
 #if defined(HARDWARE_NO_TRIMS)
       case EVT_KEY_FIRST(KEY_ENTER):
         if (!trimSelection.preEnterValid) {
@@ -661,7 +660,7 @@ void menuMainView(event_t event)
           }
         }
 #elif defined(PCBTARANIS)
-        uint8_t switches = min(NUM_SWITCHES, 6);
+        uint8_t switches = min(NUM_SWITCHES- NUM_FUNCTIONS_SWITCHES, 6);
         for (int i = 0; i < switches; ++i) {
           if (SWITCH_EXISTS(i)) {
             uint8_t x = 2 * FW - 2, y = 4 * FH + i * FH + 1;

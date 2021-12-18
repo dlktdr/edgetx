@@ -234,8 +234,6 @@ uint8_t select_mod_type(void* user, uint8_t* data, uint32_t bitoffs)
     return 0;
 }
 
-    
-
 uint8_t select_script_input(void* user, uint8_t* data, uint32_t bitoffs)
 {
     // always use 'value'
@@ -244,20 +242,49 @@ uint8_t select_script_input(void* user, uint8_t* data, uint32_t bitoffs)
 
 uint8_t select_id1(void* user, uint8_t* data, uint32_t bitoffs)
 {
-    // always use 'id'
-    return 0;
+  data += bitoffs >> 3UL;
+  const TelemetrySensor* sensor = (const TelemetrySensor*)data;
+
+  if (sensor->type == TELEM_TYPE_CALCULATED
+      && sensor->persistent)
+    return 1;
+
+  return 0;
 }
 
 uint8_t select_id2(void* user, uint8_t* data, uint32_t bitoffs)
 {
-    // always use 'instance'
-    return 0;
+  data += bitoffs >> 3UL;
+  data -= 2 /* size of id1 union */;
+  const TelemetrySensor* sensor = (const TelemetrySensor*)data;
+
+  if (sensor->type == TELEM_TYPE_CALCULATED)
+    return 2; // formula
+  
+  return 1; // instance
 }
 
 uint8_t select_sensor_cfg(void* user, uint8_t* data, uint32_t bitoffs)
 {
-    // always use 'param'
-    return 5;
+  data += bitoffs >> 3UL;
+  data -= offsetof(TelemetrySensor, param);
+  const TelemetrySensor* sensor = (const TelemetrySensor*)data;
+
+  if (sensor->unit < UNIT_FIRST_VIRTUAL) {
+    if (sensor->type == TELEM_TYPE_CALCULATED) {
+      switch(sensor->formula) {
+      case TELEM_FORMULA_CELL: return 1; // cell
+      case TELEM_FORMULA_DIST: return 4; // dist
+      case TELEM_FORMULA_CONSUMPTION: return 3; // consumption
+      case TELEM_FORMULA_TOTALIZE: return 3; // consumption
+      default: return 2; // calc
+      }
+    } else {
+      return 0; // custom
+    }
+  }
+  
+  return 5;
 }
 
 #define r_calib nullptr
@@ -525,6 +552,7 @@ bool swash_is_active(void* user, uint8_t* data, uint32_t bitoffs)
 
 #define r_swtchWarn nullptr
 
+#if defined(COLORLCD)
 bool w_swtchWarn(const YamlNode* node, uint32_t val, yaml_writer_func wf, void* opaque)
 {
     for (int i = 0; i < STORAGE_NUM_SWITCHES; i++) {
@@ -538,7 +566,7 @@ bool w_swtchWarn(const YamlNode* node, uint32_t val, yaml_writer_func wf, void* 
             // state == 1 -> UP
             // state == 2 -> MIDDLE
             // state == 3 -> DOWN
-            char swtchWarn[2] = {(char)('A' + i), 0};
+            char swtchWarn[2] = {getRawSwitchFromIdx(i), 0};
 
             switch (state) {
             case 0:
@@ -568,6 +596,58 @@ bool w_swtchWarn(const YamlNode* node, uint32_t val, yaml_writer_func wf, void* 
 
     return true;
 }
+#else
+bool w_swtchWarn(void* user, uint8_t* data, uint32_t bitoffs,
+                 yaml_writer_func wf, void* opaque)
+{
+  data += (bitoffs >> 3UL);
+
+  // switchWarningState
+  swarnstate_t states = *(swarnstate_t*)data;
+  data += sizeof(swarnstate_t);
+
+  // switchWarningEnable
+  swarnenable_t enables = *(swarnenable_t*)data;
+
+  for (int i = 0; i < STORAGE_NUM_SWITCHES; i++) {
+    // decode check state
+    // -> 2 bits per switch + enable
+    swarnenable_t en = (enables >> i) & 0x01;
+    if (en) continue;
+
+    // state == 0 -> no check
+    // state == 1 -> UP
+    // state == 2 -> MIDDLE
+    // state == 3 -> DOWN
+    char swtchWarn[2] = {(char)('A' + i), 0};
+
+    uint8_t state = (states >> (2 * i)) & 0x03;
+    switch (state) {
+      case 0:
+        swtchWarn[1] = 'u';
+        break;
+      case 1:
+        swtchWarn[1] = '-';
+        break;
+      case 2:
+        swtchWarn[1] = 'd';
+        break;
+      default:
+        // this should never happen
+        swtchWarn[1] = 'x';
+        break;
+    }
+
+    if (swtchWarn[1] != 0) {
+      if (!wf(opaque, swtchWarn, 2)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+#endif
 
 extern const struct YamlIdStr enum_BeeperMode[];
 

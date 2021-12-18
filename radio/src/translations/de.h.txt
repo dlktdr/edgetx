@@ -295,29 +295,6 @@
 #define LEN_VSWASHTYPE                 "\004"
 #define TR_VSWASHTYPE                  "--- ""120 ""120X""140 ""90\0"
 
-#if defined(PCBHORUS) || defined(PCBNV14)
-  #define LEN_VKEYS                    "\005"
-  #define TR_VKEYS                     "PGUP\0""PGDN\0""ENTER""MDL\0 ""RTN\0 ""TELE\0""SYS\0 "
-#elif defined(PCBXLITE)
-  #define LEN_VKEYS                    "\005"
-  #define TR_VKEYS                     "Shift""Exit\0""Enter""Down\0""Up\0  ""Right""Left\0"
-#elif defined(RADIO_FAMILY_JUMPER_T12)
-  #define LEN_VKEYS                    "\005"
-  #define TR_VKEYS                     "Exit\0""Enter""Down\0""Up\0  ""Right""Left\0"
-#elif defined(RADIO_TX12)
-  #define LEN_VKEYS                    "\005"
-  #define TR_VKEYS                     "Exit\0""Enter""Up\0  ""Down\0""SYS\0 ""MDL\0 ""TELE\0"
-#elif defined(RADIO_T8)
-  #define LEN_VKEYS                    "\005"
-  #define TR_VKEYS                     "RTN\0 ""ENTER""PGUP\0""PGDN\0""SYS\0 ""MDL\0 ""UP\0  ""DOWN\0"
-#elif defined(PCBTARANIS)
-  #define LEN_VKEYS                    "\005"
-  #define TR_VKEYS                     "Menu\0""Exit\0""Enter""Page\0""Plus\0""Minus"
-#else
-  #define LEN_VKEYS                    "\005"
-  #define TR_VKEYS                     "Menu\0""Exit\0""Down\0""Up\0  ""Right""Left\0"
-#endif
-
 #define LEN_VSWITCHES                  "\003"
 #define LEN_VSRCRAW                    "\004"
 
@@ -1380,3 +1357,35 @@
 #define STR_LOSS                      "Loss"
 #define STR_SPEED                     "Spd "
 #define STR_FLOW                      "Flow"
+
+// The following content is Untranslated)
+
+#define TR_USE_THEME_COLOR              "Use theme color"
+
+#define TR_ADD_ALL_TRIMS_TO_SUBTRIMS    "Add all Trims to Subtrims"
+#define TR_DUPLICATE                    "Duplicate"
+#define TR_ACTIVATE                     "Set Active"
+#define TR_RED                          "Red"
+#define TR_BLUE                         "Blue"
+#define TR_GREEN                        "Green"
+#define TR_COLOR_PICKER                 "Color Picker"
+#define TR_EDIT_THEME_DETAILS           "Edit Theme Details"
+#define TR_AUTHOR                       "Author"
+#define TR_DESCRIPTION                  "Description"
+#define TR_SAVE                         "Save"
+#define TR_CANCEL                       "Cancel"
+#define TR_EDIT_THEME                   "EDIT THEME"
+#define TR_DETAILS                      "Details"
+#define TR_THEME_EDITOR                 "THEMES"
+
+// Main menu
+#define TR_MAIN_MENU_SELECT_MODEL       "Select\nModel"
+#define TR_MAIN_MENU_MODEL_NOTES        "Model\nNotes"
+#define TR_MAIN_MENU_CHANNEL_MONITOR    "Channel\nMonitor"
+#define TR_MAIN_MENU_MODEL_SETTINGS     "Model\nSettings"
+#define TR_MAIN_MENU_RADIO_SETTINGS     "Radio\nSettings"
+#define TR_MAIN_MENU_SCREEN_SETTINGS    "Screens\nSettings"
+#define TR_MAIN_MENU_RESET_TELEMETRY    "Reset\nTelemetry"
+#define TR_MAIN_MENU_STATISTICS         "Statistics"
+#define TR_MAIN_MENU_ABOUT_EDGETX       "About\nEdgeTX"
+// End Main menu

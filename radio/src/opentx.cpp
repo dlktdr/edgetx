@@ -171,6 +171,10 @@ void per10ms()
 
   readKeysAndTrims();
 
+#if defined(FUNCTION_SWITCHES)
+  evalFunctionSwitches();
+#endif
+
 #if defined(ROTARY_ENCODER_NAVIGATION)
   if (IS_ROTARY_ENCODER_NAVIGATION_ENABLE()) {
     static rotenc_t rePreviousValue;
@@ -371,7 +375,6 @@ uint16_t evalChkSum()
     sum += calibValues[i];
   return sum;
 }
-
 
 bool isInputRecursive(int index)
 {
@@ -578,20 +581,6 @@ void resetBacklightTimeout()
 {
   lightOffCounter = ((uint16_t)g_eeGeneral.lightAutoOff*250) << 1;
 }
-
-#if MENUS_LOCK == 1
-bool readonly = true;
-bool readonlyUnlocked()
-{
-  if (readonly) {
-    POPUP_WARNING(STR_MODS_FORBIDDEN);
-    return false;
-  }
-  else {
-    return true;
-  }
-}
-#endif
 
 #if defined(SPLASH)
 void doSplash()
@@ -1428,6 +1417,12 @@ void opentxStart(const uint8_t startOptions = OPENTX_START_DEFAULT_ARGS)
   ALERT(STR_TEST_WARNING, TR_TEST_NOTSAFE, AU_ERROR);
 #endif
 
+#if defined(FUNCTION_SWITCHES)
+  if (!UNEXPECTED_SHUTDOWN()) {
+    setFSStartupPosition();
+  }
+#endif
+
 #if defined(GUI)
   if (calibration_needed) {
 #if defined(LIBOPENUI)
@@ -1750,9 +1745,7 @@ void opentxInit()
 #elif defined(GUI)
   // TODO add a function for this (duplicated)
   menuHandlers[0] = menuMainView;
-  #if MENUS_LOCK != 2/*no menus*/
-    menuHandlers[1] = menuModelSelect;
-  #endif
+  menuHandlers[1] = menuModelSelect;
 #endif
 
 #if defined(EEPROM)
@@ -1855,13 +1848,6 @@ void opentxInit()
 
 #if defined(AUX2_SERIAL)
   aux2SerialInit(g_eeGeneral.aux2SerialMode, modelTelemetryProtocol());
-#endif
-
-#if MENUS_LOCK == 1
-  getMovedSwitch();
-  if (TRIMS_PRESSED() && g_eeGeneral.switchUnlockStates==switches_states) {
-    readonly = false;
-  }
 #endif
 
   currentSpeakerVolume = requiredSpeakerVolume = g_eeGeneral.speakerVolume + VOLUME_LEVEL_DEF;

@@ -421,6 +421,45 @@ char *getFlightModeString(char *dest, int8_t idx)
 // }
 
 #if !defined(PCBSKY9X)
+int getRawSwitchIdx(char sw)
+{
+  if (sw < 'A' || sw > 'Z')
+    return -1;
+
+#if defined(PCBX7) && !defined(RADIO_TX12) && !defined(RADIO_ZORRO)
+  if (sw >= 'H')
+    return sw - 'H' + 5;
+#if defined(RADIO_T12)
+  else if (sw == 'G')
+#else
+  else if (sw == 'F')
+#endif
+    return 4;
+  else
+    return sw - 'A';
+#else
+  return sw - 'A';
+#endif
+}
+
+char getRawSwitchFromIdx(int idx)
+{
+#if defined(PCBX7) && !defined(RADIO_TX12) && !defined(RADIO_ZORRO) && !defined(RADIO_TPRO)
+    if (idx >= 5)
+      return 'H' + idx - 5;
+    else if (idx == 4)
+  #if defined(RADIO_T12)
+      return 'G';
+  #else
+      return 'F';
+  #endif
+    else
+      return 'A' + idx;
+#else
+    return 'A' + idx;
+#endif
+}
+
 char *getSwitchName(char *dest, swsrc_t idx)
 {
   div_t swinfo = switchInfo(idx);
@@ -428,21 +467,15 @@ char *getSwitchName(char *dest, swsrc_t idx)
     dest =
         strAppend(dest, g_eeGeneral.switchNames[swinfo.quot], LEN_SWITCH_NAME);
   } else {
+#if defined(FUNCTIONS_SWITCHES)
+    if (swinfo.quot >= NUM_REGULAR_SWITCHES)  {
+      *dest++ = 'W';
+      *dest++ = '1' + swinfo.quot - 4;
+      return dest;
+    }
+#endif
     *dest++ = 'S';
-#if defined(PCBX7) && !defined(RADIO_TX12)
-    if (swinfo.quot >= 5)
-      *dest++ = 'H' + swinfo.quot - 5;
-    else if (swinfo.quot == 4)
-#if defined(RADIO_T12)
-      *dest++ = 'G';
-#else
-      *dest++ = 'F';
-#endif
-    else
-      *dest++ = 'A' + swinfo.quot;
-#else
-    *dest++ = 'A' + swinfo.quot;
-#endif
+    *dest++ = getRawSwitchFromIdx(swinfo.quot);
   }
   return dest;
 }

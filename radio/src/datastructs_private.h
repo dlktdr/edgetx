@@ -572,27 +572,12 @@ typedef uint32_t swarnstate_t;
 #elif defined(PCBX9E)
 typedef uint64_t swconfig_t;
 typedef uint64_t swarnstate_t;
-typedef uint32_t swarnenable_t;
 #elif defined(PCBX9D) || defined(PCBX9DP)
 typedef uint32_t swconfig_t;
 typedef uint32_t swarnstate_t;
-typedef uint16_t swarnenable_t; // TODO remove it in 2.4
-#elif defined(PCBTARANIS)
+#else
 typedef uint16_t swconfig_t;
-typedef uint16_t swarnstate_t;
-typedef uint8_t swarnenable_t; // TODO remove it in 2.4
-#else
-typedef uint8_t swarnstate_t;
-typedef uint8_t swarnenable_t;
-#endif
-
-#if defined(COLORLCD)
-  #define SWITCHES_WARNING_DATA \
-    NOBACKUP(swarnstate_t  switchWarningState CUST(r_swtchWarn,w_swtchWarn));
-#else
-  #define SWITCHES_WARNING_DATA \
-    swarnstate_t  switchWarningState CUST(r_swtchWarn,w_swtchWarn); \
-    swarnenable_t switchWarningEnable; // TODO remove it in 2.4
+typedef uint32_t swarnstate_t;
 #endif
 
 #if defined(COLORLCD) && defined(BACKUP)
@@ -632,6 +617,17 @@ PACK(struct CustomScreenData {
   #define SCRIPT_DATA
 #endif
 
+#if defined(FUNCTION_SWITCHES) && NUM_FUNCTIONS_SWITCHES < 8
+  #define FUNCTION_SWITCHS_FIELDS \
+    uint16_t functionSwitchConfig;  \
+    uint16_t functionSwitchGroup; \
+    uint16_t functionSwitchStartConfig; \
+    uint8_t functionSwitchLogicalState;  \
+    char switchNames[NUM_FUNCTIONS_SWITCHES][LEN_SWITCH_NAME];
+#else
+  #define FUNCTION_SWITCHS_FIELDS
+#endif
+
 PACK(struct PartialModel {
   ModelHeader header;
   TimerData timers[MAX_TIMERS];
@@ -665,8 +661,8 @@ PACK(struct ModelData {
   FlightModeData flightModeData[MAX_FLIGHT_MODES] FUNC(fmd_is_active);
 
   NOBACKUP(uint8_t thrTraceSrc CUST(r_thrSrc,w_thrSrc));
-
-  SWITCHES_WARNING_DATA
+  CUST_ATTR(switchWarningState, r_swtchWarn, w_swtchWarn);
+  NOBACKUP(swarnstate_t  switchWarningState SKIP);
 
   GVarData gvars[MAX_GVARS];
 
@@ -698,6 +694,8 @@ PACK(struct ModelData {
   CUSTOM_SCREENS_DATA
 
   char modelRegistrationID[PXX2_LEN_REGISTRATION_ID];
+
+  FUNCTION_SWITCHS_FIELDS
 
   bool isTrainerTraineeEnable() const
   {
@@ -808,10 +806,9 @@ PACK(struct TrainerData {
     uint8_t  slidersConfig:4 ARRAY(1,struct_sliderConfig,nullptr); \
     uint8_t  potsConfig ARRAY(2,struct_potConfig,nullptr); /* two bits per pot */\
     uint8_t  backlightColor; \
-    swarnstate_t switchUnlockStates; \
     CUST_ARRAY(sticksConfig, struct_sticksConfig, stick_name_valid); \
     swconfig_t switchConfig ARRAY(2,struct_switchConfig,nullptr); \
-    char switchNames[STORAGE_NUM_SWITCHES][LEN_SWITCH_NAME] SKIP; \
+    char switchNames[STORAGE_NUM_SWITCHES - NUM_FUNCTIONS_SWITCHES][LEN_SWITCH_NAME] SKIP; \
     char anaNames[NUM_STICKS+STORAGE_NUM_POTS+STORAGE_NUM_SLIDERS][LEN_ANA_NAME] SKIP; \
     BLUETOOTH_FIELDS
 #else
