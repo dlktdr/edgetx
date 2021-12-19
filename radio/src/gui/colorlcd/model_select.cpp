@@ -22,8 +22,10 @@
 #include <algorithm>
 #include "model_select.h"
 #include "opentx.h"
-#include "storage/modelslist.h"
-#include "libopenui.h"
+
+#define LABELS_WIDTH 90
+#define LABELS_LEFT 5
+#define LABELS_TOP (60)
 
 #if LCD_W > LCD_H
 constexpr int MODEL_CELLS_PER_LINE = 3;
@@ -34,7 +36,7 @@ constexpr int MODEL_CELLS_PER_LINE = 2;
 constexpr coord_t MODEL_CELL_PADDING = 6;
 
 constexpr coord_t MODEL_SELECT_CELL_WIDTH =
-    (LCD_W - (MODEL_CELLS_PER_LINE + 1) * MODEL_CELL_PADDING) /
+    (LCD_W - LABELS_WIDTH - LABELS_LEFT - (MODEL_CELLS_PER_LINE + 1) * MODEL_CELL_PADDING) /
     MODEL_CELLS_PER_LINE;
 
 constexpr coord_t MODEL_SELECT_CELL_HEIGHT = 92;
@@ -174,32 +176,24 @@ class ModelButton : public Button
   BitmapBuffer *buffer = nullptr;
 };
 
-class ModelCategoryPageBody : public FormWindow
+ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
+    FormWindow(parent, rect, FORM_FORWARD_FOCUS)
 {
- public:
-  ModelCategoryPageBody(FormWindow *parent, const rect_t &rect,
-                        ModelsCategory *category) :
-      FormWindow(parent, rect, FORM_FORWARD_FOCUS), category(category)
-  {
-    update();
-  }
+  update();
+}
 
-  void update(int selected = -1)
+void ModelsPageBody::update(int selected)
   {
     clear();
-
-    if (selected < 0) {
-      auto model = modelslist.getCurrentModel();
-      selected = category->getModelIndex(model);
-      if (selected < 0) selected = 0;
-    }
 
     int index = 0;
     coord_t y = MODEL_CELL_PADDING;
     coord_t x = MODEL_CELL_PADDING;
 
+    // TODO - Filter list by selected labels
+
     ModelButton* selectButton = nullptr;
-    for (auto &model : *category) {
+    for (auto &model : modelslist) {
       auto button = new ModelButton(
           this, {x, y, MODEL_SELECT_CELL_WIDTH, MODEL_SELECT_CELL_HEIGHT},
           model);
@@ -217,8 +211,8 @@ class ModelCategoryPageBody : public FormWindow
               storageDirty(EE_GENERAL);
               storageCheck(true);
 
-              modelslist.setCurrentModel(model);
-              modelslist.setCurrentCategory(category);
+              /*modelslist.setCurrentModel(model);
+              modelslist.setCurrentCategory(category);*/
               this->onEvent(EVT_KEY_FIRST(KEY_EXIT));
               checkAll();
             });
@@ -232,19 +226,20 @@ class ModelCategoryPageBody : public FormWindow
                                   MODELS_PATH)) {
               sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
                          MODELS_PATH);
-              modelslist.addModel(category, duplicatedFilename);
+              //modelslist.addModel(category, duplicatedFilename);
               update(index);
             } else {
               POPUP_WARNING("Invalid File");
             }
           });
+
           if (model != modelslist.getCurrentModel()) {
             // Move
             if(modelslist.getCategories().size() > 1) {
               menu->addLine(STR_MOVE_MODEL, [=]() {
               auto moveToMenu = new Menu(parent);
               moveToMenu->setTitle(STR_MOVE_MODEL);
-                for (auto newcategory: modelslist.getCategories()) {
+                /*for (auto newcategory: modelslist.getCategories()) {
                   if(category != newcategory) {
                     moveToMenu->addLine(std::string(newcategory->name, sizeof(newcategory->name)), [=]() {
                       modelslist.moveModel(model, category, newcategory);
@@ -252,18 +247,15 @@ class ModelCategoryPageBody : public FormWindow
                       modelslist.save();
                     });
                   }
-                }
+                }*/
               });
             }
             menu->addLine(STR_DELETE_MODEL, [=]() {
               new ConfirmDialog(
                   parent, STR_DELETE_MODEL,
-                  std::string(model->modelName, sizeof(model->modelName))
-                      .c_str(),
-                  [=] {
-                    modelslist.removeModel(category, model);
-                    update(index < (int)category->size() - 1 ? index : index - 1);
-                  });
+                  std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
+                    //modelslist.removeModel(category, model);
+                    //update(index < (int)category->size() - 1 ? index : index - 1);
             });
           }
         } else {
@@ -291,86 +283,38 @@ class ModelCategoryPageBody : public FormWindow
     }
     setInnerHeight(y);
 
-    if (category->empty()) {
+    /*if (category->empty()) {
       setFocus();
     } else if (selectButton) {
       selectButton->setFocus();
-    }
+    }*/
   }
 
-  void addFirstModel() {
-    Menu *menu = new Menu(this);
-    menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
-  }
-
-#if defined(HARDWARE_KEYS)
-  void onEvent(event_t event) override
-  {
-    if (event == EVT_KEY_BREAK(KEY_ENTER)) {
-      addFirstModel();
-    } else {
-      FormWindow::onEvent(event);
-    }
-  }
-#endif
-
-#if defined(HARDWARE_TOUCH)
-    bool onTouchEnd(coord_t x, coord_t y) override
-    {
-      if(category->size() == 0)
-        addFirstModel();
-      else
-        FormWindow::onTouchEnd(x,y);
-      return true;
-    }
-#endif
-
-
-  void setFocus(uint8_t flag = SET_FOCUS_DEFAULT,
-                Window *from = nullptr) override
-  {
-    if (category->empty()) {
-      // use Window::setFocus() to avoid forwarding focus to nowhere
-      // this crashes currently in libopenui
-      Window::setFocus(flag, from);
-    } else {
-      FormWindow::setFocus(flag, from);
-    }
-  }
-
- protected:
-  ModelsCategory *category;
-
-  std::function<void(void)> getCreateModelAction()
-  {
-    return [=]() {
-      storageCheck(true);
-      auto model = modelslist.addModel(category, createModel(), false);
-      model->setModelName(g_model.header.name);
-      modelslist.setCurrentModel(model);
-      modelslist.save();
-      update(category->size() - 1);
-    };
-  }
-};
-
-class ModelCategoryPage : public PageTab
+void ModelsPageBody::setFocus(uint8_t flag, Window *from)
 {
- public:
-  explicit ModelCategoryPage(ModelsCategory *category) :
-      PageTab(category->name, ICON_MODEL_SELECT_CATEGORY), category(category)
-  {
-  }
+  //if (category->empty()) {
+    // use Window::setFocus() to avoid forwarding focus to nowhere
+    // this crashes currently in libopenui
+    //Window::setFocus(flag, from);
+  //} else {
+    FormWindow::setFocus(flag, from);
+  //}
+}
 
- protected:
-  ModelsCategory *category;
+class ModelLabelsChecker : public FormGroup {
+  public:
+    ModelLabelsChecker(FormWindow * parent, const rect_t &rect) :
+      FormGroup(parent, rect, FORWARD_SCROLL | FORM_FORWARD_FOCUS)
+    {
+      update();
+    }
 
-  void build(FormWindow *window) override
-  {
-    new ModelCategoryPageBody(
-        window, {0, 0, LCD_W, window->height()},
-        category);
-  }
+  protected:
+    void update()
+    {
+      FormGridLayout grid;
+      clear();
+    }
 };
 
 class CategoryGroup: public FormGroup
@@ -392,158 +336,107 @@ class CategoryGroup: public FormGroup
     ModelsCategory *category;
 };
 
-class CategoryEditPage : public PageTab
+
+//---- LABELS IMPLEMENTATION
+
+class ModelLabelSelector : public FormWindow
 {
   public:
-    explicit CategoryEditPage(ModelSelectMenu *modelselectmenu, bool scrolltobot=false) :
-
-      PageTab(STR_MODEL_CATEGORIES, ICON_MODEL_SETUP),
-      modelselectmenu(modelselectmenu),
-      scrolltobot(scrolltobot)
-    {
-    }
-
-  protected:
-    void update()
-    {
-      modelselectmenu->build(0);
-    }
-
-    void build(FormWindow *window) override
-    {
-      FormGridLayout grid;
-      grid.setMarginRight(15);
-      grid.setLabelWidth(0);
-      grid.spacer();
-
-      coord_t y = 2;
-
-      for (auto category: modelslist.getCategories()) {
-        // NAME
-        auto catname = new TextEdit(window, grid.getFieldSlot(3,0), category->name, sizeof(category->name));
-        catname->setChangeHandler([=]() {
-          if(category->name[0] == '\0') {
-            category->name[0] = ' '; category->name[1] = '\0';
-          }
-          modelslist.save();
-          update();
-        });
-
-        // Details
-        char cnt[19];
-        snprintf(cnt, sizeof(cnt), "%u %s", (unsigned int)category->size(), STR_MODELS);
-        new StaticText(window, grid.getFieldSlot(3,1), cnt);
-
-        if(category->empty()) {
-          new TextButton(window, grid.getFieldSlot(3,2),TR_DELETE, [=]() -> uint8_t {
-            new ConfirmDialog(window, STR_DELETE_CATEGORY,
-              std::string(category->name, sizeof(category->name)).c_str(),
-              [=] {
-                modelslist.removeCategory(category);
-                modelslist.save();
-                update();
-              });
-            return 0;
-          });
-          } else {
-#ifdef CATEGORIES_SHOW_DELETE_NON_EMPTY
-          new TextButton(window, grid.getFieldSlot(3,2),STR_DELETE, [=]() -> uint8_t {
-            new MessageDialog(window, STR_DELETE_CATEGORY, TR_CAT_NOT_EMPTY);
-            return 0;
-          });
-#endif
-          }
-
-        grid.nextLine();
-
-        grid.spacer();
-        coord_t height = grid.getWindowHeight();
-        //window->setHeight(height);
-        y += height + 2;
+    ModelLabelSelector(Window * parent, const rect_t & rect, WindowFlags windowFlags = 0) :
+      FormWindow(parent, rect, windowFlags)
+      {
+        build();
+        memclear(selectedlabels, sizeof(selectedlabels));
       }
+  protected:
+  void build() {
+    // --- TODO... REWORK Layout for NV14?
 
-      new TextButton(window, grid.getCenteredSlot(LCD_W/2), STR_CREATE_CATEGORY, [=]() -> uint8_t {
-        modelslist.createCategory("New");
-        update();
+    // Add Label Check Boxes
+    int i=0;
+    for(auto const &label : modelsLabels.getLabels()) {
+      std::string capitalize = label;
+      capitalize[0] = toupper(capitalize[0]);
+      int height = i*(PAGE_LINE_HEIGHT+PAGE_LINE_SPACING);
+#if 0
+      new StaticText(this, {0,height,width()*3/4, PAGE_LINE_HEIGHT}, capitalize);
+      new CheckBox(this, {width()*3/4+4,height,width()/4,PAGE_LINE_HEIGHT}, [=]() -> uint8_t{
+        return selectedlabels[i];
+      },[=](uint8_t newval) {
+        TRACE("Label %s = %d", label.c_str(), (int)newval);
+        selectedlabels[i] = newval;
+      });
+#else
+      auto tb = new TextButton(this, {0,height,width()-LABELS_LEFT, PAGE_LINE_HEIGHT},capitalize, [=]() -> uint8_t {
         return 0;
       });
+      tb->setBgColorHandler([=](){return COLOR_THEME_SECONDARY1;});
+#endif
 
-      grid.nextLine();
+      if(++i == sizeof(selectedlabels)) // TODO define
+        break;
 
-      window->setInnerHeight(grid.getWindowHeight());
-
-      if(scrolltobot)
-        window->setScrollPositionY(y+40);
     }
-  private:
-    ModelSelectMenu *modelselectmenu;
-    bool scrolltobot;
+    this->setInnerHeight(i*(PAGE_LINE_HEIGHT+PAGE_LINE_SPACING));
+  }
+  void paint(BitmapBuffer *dc) override
+  {
+    FormWindow::paint(dc);
+    /*if(hasFocus())
+      dc->drawRect(0,0,width(),height(),4,255,COLOR_THEME_PRIMARY1);
+    else
+      dc->drawRect(0,0,width(),height(),1,255,COLOR_THEME_PRIMARY1);*/
+  }
+  uint8_t selectedlabels[50];
 };
 
-ModelSelectMenu::ModelSelectMenu(Window * parent, const rect_t & rect, WindowFlags windowFlags, LcdFlags textFlags):
-  Window(parent, rect, windowFlags, textFlags)
+ModelLabelsWindow::ModelLabelsWindow() :
+  Window(MainWindow::instance(), MainWindow::instance()->getRect(), NO_SCROLLBAR)
 {
-  setLeft(0);
-  setTop(0);
-  setWidth(parent->width());
-  setHeight(parent->height());
-  build();
+  setPageWidth(getParent()->width());
+  focusWindow = this;
+
+  setFocusHandler([&](bool focus) {
+      TRACE("[LABELS] Focus %s",
+            focus ? "gained" : "lost");
+    });
+
+  // Labels Selector - Left
+  new ModelLabelSelector(this, {LABELS_LEFT,LABELS_TOP,LABELS_WIDTH, LCD_H-LABELS_TOP});
+
+  // Models List and Filters - Right
+  new ModelsPageBody(this, {LABELS_WIDTH + LABELS_LEFT,0, LCD_W-LABELS_WIDTH, LCD_H});
+
+  /*auto sortby = new Choice(this, {300,5,100,35} , 0 , 2, [=]{});
+  sortby->addValue("Name");
+  sortby->addValue("ID");
+  sortby->addValue("Recent");*/
 }
 
-void ModelSelectMenu::paint(BitmapBuffer * dc)
+void ModelLabelsWindow::paint(BitmapBuffer * dc)
 {
-  // Draw top left icon
-  dc->drawSolidFilledRect(0, 0, rect.w, rect.h, COLOR_THEME_SECONDARY2);
-  dc->drawBitmap(0,0,theme->getIcon(ICON_MODEL_SELECT,STATE_DEFAULT));
+  // Top Bar
+  /*dc->drawSolidFilledRect(0, 0, width(), MENU_HEADER_HEIGHT , COLOR_THEME_SECONDARY1);*/
+  // Main Screen
+  dc->drawSolidFilledRect(LABELS_WIDTH, 0, width()-LABELS_WIDTH, height(), COLOR_THEME_SECONDARY3);
+  // Labels
+  dc->drawSolidFilledRect(0, 0, LABELS_WIDTH, height(), COLOR_THEME_SECONDARY1);
+  // Models Select button
+  //OpenTxTheme::instance()->drawTopLeftBitmap(dc);
+  dc->drawBitmap(20, 5, OpenTxTheme::instance()->getIcon(ICON_MODEL_SELECT,STATE_DEFAULT),0,0,0,0,1.6);
 }
 
-#if defined(HARDWARE_KEYS)
-void ModelSelectMenu::onEvent(event_t event)
+void ModelLabelsWindow::onEvent(event_t event)
 {
   Window::onEvent(event);
 }
-#endif
 
-bool ModelSelectMenu::onTouchEnd(coord_t x, coord_t y)
+bool ModelLabelsWindow::onTouchEnd(coord_t x, coord_t y)
 {
-  Window::onTouchEnd(x,y);
-}
-
-
-void ModelSelectMenu::build(int index)
-{
-  FormGridLayout grid;
-  rect_t sz = {sidebarWidth,0,rect.w-sidebarWidth,rect.h};
-  auto pb = new ModelCategoryPage(modelslist.getCurrentCategory());
-
-/*  auto menu = new Menu(this);
-//  addTab(new CategoryEditPage(this));
-//  setCurrentTab(0);
-
-  for(auto const &lbl: modelsLabels.getLabels()) {
-    menu->addLine(lbl,[=]() {
-
-    },[=]() -> bool {
-      return false;
-
-    });
-  }*/
-
-/*  TRACE("TabsGroup: %p", this);
-
-  addTab(new CategoryEditPage(this));
-
-  for (auto category: modelslist.getCategories()) {
-    addTab(new ModelCategoryPage(category));
+  if(x < (int)MENU_HEADER_BUTTONS_LEFT && y < (int)MENU_HEADER_HEIGHT) {
+    deleteLater(true);
+    return true;
   }
-
-  if(index < 0) {
-    int idx = modelslist.getCurrentCategoryIdx();
-    if (idx >= 0) {
-      setCurrentTab(idx+1);
-    }
-  } else {
-    if(index < static_cast<int>(modelslist.getCategories().size()))
-      setCurrentTab(index);
-  }*/
+  else
+    return Window::onTouchEnd(x,y);
 }

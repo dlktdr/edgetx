@@ -23,25 +23,82 @@
 #define _MODEL_SELECT_H_
 
 #include "tabsgroup.h"
+#include "storage/modelslist.h"
+#include "libopenui.h"
 
-class ModelSeletWidget: public Window {
+class ModelSelectMenu: public TabsGroup {
   public:
-    ModelSeletWidget();
-    void build();
+    ModelSelectMenu();
+    void build(int index=-1);
 };
 
-class ModelSelectMenu: public Window {
+class ModelsPageBody : public FormWindow
+{
   public:
-    ModelSelectMenu(Window * parent, const rect_t & rect, WindowFlags windowFlags = 0, LcdFlags textFlags = 0);
-    void build(int index=-1);
-    void paint(BitmapBuffer * dc) override;
+    ModelsPageBody(Window *parent, const rect_t &rect);
+
+    void update(int selected = -1);
+    void setFocus(uint8_t flag = SET_FOCUS_DEFAULT, Window *from = nullptr) override;
+
+    #if defined(HARDWARE_KEYS)
+    void onEvent(event_t event) override
+    {
+      if (event == EVT_KEY_BREAK(KEY_ENTER)) {
+        addFirstModel();
+      } else {
+        FormWindow::onEvent(event);
+      }
+    }
+    #endif
+
+
+  void addFirstModel() {
+    Menu *menu = new Menu(this);
+    menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
+  }
+
+
+    #if defined(HARDWARE_TOUCH)
+      bool onTouchEnd(coord_t x, coord_t y) override
+      {
+        /*if(category->size() == 0)
+          addFirstModel();
+        else*/
+          FormWindow::onTouchEnd(x,y);
+        //return true;
+      }
+    #endif
+
+  protected:
+
+    std::function<void(void)> getCreateModelAction()
+    {
+      return [=]() {
+        /*storageCheck(true);
+        auto model = modelslist.addModel(category, createModel(), false);
+        model->setModelName(g_model.header.name);
+        modelslist.setCurrentModel(model);
+        modelslist.save();
+        update(category->size() - 1);*/
+      };
+    }
+};
+
+
+class ModelLabelsWindow : public Window {
+  public:
+    ModelLabelsWindow();
+  protected:
 #if defined(HARDWARE_KEYS)
     void onEvent(event_t event) override;
 #endif
-//TODO ADD IF
+#if defined(HARDWARE_TOUCH)
+//    bool onTouchSlide(coord_t x, coord_t y, coord_t startX, coord_t startY, coord_t slideX, coord_t slideY) override;
     bool onTouchEnd(coord_t x, coord_t y) override;
-  protected:
-    int sidebarWidth=50;
+#endif
+
+    void paint(BitmapBuffer * dc) override;
 };
+
 
 #endif // _MODEL_SELECT_H_
