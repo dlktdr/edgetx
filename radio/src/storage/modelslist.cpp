@@ -28,7 +28,6 @@ using std::list;
 #include "opentx.h"
 #include "storage/sdcard_yaml.h"
 #include "yaml/yaml_parser.h"
-#include "yaml/yaml_modelslist.h"
 #include "yaml/yaml_labelslist.h"
 #endif
 
@@ -347,7 +346,7 @@ int ModelMap::addLabel(std::string lbl)
 {
   // Add a new label if if doesn't already exist in the list
   // Returns the index to the label
-  isValid=false;
+  _isDirty=true;
   int ind = getIndexByLabel(lbl);
   if(ind < 0) {
     std::transform(lbl.begin(), lbl.end(), lbl.begin(), ::tolower);
@@ -372,7 +371,7 @@ bool ModelMap::addLabelToModel(std::string lbl, ModelCell *cell)
     return false;
   }
 
-  isValid=false;
+  _isDirty=true;
   int labelindex = addLabel(lbl);
   insert(std::pair<int, ModelCell *>(labelindex,cell));
   return true;
@@ -419,24 +418,18 @@ ModelsList::~ModelsList()
 void ModelsList::init()
 {
   loaded = false;
-  currentCategory = nullptr;
   currentModel = nullptr;
-  modelsCount = 0;
 }
 
 void ModelsList::clear()
 {
-  for (list<ModelsCategory *>::iterator it = categories.begin(); it != categories.end(); ++it) {
-    delete *it;
-  }
-  categories.clear();
+  std::vector<ModelCell *>::clear();
   init();
 }
 
 bool ModelsList::loadTxt()
 {
   char line[LEN_MODELS_IDX_LINE+1];
-  ModelsCategory * category = nullptr;
   ModelCell * model = nullptr;
 
   FRESULT result = f_open(&file, RADIO_MODELSLIST_PATH, FA_OPEN_EXISTING | FA_READ);
@@ -447,22 +440,23 @@ bool ModelsList::loadTxt()
       int len = strlen(line); // TODO could be returned by readNextLine
       if (len > 2 && line[0] == '[' && line[len-1] == ']') {
         line[len-1] = '\0';
-        category = new ModelsCategory(&line[1]);
-        categories.push_back(category);
+        /*category = new ModelsCategory(&line[1]);
+        categories.push_back(category);*/
       }
       else if (len > 0) {
         model = new ModelCell(line);
-        if (!category) {
+        /*if (!category) {
           category = new ModelsCategory("Models");
           categories.push_back(category);
-        }
-        category->push_back(model);
+        }*/
+        push_back(model);
+//        category->push_back(model);
         if (!strncmp(line, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME)) {
-          currentCategory = category;
+          //currentCategory = category;
           currentModel = model;
         }
         model->fetchRfData();
-        modelsCount += 1;
+
       }
     }
 
@@ -633,6 +627,10 @@ bool ModelsList::loadYaml()
   TRACE("  $$$$$$$$$$$  Time to scan all models that needed updating %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
 #endif
 
+  // Scan all models, see which ones need updating
+  for(const auto &label: modelsLabels.getLabels()) {
+    TRACE("LABEL Found %s", label.c_str());
+  }
 
   if(modelslist.currentModel) {
     std::string csv;
@@ -670,7 +668,7 @@ bool ModelsList::load(Format fmt)
   }
 #endif
 
-  if (!currentModel) {
+  /*if (!currentModel) {
     if (categories.empty()) {
       currentCategory = new ModelsCategory("Models");
       categories.push_back(currentCategory);
@@ -680,7 +678,7 @@ bool ModelsList::load(Format fmt)
         currentModel = *currentCategory->begin();
       }
     }
-  }
+  }*/
 
   loaded = true;
   return res;
@@ -742,37 +740,14 @@ void ModelsList::save()
       f_puts("\r\n", &file);
   }
 
-  f_puts("\r\nLabels:\r\n", &file);
-  // Build Labels List
-  for(auto const &label: modelsLabels.getLabels()) {
-    f_puts(" - ", &file);
-    f_puts(label.c_str(), &file);
-    f_puts(":\r\n    - icon: TODO.png\r\n", &file);
+  // Save current selection
+  f_puts("\r\n  Labels:\r\n", &file);
+  f_puts("  - selection:", &file);
+  f_puts(modelsLabels.getCurrentLabel().c_str(), &file);
+  f_puts("\r\n", &file);
 
-  }
   f_puts("\r\n", &file);
   f_close(&file);
-}
-
-void ModelsList::setCurrentCategory(ModelsCategory * cat)
-{
-  currentCategory = cat;
-}
-
-int ModelsList::getCurrentCategoryIdx() const
-{
-  if (!currentCategory)
-    return -1;
-
-  int idx = 0;
-  for (auto cat : categories) {
-    if (currentCategory == cat)
-      return idx;
-
-    ++idx;
-  }
-
-  return -1;
 }
 
 void ModelsList::setCurrentModel(ModelCell * cell)
@@ -799,57 +774,25 @@ bool ModelsList::readNextLine(char * line, int maxlen)
   return false;
 }
 
-ModelsCategory * ModelsList::createCategory(bool save)
-{
-  return createCategory("Category", save);
-}
 
-ModelsCategory * ModelsList::createCategory(const char* name, bool save)
+ModelCell * ModelsList::addModel(const char * name, bool save)
 {
-  ModelsCategory * result = new ModelsCategory(name);
-  categories.push_back(result);
+  if(name == nullptr) return nullptr;
+  ModelCell * result = new ModelCell(name);
+  push_back(result);
   if (save) this->save();
   return result;
 }
 
-ModelCell * ModelsList::addModel(ModelsCategory * category, const char * name, bool save)
+void ModelsList::removeModel(ModelCell * model)
 {
-  ModelCell * result = category->addModel(name);
-  modelsCount++;
-  if (save) this->save();
-  return result;
-}
-
-void ModelsList::removeCategory(ModelsCategory * category)
-{
-  modelsCount -= category->size();
-  delete category;
-  categories.remove(category);
-}
-
-void ModelsList::removeModel(ModelsCategory * category, ModelCell * model)
-{
-  category->removeModel(model);
-  modelsCount--;
-  save();
-}
-
-void ModelsList::moveModel(ModelsCategory * category, ModelCell * model, int8_t step)
-{
-  category->moveModel(model, step);
-  save();
-}
-
-void ModelsList::moveModel(ModelCell * model, ModelsCategory * previous_category, ModelsCategory * new_category)
-{
-  previous_category->remove(model);
-  new_category->push_back(model);
+  std::remove(modelslist.begin(), modelslist.end(), model);
   save();
 }
 
 bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len)
 {
-  ModelCell* modelCell = modelslist.getCurrentModel();
+  /*ModelCell* modelCell = modelslist.getCurrentModel();
   if (!modelCell || !modelCell->valid_rfData) {
     // in doubt, pretend it's unique
     return true;
@@ -909,12 +852,13 @@ bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_
     curr = strAppend(curr, ")");
   }
 
-  return !hit_found;
+  return !hit_found;*/
+  return true;
 }
 
 uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
 {
-  ModelCell * modelCell = modelslist.getCurrentModel();
+  /*ModelCell * modelCell = modelslist.getCurrentModel();
   if (!modelCell || !modelCell->valid_rfData) {
     return 0;
   }
@@ -953,7 +897,7 @@ uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
       return id;
     }
   }
-
+*/
   // failed finding something...
   return 0;
 }
