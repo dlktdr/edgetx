@@ -346,11 +346,11 @@ int ModelMap::addLabel(std::string lbl)
 {
   // Add a new label if if doesn't already exist in the list
   // Returns the index to the label
-  _isDirty=true;
   int ind = getIndexByLabel(lbl);
   if(ind < 0) {
     std::transform(lbl.begin(), lbl.end(), lbl.begin(), ::tolower);
     labels.push_back(lbl);
+    setDirty();
     TRACE("Added a label %s", lbl.c_str());
     return labels.size() - 1;
   }
@@ -371,11 +371,12 @@ bool ModelMap::addLabelToModel(std::string lbl, ModelCell *cell)
     return false;
   }
 
-  _isDirty=true;
+  setDirty();
   int labelindex = addLabel(lbl);
   insert(std::pair<int, ModelCell *>(labelindex,cell));
   return true;
 }
+
 
 bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 {
@@ -383,7 +384,7 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
   if(lblind < 0)
     return false;
   bool rv=false;
-  // Erase members that satisfy needs_removing(itr)
+  // Erase items that match in the map
   for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
     itr = (itr->first == lblind && itr->second == cell) ? erase(itr) : std::next(itr);
     rv = true;
@@ -637,7 +638,7 @@ bool ModelsList::loadYaml()
     modelsLabels.getModelCSV(csv, modelslist.currentModel);
     TRACE("Current Models Labels String as generated %s", csv.c_str());
   } else {
-    TRACE("ERRROR no Current Model Found");
+    TRACE("ERROR no Current Model Found");
   }
 
   // Save output
@@ -792,7 +793,7 @@ void ModelsList::removeModel(ModelCell * model)
 
 bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len)
 {
-  /*ModelCell* modelCell = modelslist.getCurrentModel();
+  ModelCell* modelCell = modelslist.getCurrentModel();
   if (!modelCell || !modelCell->valid_rfData) {
     // in doubt, pretend it's unique
     return true;
@@ -807,41 +808,38 @@ bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_
   curr[0] = 0;
 
   bool hit_found = false;
-  const std::list<ModelsCategory*>& cats = modelslist.getCategories();
-  std::list<ModelsCategory*>::const_iterator catIt = cats.begin();
-  for (;catIt != cats.end(); catIt++) {
-    for (ModelsCategory::const_iterator it = (*catIt)->begin(); it != (*catIt)->end(); it++) {
-      if (modelCell == *it)
-        continue;
 
-      if (!(*it)->valid_rfData)
-        continue;
+  for (auto it = begin(); it != end(); it++) {
+    if (modelCell == *it)
+      continue;
 
-      if ((type != MODULE_TYPE_NONE) &&
-          (type       == (*it)->moduleData[moduleIdx].type) &&
-          (rfProtocol == (*it)->moduleData[moduleIdx].rfProtocol) &&
-          (modelId    == (*it)->modelId[moduleIdx])) {
+    if (!(*it)->valid_rfData)
+      continue;
 
-        // Hit found!
-        hit_found = true;
+    if ((type != MODULE_TYPE_NONE) &&
+        (type       == (*it)->moduleData[moduleIdx].type) &&
+        (rfProtocol == (*it)->moduleData[moduleIdx].rfProtocol) &&
+        (modelId    == (*it)->modelId[moduleIdx])) {
 
-        const char * modelName = (*it)->modelName;
-        const char * modelFilename = (*it)->modelFilename;
+      // Hit found!
+      hit_found = true;
 
-        // you cannot rely exactly on WARNING_LINE_LEN so using WARNING_LINE_LEN-2 (-2 for the ",")
-        if ((warn_buf_len - 2 - (curr - warn_buf)) > LEN_MODEL_NAME) {
-          if (warn_buf[0] != 0)
-            curr = strAppend(curr, ", ");
-          if (modelName[0] == 0) {
-            size_t len = min<size_t>(strlen(modelFilename),LEN_MODEL_NAME);
-            curr = strAppendFilename(curr, modelFilename, len);
-          }
-          else
-            curr = strAppend(curr, modelName, LEN_MODEL_NAME);
+      const char * modelName = (*it)->modelName;
+      const char * modelFilename = (*it)->modelFilename;
+
+      // you cannot rely exactly on WARNING_LINE_LEN so using WARNING_LINE_LEN-2 (-2 for the ",")
+      if ((warn_buf_len - 2 - (curr - warn_buf)) > LEN_MODEL_NAME) {
+        if (warn_buf[0] != 0)
+          curr = strAppend(curr, ", ");
+        if (modelName[0] == 0) {
+          size_t len = min<size_t>(strlen(modelFilename),LEN_MODEL_NAME);
+          curr = strAppendFilename(curr, modelFilename, len);
         }
-        else {
-          additionalOnes++;
-        }
+        else
+          curr = strAppend(curr, modelName, LEN_MODEL_NAME);
+      }
+      else {
+        additionalOnes++;
       }
     }
   }
@@ -852,13 +850,12 @@ bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_
     curr = strAppend(curr, ")");
   }
 
-  return !hit_found;*/
-  return true;
+  return !hit_found;
 }
 
 uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
 {
-  /*ModelCell * modelCell = modelslist.getCurrentModel();
+  ModelCell * modelCell = modelslist.getCurrentModel();
   if (!modelCell || !modelCell->valid_rfData) {
     return 0;
   }
@@ -869,24 +866,21 @@ uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
   uint8_t usedModelIds[(MAX_RXNUM + 7) / 8];
   memset(usedModelIds, 0, sizeof(usedModelIds));
 
-  const std::list<ModelsCategory *> & cats = modelslist.getCategories();
-  for (auto catIt = cats.begin(); catIt != cats.end(); catIt++) {
-    for (auto it = (*catIt)->begin(); it != (*catIt)->end(); it++) {
-      if (modelCell == *it)
-        continue;
+  for (auto it = begin(); it != end(); it++){
+    if (modelCell == *it)
+      continue;
 
-      if (!(*it)->valid_rfData)
-        continue;
+    if (!(*it)->valid_rfData)
+      continue;
 
-      // match module type and RF protocol
-      if ((type != MODULE_TYPE_NONE) &&
-          (type       == (*it)->moduleData[moduleIdx].type) &&
-          (rfProtocol == (*it)->moduleData[moduleIdx].rfProtocol)) {
+    // match module type and RF protocol
+    if ((type != MODULE_TYPE_NONE) &&
+        (type       == (*it)->moduleData[moduleIdx].type) &&
+        (rfProtocol == (*it)->moduleData[moduleIdx].rfProtocol)) {
 
-        uint8_t id = (*it)->modelId[moduleIdx];
-        uint8_t mask = 1 << (id & 7u);
-        usedModelIds[id >> 3u] |= mask;
-      }
+      uint8_t id = (*it)->modelId[moduleIdx];
+      uint8_t mask = 1 << (id & 7u);
+      usedModelIds[id >> 3u] |= mask;
     }
   }
 
@@ -897,7 +891,7 @@ uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
       return id;
     }
   }
-*/
+
   // failed finding something...
   return 0;
 }

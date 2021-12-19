@@ -129,7 +129,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
   public:
     ModelsVector getModelsByLabel(std::string);
     LabelsVector getLabelsByModel(ModelCell *);
-    ModelsVector getUnlabeldModels() {return ModelsVector();} // TODO ***
+    ModelsVector getUnlabeledModels() {return ModelsVector();} // TODO ***
     std::map<std::string, bool> getSelectedLabels(ModelCell *);
     bool isLabelSelected(std::string, ModelCell *);
     LabelsVector getLabels();
@@ -137,8 +137,8 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     bool addLabelToModel(std::string, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
     void getModelCSV(std::string &dest, ModelCell *cell);
-    void setCurrentLabel(std::string lbl) {currentlabel = lbl;}
-    void setDirty() {_isDirty = true;}
+    void setCurrentLabel(std::string lbl) {currentlabel = lbl; setDirty();}
+    void setDirty() {_isDirty = true;} // TODO.. Delay and write output, same idea as the model saving works
     bool isDirty() {return _isDirty;}
     std::string getCurrentLabel() {return currentlabel;};
     int size() {return std::multimap<int, ModelCell *>::size();}
