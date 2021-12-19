@@ -551,6 +551,8 @@ bool ModelsList::loadYaml()
 
   // 1) Scan /MODELS/ for all .yml models
 
+  modelsLabels.addLabel("Favorite");
+
   DIR moddir;
   FILINFO finfo;
   if (f_opendir(&moddir, PATH_SEPARATOR MODELS_PATH) == FR_OK) {
@@ -586,7 +588,9 @@ bool ModelsList::loadYaml()
   }
 
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+#ifdef DEBUG_TIMERS
   TRACE("  $$$$$$$$$$$  Time to scan models and create file hashes %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
+#endif
 
   // 2) Read Labels.yml
 
@@ -613,7 +617,9 @@ bool ModelsList::loadYaml()
   }
 
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+#ifdef DEBUG_TIMERS
   TRACE("  $$$$$$$$$$$  Time to compare models %lu us", debugTimers[debugTimerYamlScan].getLast());
+#endif
 
   // Scan all models, see which ones need updating
   for(const auto &model: modelslist) {
@@ -623,16 +629,10 @@ bool ModelsList::loadYaml()
   }
 
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+#ifdef DEBUG_TIMERS
   TRACE("  $$$$$$$$$$$  Time to scan all models that needed updating %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
+#endif
 
-
-  /// TEMP
-  for (const auto &label : modelsLabels.getLabels()) {
-    TRACE("Label %s", label.c_str());
-    // TEMP, make a category for each label
-    ModelsCategory *category = new ModelsCategory(label.c_str());
-    categories.push_back(category);
-  }
 
   if(modelslist.currentModel) {
     std::string csv;
@@ -641,8 +641,6 @@ bool ModelsList::loadYaml()
   } else {
     TRACE("ERRROR no Current Model Found");
   }
-
-  modelsLabels.addLabel("Favorite");
 
   // Save output
   modelslist.save();
