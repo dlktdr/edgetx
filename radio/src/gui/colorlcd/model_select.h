@@ -37,6 +37,7 @@ class ModelsPageBody : public FormWindow
   public:
     ModelsPageBody(Window *parent, const rect_t &rect);
 
+    void setLabel(std::string &lbl) {selectedLabel = lbl; update();}
     void update(int selected = -1);
     void setFocus(uint8_t flag = SET_FOCUS_DEFAULT, Window *from = nullptr) override;
 
@@ -65,12 +66,12 @@ class ModelsPageBody : public FormWindow
           addFirstModel();
         else*/
           FormWindow::onTouchEnd(x,y);
-        //return true;
+        return true;
       }
     #endif
 
   protected:
-
+    std::string selectedLabel;
     std::function<void(void)> getCreateModelAction()
     {
       return [=]() {
@@ -82,6 +83,24 @@ class ModelsPageBody : public FormWindow
         update(category->size() - 1);*/
       };
     }
+};
+
+class ModelLabelSelector : public FormWindow
+{
+  public:
+    ModelLabelSelector(Window * parent, const rect_t & rect, WindowFlags windowFlags = 0) :
+      FormWindow(parent, rect, windowFlags)
+      {
+        build();
+        memclear(selectedlabels, sizeof(selectedlabels));
+      }
+    void setLabelSelectHandler(std::function<void(std::string)> handler= nullptr) {
+      labelChangeHandler = std::move(handler);
+    }
+  protected:
+    void build();
+    std::function<void(std::string)> labelChangeHandler = nullptr;
+    uint8_t selectedlabels[50]; // TODO DEFINE..
 };
 
 
@@ -96,8 +115,10 @@ class ModelLabelsWindow : public Window {
 //    bool onTouchSlide(coord_t x, coord_t y, coord_t startX, coord_t startY, coord_t slideX, coord_t slideY) override;
     bool onTouchEnd(coord_t x, coord_t y) override;
 #endif
-
     void paint(BitmapBuffer * dc) override;
+    std::string currentLabel;
+    ModelLabelSelector *lblselector;
+    ModelsPageBody *mdlselector;
 };
 
 

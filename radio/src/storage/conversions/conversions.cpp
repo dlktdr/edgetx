@@ -96,8 +96,8 @@ void convertBinRadioData(const char * path, int version)
 #if defined(SIMU)
   RTOS_WAIT_MS(200);
 #endif
-
-  const char* error = nullptr;
+////// TODO **** NEED TO SCAN MODELS HERE TOO IF INTENDING TO DELETE CATEGORIES :(
+  /*const char* error = nullptr;
   for (auto category_ptr : modelslist.getCategories()) {
 
     auto model_it = category_ptr->begin();
@@ -124,7 +124,7 @@ void convertBinRadioData(const char * path, int version)
         } else {
           PartialModel partial;
           memclear(&partial, sizeof(PartialModel));
-          
+
           readModelYaml(filename, reinterpret_cast<uint8_t*>(&partial), sizeof(partial));
           model_ptr->setModelName(partial.header.name);
         }
@@ -142,7 +142,7 @@ void convertBinRadioData(const char * path, int version)
       RTOS_WAIT_MS(200);
 #endif
     }
-  }
+  }*/
 
 #if defined(SDCARD_YAML) || defined(STORAGE_MODELSLIST)
   modelslist.save();
@@ -172,7 +172,7 @@ const char* convertBinModelData(char* filename, int version)
   memcpy(path, MODELS_PATH, sizeof(MODELS_PATH)-1);
   path[sizeof(MODELS_PATH)-1] = '/';
   strcpy(&path[sizeof(MODELS_PATH)], filename);
-  
+
 #if STORAGE_CONVERSIONS < 220
   if (version == 219) {
     const char* error = convertModelData_219_to_220(path);
@@ -199,7 +199,7 @@ const char* convertBinModelData(char* filename, int version)
 void eeConvertModel(int id, int version)
 {
   TRACE("eeConvertModel(%d,%d)", id, version);
-  
+
 #if STORAGE_CONVERSIONS < 220
   if (version == 219) {
     convertModelData_219_to_220(id);
@@ -267,7 +267,7 @@ bool eeConvert()
 #if defined(STORAGE_MODELSLIST)
   modelslist.clear();
 #endif
-  
+
 #if LCD_W >= 212
   lcdDrawRect(60, 6*FH+4, 132, 3);
 #else

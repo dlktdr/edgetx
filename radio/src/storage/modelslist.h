@@ -127,9 +127,9 @@ public:
 class ModelMap : protected std::multimap<int, ModelCell *>
 {
   public:
-    bool isValid=false; // If false, map does not match input labels.csv
     ModelsVector getModelsByLabel(std::string);
     LabelsVector getLabelsByModel(ModelCell *);
+    ModelsVector getUnlabeldModels() {return ModelsVector();} // TODO ***
     std::map<std::string, bool> getSelectedLabels(ModelCell *);
     bool isLabelSelected(std::string, ModelCell *);
     LabelsVector getLabels();
@@ -137,16 +137,21 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     bool addLabelToModel(std::string, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
     void getModelCSV(std::string &dest, ModelCell *cell);
+    void setCurrentLabel(std::string lbl) {currentlabel = lbl;}
+    void setDirty() {_isDirty = true;}
+    bool isDirty() {return _isDirty;}
+    std::string getCurrentLabel() {return currentlabel;};
     int size() {return std::multimap<int, ModelCell *>::size();}
     void clear() {
-      isValid=false;
+      _isDirty=true;
       labels.clear();
       std::multimap<int, ModelCell *>::clear();
     }
 
   private:
-    // Storage space for discovered labels
-    LabelsVector labels;
+    bool _isDirty=true;
+    LabelsVector labels; // Storage space for discovered labels
+    std::string currentlabel = "";
     int getIndexByLabel(std::string str) {
       std::transform(str.begin(), str.end(), str.begin(), ::tolower);
       for(uint16_t i=0; i < (uint16_t)labels.size(); i++) {
@@ -169,11 +174,7 @@ class ModelsList : public std::vector<ModelCell *>
 {
   bool loaded;
 
-  std::list<ModelsCategory *> categories; // To be removed
-  ModelsCategory * currentCategory;       // To be removed
-
   ModelCell * currentModel;
-  unsigned int modelsCount;
 
   void init();
 
@@ -197,24 +198,6 @@ public:
   void save();
   void clear();
 
-  const std::list<ModelsCategory *> & getCategories() const
-  {
-    return categories;
-  }
-
-  std::list<ModelsCategory *>& getCategories()
-  {
-    return categories;
-  }
-
-  void setCurrentCategory(ModelsCategory * cat);
-
-  ModelsCategory * getCurrentCategory() const
-  {
-    return currentCategory;
-  }
-  int getCurrentCategoryIdx() const;
-
   void setCurrentModel(ModelCell * cell);
 
   ModelCell * getCurrentModel() const
@@ -222,25 +205,15 @@ public:
     return currentModel;
   }
 
-  void incModelsCount() {
-    modelsCount++;
-  }
-
   unsigned int getModelsCount() const
   {
-    return modelsCount;
+    return std::vector<ModelCell *>::size();
   }
 
   bool readNextLine(char * line, int maxlen);
 
-  ModelsCategory * createCategory(bool save=true);
-  ModelsCategory * createCategory(const char * name, bool save=true);
-  void removeCategory(ModelsCategory * category);
-
-  ModelCell * addModel(ModelsCategory * category, const char * name, bool save=true);
-  void removeModel(ModelsCategory * category, ModelCell * model);
-  void moveModel(ModelsCategory * category, ModelCell * model, int8_t step);
-  void moveModel(ModelCell * model, ModelsCategory * previous_category, ModelsCategory * new_category);
+  ModelCell * addModel(const char * name, bool save=true);
+  void removeModel(ModelCell * model);
 
   bool isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len);
   uint8_t findNextUnusedModelId(uint8_t moduleIdx);

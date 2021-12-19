@@ -28,7 +28,7 @@
 #define LABELS_TOP (60)
 
 #if LCD_W > LCD_H
-constexpr int MODEL_CELLS_PER_LINE = 3;
+constexpr int MODEL_CELLS_PER_LINE = 2;
 #else
 constexpr int MODEL_CELLS_PER_LINE = 2;
 #endif
@@ -176,6 +176,8 @@ class ModelButton : public Button
   BitmapBuffer *buffer = nullptr;
 };
 
+//-----------------------------------------------------------------------------
+
 ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
     FormWindow(parent, rect, FORM_FORWARD_FOCUS)
 {
@@ -193,7 +195,7 @@ void ModelsPageBody::update(int selected)
     // TODO - Filter list by selected labels
 
     ModelButton* selectButton = nullptr;
-    for (auto &model : modelslist) {
+    for (auto &model : modelsLabels.getModelsByLabel(selectedLabel)) {
       auto button = new ModelButton(
           this, {x, y, MODEL_SELECT_CELL_WIDTH, MODEL_SELECT_CELL_HEIGHT},
           model);
@@ -211,8 +213,8 @@ void ModelsPageBody::update(int selected)
               storageDirty(EE_GENERAL);
               storageCheck(true);
 
-              /*modelslist.setCurrentModel(model);
-              modelslist.setCurrentCategory(category);*/
+              modelslist.setCurrentModel(model);
+              /*modelslist.setCurrentCategory(category);*/
               this->onEvent(EVT_KEY_FIRST(KEY_EXIT));
               checkAll();
             });
@@ -235,7 +237,7 @@ void ModelsPageBody::update(int selected)
 
           if (model != modelslist.getCurrentModel()) {
             // Move
-            if(modelslist.getCategories().size() > 1) {
+            if(modelslist.size() > 1) {
               menu->addLine(STR_MOVE_MODEL, [=]() {
               auto moveToMenu = new Menu(parent);
               moveToMenu->setTitle(STR_MOVE_MODEL);
@@ -301,94 +303,31 @@ void ModelsPageBody::setFocus(uint8_t flag, Window *from)
   //}
 }
 
-class ModelLabelsChecker : public FormGroup {
-  public:
-    ModelLabelsChecker(FormWindow * parent, const rect_t &rect) :
-      FormGroup(parent, rect, FORWARD_SCROLL | FORM_FORWARD_FOCUS)
-    {
-      update();
-    }
+//-----------------------------------------------------------------------------
 
-  protected:
-    void update()
-    {
-      FormGridLayout grid;
-      clear();
-    }
-};
-
-class CategoryGroup: public FormGroup
+void ModelLabelSelector::build()
 {
-  public:
-    CategoryGroup(Window * parent, const rect_t & rect, ModelsCategory *category) :
-      FormGroup(parent, rect),
-      category(category)
-    {
-    }
-
-    void paint(BitmapBuffer * dc) override
-    {
-      dc->drawSolidFilledRect(0, 0, width(), height(), COLOR_THEME_PRIMARY2);
-      FormGroup::paint(dc);
-    }
-
-  protected:
-    ModelsCategory *category;
-};
-
-
-//---- LABELS IMPLEMENTATION
-
-class ModelLabelSelector : public FormWindow
-{
-  public:
-    ModelLabelSelector(Window * parent, const rect_t & rect, WindowFlags windowFlags = 0) :
-      FormWindow(parent, rect, windowFlags)
-      {
-        build();
-        memclear(selectedlabels, sizeof(selectedlabels));
-      }
-  protected:
-  void build() {
     // --- TODO... REWORK Layout for NV14?
-
-    // Add Label Check Boxes
     int i=0;
     for(auto const &label : modelsLabels.getLabels()) {
       std::string capitalize = label;
       capitalize[0] = toupper(capitalize[0]);
-      int height = i*(PAGE_LINE_HEIGHT+PAGE_LINE_SPACING);
-#if 0
-      new StaticText(this, {0,height,width()*3/4, PAGE_LINE_HEIGHT}, capitalize);
-      new CheckBox(this, {width()*3/4+4,height,width()/4,PAGE_LINE_HEIGHT}, [=]() -> uint8_t{
-        return selectedlabels[i];
-      },[=](uint8_t newval) {
-        TRACE("Label %s = %d", label.c_str(), (int)newval);
-        selectedlabels[i] = newval;
-      });
-#else
-      auto tb = new TextButton(this, {0,height,width()-LABELS_LEFT, PAGE_LINE_HEIGHT},capitalize, [=]() -> uint8_t {
+      int height = i*(LABELS_LINE_HEIGHT+PAGE_LINE_SPACING);
+      auto lbl = new TextButton(this, {0,height,width()-(LABELS_LEFT*2), LABELS_LINE_HEIGHT},capitalize, [=]() -> uint8_t {
+        labelChangeHandler(label);
         return 0;
       });
-      tb->setBgColorHandler([=](){return COLOR_THEME_SECONDARY1;});
-#endif
+      if(!label.compare(modelsLabels.getCurrentLabel())) {
 
+      }
+      //tb->setBgColorHandler([=](){return COLOR_THEME_SECONDARY1;});
       if(++i == sizeof(selectedlabels)) // TODO define
         break;
-
     }
-    this->setInnerHeight(i*(PAGE_LINE_HEIGHT+PAGE_LINE_SPACING));
-  }
-  void paint(BitmapBuffer *dc) override
-  {
-    FormWindow::paint(dc);
-    /*if(hasFocus())
-      dc->drawRect(0,0,width(),height(),4,255,COLOR_THEME_PRIMARY1);
-    else
-      dc->drawRect(0,0,width(),height(),1,255,COLOR_THEME_PRIMARY1);*/
-  }
-  uint8_t selectedlabels[50];
-};
+    this->setInnerHeight(i*(LABELS_LINE_HEIGHT+PAGE_LINE_SPACING));
+}
+
+//-----------------------------------------------------------------------------
 
 ModelLabelsWindow::ModelLabelsWindow() :
   Window(MainWindow::instance(), MainWindow::instance()->getRect(), NO_SCROLLBAR)
@@ -402,10 +341,13 @@ ModelLabelsWindow::ModelLabelsWindow() :
     });
 
   // Labels Selector - Left
-  new ModelLabelSelector(this, {LABELS_LEFT,LABELS_TOP,LABELS_WIDTH, LCD_H-LABELS_TOP});
+  lblselector = new ModelLabelSelector(this, {LABELS_LEFT,LABELS_TOP,LABELS_WIDTH, LCD_H-LABELS_TOP});
+  lblselector->setLabelSelectHandler([=](std::string lbl) {
+    mdlselector->setLabel(lbl); // Update the list
+  });
 
   // Models List and Filters - Right
-  new ModelsPageBody(this, {LABELS_WIDTH + LABELS_LEFT,0, LCD_W-LABELS_WIDTH, LCD_H});
+  mdlselector = new ModelsPageBody(this, {LABELS_WIDTH + LABELS_LEFT,0, LCD_W-LABELS_WIDTH, LCD_H});
 
   /*auto sortby = new Choice(this, {300,5,100,35} , 0 , 2, [=]{});
   sortby->addValue("Name");
@@ -418,12 +360,12 @@ void ModelLabelsWindow::paint(BitmapBuffer * dc)
   // Top Bar
   /*dc->drawSolidFilledRect(0, 0, width(), MENU_HEADER_HEIGHT , COLOR_THEME_SECONDARY1);*/
   // Main Screen
-  dc->drawSolidFilledRect(LABELS_WIDTH, 0, width()-LABELS_WIDTH, height(), COLOR_THEME_SECONDARY3);
+  dc->drawSolidFilledRect(LABELS_WIDTH, 0, width()-LABELS_WIDTH, height(), COLOR_THEME_SECONDARY1);
   // Labels
-  dc->drawSolidFilledRect(0, 0, LABELS_WIDTH, height(), COLOR_THEME_SECONDARY1);
+  dc->drawSolidFilledRect(0, 0, LABELS_WIDTH, height(), COLOR_THEME_SECONDARY2);
   // Models Select button
   //OpenTxTheme::instance()->drawTopLeftBitmap(dc);
-  dc->drawBitmap(20, 5, OpenTxTheme::instance()->getIcon(ICON_MODEL_SELECT,STATE_DEFAULT),0,0,0,0,1.6);
+  dc->drawBitmap(20, 5, OpenTxTheme::instance()->getIcon(ICON_MODEL_SELECT,STATE_PRESSED),0,0,0,0,1.6);
 }
 
 void ModelLabelsWindow::onEvent(event_t event)
