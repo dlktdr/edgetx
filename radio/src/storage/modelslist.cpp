@@ -287,6 +287,10 @@ void ModelsCategory::save(FIL * file)
 }
 
 //-----------------------------------------------------------------------------
+ModelsVector ModelMap::getUnlabeldModels()
+{
+  return ModelsVector();
+}
 
 ModelsVector ModelMap::getModelsByLabel(std::string lbl)
 {
@@ -546,6 +550,7 @@ bool ModelsList::loadYaml()
   // 1) Scan /MODELS/ for all .yml models
 
   modelsLabels.addLabel("Favorite");
+  modelsLabels.addLabel("Unlabeled");
 
   DIR moddir;
   FILINFO finfo;

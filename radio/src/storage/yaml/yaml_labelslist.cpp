@@ -213,10 +213,16 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
       if(mi->curmodel != NULL) {
         char *cma;
         cma = strtok(value, ",");
+        int numTokens = 0;
         while(cma != NULL) {
           modelsLabels.addLabelToModel(cma,mi->curmodel);
           TRACE_LABELS(" Adding the label - %s", cma);
           cma = strtok(NULL, ",");
+          numTokens++;
+        }
+        if (numTokens == 0) {
+          TRACE_LABELS(" Adding unlabled");
+          modelsLabels.addLabelToModel("Unlabeled", mi->curmodel);
         }
       }
     }
