@@ -106,7 +106,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
   public:
     ModelsVector getModelsByLabel(std::string);
     LabelsVector getLabelsByModel(ModelCell *);
-    ModelsVector getUnlabeledModels() {return ModelsVector();} // TODO ***
+    ModelsVector getUnlabeldModels();
     std::map<std::string, bool> getSelectedLabels(ModelCell *);
     bool isLabelSelected(std::string, ModelCell *);
     LabelsVector getLabels();
@@ -132,15 +132,14 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     bool _isDirty=true;
     LabelsVector labels; // Storage space for discovered labels
     std::string currentlabel = "";
-    int getIndexByLabel(std::string str) {
+
+    int getIndexByLabel(std::string str)
+    {
       std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-      for(uint16_t i=0; i < (uint16_t)labels.size(); i++) {
-        if(labels.at(i) == str) {
-          return i;
-        }
-      }
-      return -1;
+      auto a = std::find(labels.begin(), labels.end(), str);
+      return a == labels.end() ? -1 : a - labels.begin();
     }
+
     std::string getLabelByIndex(uint16_t index) {
       if(index < (uint16_t)labels.size())
         return labels.at(index);

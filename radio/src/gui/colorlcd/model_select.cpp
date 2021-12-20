@@ -19,9 +19,13 @@
  * GNU General Public License for more details.
  */
 
+#include <vector>
+#include <iostream>
 #include <algorithm>
+
 #include "model_select.h"
 #include "opentx.h"
+#include "listbox.h"
 
 #define LABELS_WIDTH 90
 #define LABELS_LEFT 5
@@ -40,10 +44,6 @@ constexpr coord_t MODEL_SELECT_CELL_WIDTH =
     MODEL_CELLS_PER_LINE;
 
 constexpr coord_t MODEL_SELECT_CELL_HEIGHT = 92;
-
-constexpr coord_t MODEL_IMAGE_WIDTH  = MODEL_SELECT_CELL_WIDTH;
-constexpr coord_t MODEL_IMAGE_HEIGHT = 72;
-
 
 class ModelButton : public Button
 {
@@ -179,206 +179,193 @@ class ModelButton : public Button
 //-----------------------------------------------------------------------------
 
 ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
-    FormWindow(parent, rect, FORM_FORWARD_FOCUS)
+    Window(parent, rect), 
+  innerWindow(this, { 4, 4, rect.w - 8, rect.h - 8 })
 {
   update();
+  setFocusHandler([=](bool focus) {
+    if (focus) {
+      innerWindow.setFocus();
+    }
+  });
 }
 
-void ModelsPageBody::update(int selected)
-  {
-    clear();
+void ModelsPageBody::paint(BitmapBuffer *dc)
+{
+  dc->drawSolidRect(0, getScrollPositionY(), rect.w, rect.h, 2, COLOR_THEME_FOCUS);
+}
 
-    int index = 0;
-    coord_t y = MODEL_CELL_PADDING;
-    coord_t x = MODEL_CELL_PADDING;
+void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int index)
+{
+  button->setPressHandler([=]() -> uint8_t {
+    if (button->hasFocus()) {
+      Menu *menu = new Menu(this);
+      if (model != modelslist.getCurrentModel()) {
+        menu->addLine(STR_SELECT_MODEL, [=]() {
+          // we store the latest changes if any
+          storageFlushCurrentModel();
+          storageCheck(true);
+          memcpy(g_eeGeneral.currModelFilename, model->modelFilename,
+                  LEN_MODEL_FILENAME);
+          loadModel(g_eeGeneral.currModelFilename, false);
+          storageDirty(EE_GENERAL);
+          storageCheck(true);
 
-    // TODO - Filter list by selected labels
-
-    ModelButton* selectButton = nullptr;
-    for (auto &model : modelsLabels.getModelsByLabel(selectedLabel)) {
-      auto button = new ModelButton(
-          this, {x, y, MODEL_SELECT_CELL_WIDTH, MODEL_SELECT_CELL_HEIGHT},
-          model);
-      button->setPressHandler([=]() -> uint8_t {
-        if (button->hasFocus()) {
-          Menu *menu = new Menu(parent);
-          if (model != modelslist.getCurrentModel()) {
-            menu->addLine(STR_SELECT_MODEL, [=]() {
-              // we store the latest changes if any
-              storageFlushCurrentModel();
-              storageCheck(true);
-              memcpy(g_eeGeneral.currModelFilename, model->modelFilename,
-                     LEN_MODEL_FILENAME);
-              loadModel(g_eeGeneral.currModelFilename, false);
-              storageDirty(EE_GENERAL);
-              storageCheck(true);
-
-              modelslist.setCurrentModel(model);
-              /*modelslist.setCurrentCategory(category);*/
-              this->onEvent(EVT_KEY_FIRST(KEY_EXIT));
-              checkAll();
-            });
-          }
-          menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
-          menu->addLine(STR_DUPLICATE_MODEL, [=]() {
-            char duplicatedFilename[LEN_MODEL_FILENAME + 1];
-            memcpy(duplicatedFilename, model->modelFilename,
-                   sizeof(duplicatedFilename));
-            if (findNextFileIndex(duplicatedFilename, LEN_MODEL_FILENAME,
-                                  MODELS_PATH)) {
-              sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
-                         MODELS_PATH);
-              //modelslist.addModel(category, duplicatedFilename);
-              update(index);
-            } else {
-              POPUP_WARNING("Invalid File");
-            }
-          });
-
-          if (model != modelslist.getCurrentModel()) {
-            // Move
-            if(modelslist.size() > 1) {
-              menu->addLine(STR_MOVE_MODEL, [=]() {
-              auto moveToMenu = new Menu(parent);
-              moveToMenu->setTitle(STR_MOVE_MODEL);
-                /*for (auto newcategory: modelslist.getCategories()) {
-                  if(category != newcategory) {
-                    moveToMenu->addLine(std::string(newcategory->name, sizeof(newcategory->name)), [=]() {
-                      modelslist.moveModel(model, category, newcategory);
-                      update(index < (int)category->size() - 1 ? index : index - 1);
-                      modelslist.save();
-                    });
-                  }
-                }*/
-              });
-            }
-            menu->addLine(STR_DELETE_MODEL, [=]() {
-              new ConfirmDialog(
-                  parent, STR_DELETE_MODEL,
-                  std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
-                    //modelslist.removeModel(category, model);
-                    //update(index < (int)category->size() - 1 ? index : index - 1);
-            });
-          }
+          modelslist.setCurrentModel(model);
+          /*modelslist.setCurrentCategory(category);*/
+          this->getParent()->getParent()->deleteLater();
+          checkAll();
+        });
+      }
+      menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
+      menu->addLine(STR_DUPLICATE_MODEL, [=]() {
+        char duplicatedFilename[LEN_MODEL_FILENAME + 1];
+        memcpy(duplicatedFilename, model->modelFilename,
+                sizeof(duplicatedFilename));
+        if (findNextFileIndex(duplicatedFilename, LEN_MODEL_FILENAME,
+                              MODELS_PATH)) {
+          sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
+                      MODELS_PATH);
+          //modelslist.addModel(category, duplicatedFilename);
+          update(index);
         } else {
-          button->setFocus(SET_FOCUS_DEFAULT);
+          POPUP_WARNING("Invalid File");
         }
-        return 1;
       });
 
-      if (selected == index) {
-        selectButton = button;
+      if (model != modelslist.getCurrentModel()) {
+        // Move
+        if(modelslist.size() > 1) {
+          menu->addLine(STR_MOVE_MODEL, [=]() {
+          auto moveToMenu = new Menu(parent);
+          moveToMenu->setTitle(STR_MOVE_MODEL);
+            /*for (auto newcategory: modelslist.getCategories()) {
+              if(category != newcategory) {
+                moveToMenu->addLine(std::string(newcategory->name, sizeof(newcategory->name)), [=]() {
+                  modelslist.moveModel(model, category, newcategory);
+                  update(index < (int)category->size() - 1 ? index : index - 1);
+                  modelslist.save();
+                });
+              }
+            }*/
+          });
+        }
+        menu->addLine(STR_DELETE_MODEL, [=]() {
+          new ConfirmDialog(
+              parent, STR_DELETE_MODEL,
+              std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
+                //modelslist.removeModel(category, model);
+                //update(index < (int)category->size() - 1 ? index : index - 1);
+        });
       }
+    } else {
+      button->setFocus(SET_FOCUS_DEFAULT);
+    }
+    return 1;
+  });
+}
+void ModelsPageBody::update(int selected)
+{
+  innerWindow.clear();
 
-      index++;
+  int index = 0;
+  coord_t y = 0;
+  coord_t x = 0;
 
-      if (index % MODEL_CELLS_PER_LINE == 0) {
-        x = MODEL_CELL_PADDING;
-        y += MODEL_SELECT_CELL_HEIGHT + MODEL_CELL_PADDING;
-      } else {
-        x += MODEL_CELL_PADDING + MODEL_SELECT_CELL_WIDTH;
-      }
+  // TODO - Filter list by selected labels
+
+  ModelButton* selectButton = nullptr;
+  for (auto &model : modelsLabels.getModelsByLabel(selectedLabel)) {
+    auto button = new ModelButton(
+        &innerWindow, {x, y, MODEL_SELECT_CELL_WIDTH, MODEL_SELECT_CELL_HEIGHT},
+        model);
+    initPressHandler(button, model, index);
+    if (selected == index) {
+      selectButton = button;
     }
 
-    if (index % MODEL_CELLS_PER_LINE != 0) {
+    index++;
+
+    if (index % MODEL_CELLS_PER_LINE == 0) {
+      x = 0;
       y += MODEL_SELECT_CELL_HEIGHT + MODEL_CELL_PADDING;
+    } else {
+      x += MODEL_CELL_PADDING + MODEL_SELECT_CELL_WIDTH;
     }
-    setInnerHeight(y);
-
-    /*if (category->empty()) {
-      setFocus();
-    } else if (selectButton) {
-      selectButton->setFocus();
-    }*/
   }
 
-void ModelsPageBody::setFocus(uint8_t flag, Window *from)
-{
-  //if (category->empty()) {
-    // use Window::setFocus() to avoid forwarding focus to nowhere
-    // this crashes currently in libopenui
-    //Window::setFocus(flag, from);
-  //} else {
-    FormWindow::setFocus(flag, from);
-  //}
+  if (index % MODEL_CELLS_PER_LINE != 0) {
+    y += MODEL_SELECT_CELL_HEIGHT + MODEL_CELL_PADDING;
+  }
+  innerWindow.setInnerHeight(y);
+
+  /*if (category->empty()) {
+    setFocus();
+  } else if (selectButton) {
+    selectButton->setFocus();
+  }*/
 }
-
-//-----------------------------------------------------------------------------
-
-void ModelLabelSelector::build()
-{
-    // --- TODO... REWORK Layout for NV14?
-    int i=0;
-    for(auto const &label : modelsLabels.getLabels()) {
-      std::string capitalize = label;
-      capitalize[0] = toupper(capitalize[0]);
-      int height = i*(LABELS_LINE_HEIGHT+PAGE_LINE_SPACING);
-      auto lbl = new TextButton(this, {0,height,width()-(LABELS_LEFT*2), LABELS_LINE_HEIGHT},capitalize, [=]() -> uint8_t {
-        labelChangeHandler(label);
-        return 0;
-      });
-      if(!label.compare(modelsLabels.getCurrentLabel())) {
-
-      }
-      //tb->setBgColorHandler([=](){return COLOR_THEME_SECONDARY1;});
-      if(++i == sizeof(selectedlabels)) // TODO define
-        break;
-    }
-    this->setInnerHeight(i*(LABELS_LINE_HEIGHT+PAGE_LINE_SPACING));
-}
-
-//-----------------------------------------------------------------------------
 
 ModelLabelsWindow::ModelLabelsWindow() :
-  Window(MainWindow::instance(), MainWindow::instance()->getRect(), NO_SCROLLBAR)
+  Page(ICON_MODEL)
 {
-  setPageWidth(getParent()->width());
-  focusWindow = this;
+  buildBody(&body);
+  buildHead(&header);
+}
 
-  setFocusHandler([&](bool focus) {
-      TRACE("[LABELS] Focus %s",
-            focus ? "gained" : "lost");
-    });
+#if defined(HARDWARE_KEYS)
+void ModelLabelsWindow::onEvent(event_t event)
+{
+  if (event == EVT_KEY_BREAK(KEY_PGUP) || event == EVT_KEY_BREAK(KEY_PGDN)) {
+    onKeyPress();
+    if (getFocus()->getParent() == mdlselector)
+      lblselector->setFocus();
+    else 
+      mdlselector->setFocus();
+  } else {
+    Page::onEvent(event);
+  }
+}
+#endif
 
-  // Labels Selector - Left
-  lblselector = new ModelLabelSelector(this, {LABELS_LEFT,LABELS_TOP,LABELS_WIDTH, LCD_H-LABELS_TOP});
-  lblselector->setLabelSelectHandler([=](std::string lbl) {
-    mdlselector->setLabel(lbl); // Update the list
-  });
+void ModelLabelsWindow::buildHead(PageHeader *window)
+{
+  LcdFlags flags = 0;
+  if (LCD_W < LCD_H) {
+    flags = FONT(XS);
+  }
 
+  // page title
+  new StaticText(window,
+                  {PAGE_TITLE_LEFT, PAGE_TITLE_TOP, LCD_W - PAGE_TITLE_LEFT,
+                  PAGE_LINE_HEIGHT},
+                  "Select Model", 0, COLOR_THEME_PRIMARY2 | flags);
+
+  auto curModel = modelslist.getCurrentModel();
+  std::string modelName = "Current: " + std::string(curModel->modelName);
+  new StaticText(window,
+                  {PAGE_TITLE_LEFT, PAGE_TITLE_TOP + PAGE_LINE_HEIGHT,
+                  LCD_W - PAGE_TITLE_LEFT, PAGE_LINE_HEIGHT},
+                  modelName, 0, COLOR_THEME_PRIMARY2 | flags);
+}
+
+void ModelLabelsWindow::buildBody(FormWindow *window)
+{
   // Models List and Filters - Right
-  mdlselector = new ModelsPageBody(this, {LABELS_WIDTH + LABELS_LEFT,0, LCD_W-LABELS_WIDTH, LCD_H});
+  mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 10});
+  
+  lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 }, 
+    modelsLabels.getLabels(),
+    [=] () {
+      return 0;
+    }, [=](uint32_t value) {
+      auto a = modelsLabels.getLabels();
+      auto label = a[value];
+      mdlselector->setLabel(label); // Update the list
+    });
 
   /*auto sortby = new Choice(this, {300,5,100,35} , 0 , 2, [=]{});
   sortby->addValue("Name");
   sortby->addValue("ID");
   sortby->addValue("Recent");*/
-}
-
-void ModelLabelsWindow::paint(BitmapBuffer * dc)
-{
-  // Top Bar
-  /*dc->drawSolidFilledRect(0, 0, width(), MENU_HEADER_HEIGHT , COLOR_THEME_SECONDARY1);*/
-  // Main Screen
-  dc->drawSolidFilledRect(LABELS_WIDTH, 0, width()-LABELS_WIDTH, height(), COLOR_THEME_SECONDARY1);
-  // Labels
-  dc->drawSolidFilledRect(0, 0, LABELS_WIDTH, height(), COLOR_THEME_SECONDARY2);
-  // Models Select button
-  //OpenTxTheme::instance()->drawTopLeftBitmap(dc);
-  dc->drawBitmap(20, 5, OpenTxTheme::instance()->getIcon(ICON_MODEL_SELECT,STATE_PRESSED),0,0,0,0,1.6);
-}
-
-void ModelLabelsWindow::onEvent(event_t event)
-{
-  Window::onEvent(event);
-}
-
-bool ModelLabelsWindow::onTouchEnd(coord_t x, coord_t y)
-{
-  if(x < (int)MENU_HEADER_BUTTONS_LEFT && y < (int)MENU_HEADER_HEIGHT) {
-    deleteLater(true);
-    return true;
-  }
-  else
-    return Window::onTouchEnd(x,y);
 }
