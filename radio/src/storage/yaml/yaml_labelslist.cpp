@@ -181,6 +181,13 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         TRACE_LABELS("Set the models name");
       }
 
+    // Last Opened
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "lastopen")) {
+      if(mi->curmodel != NULL) {
+        mi->curmodel->lastOpened = (time_t)strtoul(value, NULL, 0);
+        TRACE_LABELS("Last Opened %lu". mi->curmode->lastOpened);
+      }
+
     // Model ID0
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "id0")) {
       if(mi->curmodel != NULL) {
@@ -196,7 +203,6 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         TRACE_LABELS("Set the models id1 to %s", value);
       }
 #endif
-
 
     // Model Bitmap
 #if LEN_BITMAP_NAME > 0
