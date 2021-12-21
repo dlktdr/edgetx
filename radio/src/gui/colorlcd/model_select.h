@@ -25,6 +25,9 @@
 #include "tabsgroup.h"
 #include "storage/modelslist.h"
 #include "libopenui.h"
+#include <algorithm>
+#include "listbox.h"
+
 
 class ModelSelectMenu: public TabsGroup {
   public:
@@ -32,14 +35,13 @@ class ModelSelectMenu: public TabsGroup {
     void build(int index=-1);
 };
 
-class ModelsPageBody : public FormWindow
+class ModelsPageBody : public Window
 {
   public:
     ModelsPageBody(Window *parent, const rect_t &rect);
 
     void setLabel(std::string &lbl) {selectedLabel = lbl; update();}
     void update(int selected = -1);
-    void setFocus(uint8_t flag = SET_FOCUS_DEFAULT, Window *from = nullptr) override;
 
     #if defined(HARDWARE_KEYS)
     void onEvent(event_t event) override
@@ -47,30 +49,27 @@ class ModelsPageBody : public FormWindow
       if (event == EVT_KEY_BREAK(KEY_ENTER)) {
         addFirstModel();
       } else {
-        FormWindow::onEvent(event);
+        Window::onEvent(event);
       }
     }
     #endif
 
+  void deleteLater(bool detach = true, bool trash = true) override
+  {
+    innerWindow.deleteLater(true, false);
+
+    Window::deleteLater(detach, trash);
+  }
+
+  void paint(BitmapBuffer *dc) override;
 
   void addFirstModel() {
     Menu *menu = new Menu(this);
     menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
   }
-
-
-    #if defined(HARDWARE_TOUCH)
-      bool onTouchEnd(coord_t x, coord_t y) override
-      {
-        /*if(category->size() == 0)
-          addFirstModel();
-        else*/
-          FormWindow::onTouchEnd(x,y);
-        return true;
-      }
-    #endif
-
   protected:
+    FormGroup innerWindow;
+    void initPressHandler(Button *button, ModelCell *model, int index);
     std::string selectedLabel;
     std::function<void(void)> getCreateModelAction()
     {
@@ -85,40 +84,21 @@ class ModelsPageBody : public FormWindow
     }
 };
 
-class ModelLabelSelector : public FormWindow
-{
-  public:
-    ModelLabelSelector(Window * parent, const rect_t & rect, WindowFlags windowFlags = 0) :
-      FormWindow(parent, rect, windowFlags)
-      {
-        build();
-        memclear(selectedlabels, sizeof(selectedlabels));
-      }
-    void setLabelSelectHandler(std::function<void(std::string)> handler= nullptr) {
-      labelChangeHandler = std::move(handler);
-    }
-  protected:
-    void build();
-    std::function<void(std::string)> labelChangeHandler = nullptr;
-    uint8_t selectedlabels[50]; // TODO DEFINE..
-};
-
-
-class ModelLabelsWindow : public Window {
+class ModelLabelsWindow : public Page {
   public:
     ModelLabelsWindow();
+
+#if defined (HARDWARE_KEYS)
+  void onEvent(event_t event) override;
+#endif
+
   protected:
-#if defined(HARDWARE_KEYS)
-    void onEvent(event_t event) override;
-#endif
-#if defined(HARDWARE_TOUCH)
-//    bool onTouchSlide(coord_t x, coord_t y, coord_t startX, coord_t startY, coord_t slideX, coord_t slideY) override;
-    bool onTouchEnd(coord_t x, coord_t y) override;
-#endif
-    void paint(BitmapBuffer * dc) override;
     std::string currentLabel;
-    ModelLabelSelector *lblselector;
+    ListBox *lblselector;
     ModelsPageBody *mdlselector;
+
+    void buildHead(PageHeader *window);
+    void buildBody(FormWindow *window);
 };
 
 
