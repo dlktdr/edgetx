@@ -235,7 +235,13 @@ bool ModelMap::isLabelSelected(std::string label, ModelCell *cell)
 
 LabelsVector ModelMap::getLabels()
 {
-  return labels;
+  LabelsVector capitalizedLabels;
+  for (auto label : labels) {
+    label[0] = ::toupper(label[0]);
+    capitalizedLabels.emplace_back(label);
+  }
+
+  return capitalizedLabels;
 }
 
 int ModelMap::addLabel(std::string lbl)

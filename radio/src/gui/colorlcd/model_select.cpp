@@ -33,8 +33,14 @@
 
 #if LCD_W > LCD_H
 constexpr int MODEL_CELLS_PER_LINE = 2;
+constexpr int BUTTON_HEIGHT = 30;
+constexpr int BUTTON_WIDTH  = 75;
+constexpr LcdFlags textFont = FONT(STD);
 #else
 constexpr int MODEL_CELLS_PER_LINE = 2;
+constexpr int BUTTON_HEIGHT = 30;
+constexpr int BUTTON_WIDTH  = 65;
+constexpr LcdFlags textFont = FONT(XS);
 #endif
 
 constexpr coord_t MODEL_CELL_PADDING = 6;
@@ -119,7 +125,7 @@ class ModelButton : public Button
     buffer->clear(COLOR_THEME_PRIMARY2);
 
     if (error) {
-      buffer->drawText(width() / 2, 2, "(Invalid Model)",
+      buffer->drawText(width() / 2, height() / 2, "(Invalid Model)",
                        COLOR_THEME_SECONDARY1 | CENTERED);
     } else {
       GET_FILENAME(filename, BITMAPS_PATH, partialModel.header.bitmap, "");
@@ -179,16 +185,32 @@ class ModelButton : public Button
 //-----------------------------------------------------------------------------
 
 ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
-    Window(parent, rect), 
+    FormWindow(parent, rect), 
   innerWindow(this, { 4, 4, rect.w - 8, rect.h - 8 })
 {
   update();
   setFocusHandler([=](bool focus) {
     if (focus) {
-      innerWindow.setFocus();
+      if (innerWindow.getChildren().size() > 0) {
+        auto firstModel = *innerWindow.getChildren().begin();
+        firstModel->setFocus();
+      }
     }
   });
+
 }
+
+#if defined(HARDWARE_KEYS)
+void ModelsPageBody::onEvent(event_t event)
+{
+  if (event == EVT_KEY_BREAK(KEY_ENTER)) {
+    addFirstModel();
+  } else {
+    FormWindow::onEvent(event);
+  }
+}
+#endif
+
 
 void ModelsPageBody::paint(BitmapBuffer *dc)
 {
@@ -261,6 +283,7 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
     return 1;
   });
 }
+
 void ModelsPageBody::update(int selected)
 {
   innerWindow.clear();
@@ -296,6 +319,10 @@ void ModelsPageBody::update(int selected)
   }
   innerWindow.setInnerHeight(y);
 
+  if (selectButton != nullptr) {
+    selectButton->setFocus();
+  }
+
   /*if (category->empty()) {
     setFocus();
   } else if (selectButton) {
@@ -303,22 +330,56 @@ void ModelsPageBody::update(int selected)
   }*/
 }
 
+//-----------------------------------------------------------------------------
+
 ModelLabelsWindow::ModelLabelsWindow() :
   Page(ICON_MODEL)
 {
   buildBody(&body);
   buildHead(&header);
+
+  lblselector->setNextField(mdlselector);
+  lblselector->setPreviousField(newButton);
+  mdlselector->setNextField(newButton);
+  newButton->setPreviousField(mdlselector);
+  newButton->setNextField(lblselector);
+
+  lblselector->setFocus();
 }
+
+bool isChildOfMdlSelector(Window *window)
+{
+  while (window != nullptr)
+  {
+    if (dynamic_cast<ModelsPageBody *>(window) != nullptr)
+      return true;
+
+    window = window->getParent();
+  }
+
+  return false;
+}
+
 
 #if defined(HARDWARE_KEYS)
 void ModelLabelsWindow::onEvent(event_t event)
 {
-  if (event == EVT_KEY_BREAK(KEY_PGUP) || event == EVT_KEY_BREAK(KEY_PGDN)) {
+  if (event == EVT_KEY_BREAK(KEY_PGUP)) {
     onKeyPress();
-    if (getFocus()->getParent() == mdlselector)
+    FormField *focus = dynamic_cast<FormField *>(getFocus());
+    if (isChildOfMdlSelector(focus))
       lblselector->setFocus();
-    else
-      mdlselector->setFocus();
+    else if (focus != nullptr && focus->getPreviousField()) {
+      focus->getPreviousField()->setFocus(SET_FOCUS_BACKWARD, focus);
+    }
+  } else if (event == EVT_KEY_BREAK(KEY_PGDN)) {
+    onKeyPress();
+    FormField *focus = dynamic_cast<FormField *>(getFocus());
+    if (isChildOfMdlSelector(focus))
+      newButton->setFocus();
+    else if (focus != nullptr && focus->getNextField()) {
+      focus->getNextField()->setFocus(SET_FOCUS_FORWARD, focus);
+    }
   } else {
     Page::onEvent(event);
   }
@@ -339,11 +400,25 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
                   "Select Model", 0, COLOR_THEME_PRIMARY2 | flags);
 
   auto curModel = modelslist.getCurrentModel();
-  std::string modelName = "Current: " + std::string(curModel->modelName);
+  auto modelName = curModel != nullptr ? curModel->modelName : "None";
+  std::string titleName = "Current: " + std::string(modelName);
   new StaticText(window,
                   {PAGE_TITLE_LEFT, PAGE_TITLE_TOP + PAGE_LINE_HEIGHT,
                   LCD_W - PAGE_TITLE_LEFT, PAGE_LINE_HEIGHT},
-                  modelName, 0, COLOR_THEME_PRIMARY2 | flags);
+                  titleName, 0, COLOR_THEME_PRIMARY2 | flags);
+
+  // new model button
+  rect_t r = {LCD_W - (BUTTON_WIDTH + 5), 6, BUTTON_WIDTH, BUTTON_HEIGHT };
+  newButton = new TextButton(window, r, "New", [=] () {
+    storageCheck(true);
+    auto model = modelslist.addModel("unlabeled", false);
+    model->setModelName(g_model.header.name);
+    modelslist.setCurrentModel(model);
+    modelslist.save();
+    mdlselector->update(modelslist.size() - 1);
+    return 0;
+  }, BUTTON_BACKGROUND | OPAQUE, textFont);
+
 }
 
 void ModelLabelsWindow::buildBody(FormWindow *window)
