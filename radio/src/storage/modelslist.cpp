@@ -99,7 +99,7 @@ void ModelCell::setModelId(uint8_t moduleIdx, uint8_t id)
   modelId[moduleIdx] = id;
 }
 
-void ModelCell::save(FIL* file)
+/*void ModelCell::save(FIL* file)
 {
 #if !defined(SDCARD_YAML)
   f_puts(modelFilename, file);
@@ -113,7 +113,7 @@ void ModelCell::save(FIL* file)
   f_puts(modelName, file);
   f_puts("\"\n", file);
 #endif
-}
+}*/
 
 void ModelCell::setRfData(ModelData* model)
 {
@@ -191,99 +191,6 @@ bool ModelCell::fetchRfData()
 #else
   return false;
 #endif
-}
-
-ModelsCategory::ModelsCategory(const char * name)
-{
-  strncpy(this->name, name, sizeof(this->name));
-}
-
-ModelsCategory::ModelsCategory(const char * name, uint8_t len)
-{
-  if (len > sizeof(this->name)-1)
-      len = sizeof(this->name)-1;
-
-  memcpy(this->name, name, len);
-  this->name[len] = '\0';
-}
-
-ModelsCategory::~ModelsCategory()
-{
-  for (auto * model: *this) {
-    delete model;
-  }
-}
-
-ModelCell * ModelsCategory::addModel(const char * name)
-{
-  if (!name) return NULL;
-
-  ModelCell * result = new ModelCell(name);
-  push_back(result);
-  return result;
-}
-
-void ModelsCategory::removeModel(ModelCell * model)
-{
-  delete model;
-  remove(model);
-}
-
-void ModelsCategory::moveModel(ModelCell * model, int8_t step)
-{
-  ModelsCategory::iterator current = begin();
-  for (; current != end(); current++) {
-    if (*current == model) {
-      break;
-    }
-  }
-
-  ModelsCategory::iterator new_position = current;
-  if (step > 0) {
-    while (step >= 0 && new_position != end()) {
-      new_position++;
-      step--;
-    }
-  }
-  else {
-    while (step < 0 && new_position != begin()) {
-      new_position--;
-      step++;
-    }
-  }
-
-  insert(new_position, 1, *current);
-  erase(current);
-}
-
-int ModelsCategory::getModelIndex(const ModelCell* model)
-{
-  int idx = 0;
-  for (auto m : *this) {
-    if (model == m)
-      return idx;
-
-    ++idx;
-  }
-
-  return -1;
-}
-
-void ModelsCategory::save(FIL * file)
-{
-#if !defined(SDCARD_YAML)
-  f_puts("[", file);
-  f_puts(name, file);
-  f_puts("]", file);
-  f_putc('\n', file);get_labelslist_parser_calls
-#else
-  f_puts("- \"", file);
-  f_puts(name, file);
-  f_puts("\":\n", file);
-#endif
-  for (list<ModelCell *>::iterator it = begin(); it != end(); ++it) {
-    (*it)->save(file);
-  }
 }
 
 //-----------------------------------------------------------------------------
@@ -377,7 +284,6 @@ bool ModelMap::addLabelToModel(std::string lbl, ModelCell *cell)
   return true;
 }
 
-
 bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 {
   int lblind=getIndexByLabel(label);
@@ -387,6 +293,17 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
   // Erase items that match in the map
   for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
     itr = (itr->first == lblind && itr->second == cell) ? erase(itr) : std::next(itr);
+    rv = true;
+  }
+  return rv;
+}
+
+bool ModelMap::removeModels(ModelCell *cell)
+{
+  bool rv=false;
+  // Erase items that match in the map
+  for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
+    itr = (itr->second == cell) ? erase(itr) : std::next(itr);
     rv = true;
   }
   return rv;
@@ -441,23 +358,14 @@ bool ModelsList::loadTxt()
       int len = strlen(line); // TODO could be returned by readNextLine
       if (len > 2 && line[0] == '[' && line[len-1] == ']') {
         line[len-1] = '\0';
-        /*category = new ModelsCategory(&line[1]);
-        categories.push_back(category);*/
       }
       else if (len > 0) {
         model = new ModelCell(line);
-        /*if (!category) {
-          category = new ModelsCategory("Models");
-          categories.push_back(category);
-        }*/
         push_back(model);
-//        category->push_back(model);
         if (!strncmp(line, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME)) {
-          //currentCategory = category;
           currentModel = model;
         }
         model->fetchRfData();
-
       }
     }
 
@@ -476,13 +384,15 @@ bool ModelsList::loadTxt()
 
 void updateModelCell(ModelCell *cell)
 {
-  // TODO.. should remove all modelcells from map first
+  modelsLabels.removeModels(cell);
 
+  // If can be sure this doesn't get called
   ModelData *model = (ModelData*)malloc(sizeof(ModelData)); // TODO HOPE this isn't too much extra ram on some targets... :()
   if(!model) {
     TRACE("Labels: Out Of Memory");
     return;
   }
+
   // ??? To I need the whole model.. double check. or just a partialmodel to include
   // rfdata?
 
@@ -522,7 +432,9 @@ char *FILInfoToHexStr(char buffer[17], FILINFO *finfo)
 
 bool ModelsList::loadYaml()
 {
+  // Clear labels + map
   modelslist.clear();
+  modelsLabels.clear();
 
   // 1) Scan /MODELS/ for all .yml models
   //    - Create a ModelCell for each model in ModelList
@@ -669,17 +581,8 @@ bool ModelsList::load(Format fmt)
   }
 #endif
 
-  /*if (!currentModel) {
-    if (categories.empty()) {
-      currentCategory = new ModelsCategory("Models");
-      categories.push_back(currentCategory);
-    } else {
-      currentCategory = *categories.begin();
-      if (!currentCategory->empty()) {
-        currentModel = *currentCategory->begin();
-      }
-    }
-  }*/
+  if (!currentModel) { // TODO
+  }
 
   loaded = true;
   return res;

@@ -60,7 +60,7 @@ typedef union {
   uint8_t data[8];
 } FInfoH;
 
-#define FILE_HASH_LENGTH (sizeof(FInfoH::data) * 2)
+#define FILE_HASH_LENGTH (sizeof(FInfoH::data) * 2) // Hex string output
 
 class ModelCell
 {
@@ -71,17 +71,15 @@ class ModelCell
 #if LEN_BITMAP_NAME > 0
     char modelBitmap[LEN_BITMAP_NAME];
 #endif
-    time_t lastOpened;
+    time_t lastOpened; // TODO
     bool staleData = true;
 
     bool             valid_rfData;
-    uint8_t           modelId[NUM_MODULES];
-    SimpleModuleData moduleData[NUM_MODULES];
+    uint8_t          modelId[NUM_MODULES];
+    SimpleModuleData moduleData[NUM_MODULES]; // TODO
 
     explicit ModelCell(const char * name);
     explicit ModelCell(const char * name, uint8_t len);
-
-    void save(FIL * file);
 
     void setModelName(char * name);
     void setModelName(char* name, uint8_t len);
@@ -103,27 +101,6 @@ typedef std::vector<std::string> LabelsVector;
 typedef std::vector<ModelCell *> ModelsVector;
 typedef std::map<int, SLabelDetail> LabelIcons;
 
-// REMOVE MEEE
-class ModelsCategory: public std::list<ModelCell *>
-{
-public:
-  char name[LEN_MODEL_FILENAME + 1];
-
-  explicit ModelsCategory(const char * name);
-  explicit ModelsCategory(const char * name, uint8_t len);
-  ~ModelsCategory();
-
-  ModelCell * addModel(const char * name);
-  void removeModel(ModelCell * model);
-  void moveModel(ModelCell * model, int8_t step);
-
-  int getModelIndex(const ModelCell* model);
-
-  void save(FIL * file);
-};
-// REMOVE MEEE ^^^^^
-
-
 class ModelMap : protected std::multimap<int, ModelCell *>
 {
   public:
@@ -136,12 +113,15 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     int addLabel(std::string);
     bool addLabelToModel(std::string, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
+    bool removeModels(ModelCell *);
     void getModelCSV(std::string &dest, ModelCell *cell);
     void setCurrentLabel(std::string lbl) {currentlabel = lbl; setDirty();}
     void setDirty() {_isDirty = true;} // TODO.. Delay and write output, same idea as the model saving works
     bool isDirty() {return _isDirty;}
     std::string getCurrentLabel() {return currentlabel;};
     int size() {return std::multimap<int, ModelCell *>::size();}
+
+  protected:
     void clear() {
       _isDirty=true;
       labels.clear();
@@ -167,6 +147,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
       else
         return std::string();
     }
+    friend class ModelsList;
 };
 
 
@@ -229,7 +210,6 @@ protected:
   bool loadYamlDirScanner();
 #endif
 };
-
 
 ModelLabelsVector getUniqueLabels();
 
