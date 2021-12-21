@@ -210,9 +210,7 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
           loadModel(g_eeGeneral.currModelFilename, false);
           storageDirty(EE_GENERAL);
           storageCheck(true);
-
           modelslist.setCurrentModel(model);
-          /*modelslist.setCurrentCategory(category);*/
           this->getParent()->getParent()->deleteLater();
           checkAll();
         });
@@ -226,7 +224,7 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
                               MODELS_PATH)) {
           sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
                       MODELS_PATH);
-          //modelslist.addModel(category, duplicatedFilename);
+          modelslist.addModel(duplicatedFilename);
           update(index);
         } else {
           POPUP_WARNING("Invalid File");
@@ -234,8 +232,8 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
       });
 
       if (model != modelslist.getCurrentModel()) {
-        // Move
-        if(modelslist.size() > 1) {
+        // Move -- ToDo.. Should it be kept an a modelindex added
+        /*if(modelslist.size() > 1) {
           menu->addLine(STR_MOVE_MODEL, [=]() {
           auto moveToMenu = new Menu(parent);
           moveToMenu->setTitle(STR_MOVE_MODEL);
@@ -247,15 +245,14 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
                   modelslist.save();
                 });
               }
-            }*/
+            }
           });
-        }
+        }*/
         menu->addLine(STR_DELETE_MODEL, [=]() {
           new ConfirmDialog(
               parent, STR_DELETE_MODEL,
               std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
-                //modelslist.removeModel(category, model);
-                //update(index < (int)category->size() - 1 ? index : index - 1);
+                modelslist.removeModel(model);
         });
       }
     } else {
@@ -320,7 +317,7 @@ void ModelLabelsWindow::onEvent(event_t event)
     onKeyPress();
     if (getFocus()->getParent() == mdlselector)
       lblselector->setFocus();
-    else 
+    else
       mdlselector->setFocus();
   } else {
     Page::onEvent(event);
@@ -353,8 +350,8 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
 {
   // Models List and Filters - Right
   mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 10});
-  
-  lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 }, 
+
+  lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 },
     modelsLabels.getLabels(),
     [=] () {
       return 0;

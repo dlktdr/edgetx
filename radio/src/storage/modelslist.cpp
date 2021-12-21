@@ -21,6 +21,7 @@
 
 #include "modelslist.h"
 #include <algorithm>
+#include <time.h>
 
 using std::list;
 
@@ -98,22 +99,6 @@ void ModelCell::setModelId(uint8_t moduleIdx, uint8_t id)
 {
   modelId[moduleIdx] = id;
 }
-
-/*void ModelCell::save(FIL* file)
-{
-#if !defined(SDCARD_YAML)
-  f_puts(modelFilename, file);
-  f_putc('\n', file);
-#else
-  f_puts("  - filename: \"", file);
-  f_puts(modelFilename, file);
-  f_puts("\"\n", file);
-
-  f_puts("    name: \"", file);
-  f_puts(modelName, file);
-  f_puts("\"\n", file);
-#endif
-}*/
 
 void ModelCell::setRfData(ModelData* model)
 {
@@ -194,7 +179,7 @@ bool ModelCell::fetchRfData()
 }
 
 //-----------------------------------------------------------------------------
-ModelsVector ModelMap::getUnlabeldModels()
+ModelsVector ModelMap::getUnlabeledModels()
 {
   return ModelsVector();
 }
@@ -297,6 +282,7 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
   // Erase items that match in the map
   for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
     itr = (itr->first == lblind && itr->second == cell) ? erase(itr) : std::next(itr);
+    setDirty();
     rv = true;
   }
   return rv;
@@ -308,6 +294,7 @@ bool ModelMap::removeModels(ModelCell *cell)
   // Erase items that match in the map
   for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
     itr = (itr->second == cell) ? erase(itr) : std::next(itr);
+    setDirty();
     rv = true;
   }
   return rv;
@@ -386,7 +373,7 @@ bool ModelsList::loadTxt()
  *     Opens a YAML file, reads the data and updates the ModelCell
   */
 
-void updateModelCell(ModelCell *cell)
+void ModelMap::updateModelCell(ModelCell *cell)
 {
   modelsLabels.removeModels(cell);
 
@@ -397,9 +384,6 @@ void updateModelCell(ModelCell *cell)
     return;
   }
 
-  // ??? To I need the whole model.. double check. or just a partialmodel to include
-  // rfdata?
-
   readModelYaml(cell->modelFilename, (uint8_t*)model, sizeof(ModelData));
   strcpy(cell->modelName, model->header.name);
   strcpy(cell->modelBitmap, model->header.bitmap);
@@ -409,10 +393,13 @@ void updateModelCell(ModelCell *cell)
     modelsLabels.addLabelToModel(cma,cell);
     cma = strtok(NULL, ",");
   }
+
+  // Save Module Data
+  cell->setRfData(model);
   for(int i=0; i < NUM_MODULES; i++) {
-    // TODO Keep track of the Receiver Numbers for quick scanning what's used
-    //mi->curmodel->modules_rxno[i] = g_model.moduleData[NUM_MODULES].
+    cell->setRfModuleData(i,model->moduleData);
   }
+
   // TODO: Should also keep track of
   cell->staleData = false;
   free(model);
@@ -536,7 +523,7 @@ bool ModelsList::loadYaml()
   // Scan all models, see which ones need updating
   for(const auto &model: modelslist) {
     if(model->staleData) {
-      updateModelCell(model);
+      modelsLabels.updateModelCell(model);
     }
   }
 
@@ -644,9 +631,7 @@ void ModelsList::save()
       f_puts("\"\r\n", &file);
 #endif
 
-      // *** TODO: Keep track of last opened for filtering
-      f_puts("      lastopen: ", &file);
-      f_puts("\r\n", &file);
+      f_printf(&file, "      lastopen: %lld\r\n", (long long)model->lastOpened);
   }
 
   // Save current selection
@@ -662,6 +647,8 @@ void ModelsList::save()
 void ModelsList::setCurrentModel(ModelCell * cell)
 {
   currentModel = cell;
+  cell->lastOpened = (long long)time(NULL);
+  modelsLabels.setDirty();
   if (!currentModel->valid_rfData)
     currentModel->fetchRfData();
 }
@@ -689,6 +676,7 @@ ModelCell * ModelsList::addModel(const char * name, bool save)
   if(name == nullptr) return nullptr;
   ModelCell * result = new ModelCell(name);
   push_back(result);
+  modelsLabels.addLabelToModel("unlabeled",result);
   if (save) this->save();
   return result;
 }
@@ -696,6 +684,7 @@ ModelCell * ModelsList::addModel(const char * name, bool save)
 void ModelsList::removeModel(ModelCell * model)
 {
   std::remove(modelslist.begin(), modelslist.end(), model);
+  modelsLabels.removeModels(model);
   save();
 }
 

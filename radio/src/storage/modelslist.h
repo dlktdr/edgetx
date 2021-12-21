@@ -71,7 +71,7 @@ class ModelCell
 #if LEN_BITMAP_NAME > 0
     char modelBitmap[LEN_BITMAP_NAME];
 #endif
-    time_t lastOpened; // TODO
+    time_t lastOpened;
     bool staleData = true;
 
     bool             valid_rfData;
@@ -106,14 +106,13 @@ class ModelMap : protected std::multimap<int, ModelCell *>
   public:
     ModelsVector getModelsByLabel(std::string);
     LabelsVector getLabelsByModel(ModelCell *);
-    ModelsVector getUnlabeldModels();
+    ModelsVector getUnlabeledModels();
     std::map<std::string, bool> getSelectedLabels(ModelCell *);
     bool isLabelSelected(std::string, ModelCell *);
     LabelsVector getLabels();
     int addLabel(std::string);
     bool addLabelToModel(std::string, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
-    bool removeModels(ModelCell *);
     void getModelCSV(std::string &dest, ModelCell *cell);
     void setCurrentLabel(std::string lbl) {currentlabel = lbl; setDirty();}
     void setDirty() {_isDirty = true;} // TODO.. Delay and write output, same idea as the model saving works
@@ -122,6 +121,8 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     int size() {return std::multimap<int, ModelCell *>::size();}
 
   protected:
+    void updateModelCell(ModelCell *cell);
+    bool removeModels(ModelCell *); // Should only be called from ModelsList remove model.
     void clear() {
       _isDirty=true;
       labels.clear();
