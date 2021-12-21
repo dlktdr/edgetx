@@ -35,7 +35,7 @@ class ModelSelectMenu: public TabsGroup {
     void build(int index=-1);
 };
 
-class ModelsPageBody : public Window
+class ModelsPageBody : public FormWindow
 {
   public:
     ModelsPageBody(Window *parent, const rect_t &rect);
@@ -44,14 +44,7 @@ class ModelsPageBody : public Window
     void update(int selected = -1);
 
     #if defined(HARDWARE_KEYS)
-    void onEvent(event_t event) override
-    {
-      if (event == EVT_KEY_BREAK(KEY_ENTER)) {
-        addFirstModel();
-      } else {
-        Window::onEvent(event);
-      }
-    }
+    void onEvent(event_t event) override;
     #endif
 
   void deleteLater(bool detach = true, bool trash = true) override
@@ -67,8 +60,9 @@ class ModelsPageBody : public Window
     Menu *menu = new Menu(this);
     menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
   }
+
   protected:
-    FormGroup innerWindow;
+    FormWindow innerWindow;
     void initPressHandler(Button *button, ModelCell *model, int index);
     std::string selectedLabel;
     std::function<void(void)> getCreateModelAction()
@@ -93,9 +87,10 @@ class ModelLabelsWindow : public Page {
 #endif
 
   protected:
-    std::string currentLabel;
     ListBox *lblselector;
     ModelsPageBody *mdlselector;
+    TextButton *newButton;
+    std::string currentLabel;
 
     void buildHead(PageHeader *window);
     void buildBody(FormWindow *window);
