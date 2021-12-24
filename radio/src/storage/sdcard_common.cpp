@@ -94,6 +94,15 @@ void storageCheck(bool immediately)
       TRACE("writeModel error=%s", error);
     }
   }
+
+  if (storageDirtyMsk & EE_LABELS) {
+    TRACE("sdcard write labels");
+    storageDirtyMsk &= ~EE_MODEL;
+    const char * error = modelslist.save();
+    if (error) {
+      TRACE("writeModel error=%s", error);
+    }
+  }
 }
 
 #if defined(STORAGE_MODELSLIST)
@@ -185,14 +194,14 @@ void storageReadAll()
     storageDirty(EE_GENERAL);
     storageCheck(true);
   }
-  
+
   if (loadModel(g_eeGeneral.currModelFilename, false) != nullptr) {
     TRACE("No current model or SD card error");
   }
 #else
   if (loadModel(g_eeGeneral.currModel, false) != nullptr) {
     TRACE("No current model or SD card error");
-  }  
+  }
 #endif
 }
 

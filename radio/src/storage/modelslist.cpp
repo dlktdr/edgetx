@@ -313,6 +313,7 @@ bool ModelMap::removeModels(ModelCell *cell)
 }
 
 void ModelMap::getModelCSV(std::string &dest, ModelCell *cell)
+void ModelMap::setDirty()
 {
   dest.clear();
   bool comma=false;
@@ -322,6 +323,8 @@ void ModelMap::getModelCSV(std::string &dest, ModelCell *cell)
     dest.append(lbl);
     comma = true;
   }
+  _isDirty = true;
+  storageDirty(EE_LABELS);
 }
 
 //-----------------------------------------------------------------------------
@@ -412,8 +415,7 @@ void ModelMap::updateModelCell(ModelCell *cell)
     cell->setRfModuleData(i,model->moduleData);
   }
 
-  // TODO: Should also keep track of
-  cell->staleData = false;
+  cell->_isDirty = false;
   free(model);
 }
 
@@ -533,7 +535,7 @@ bool ModelsList::loadYaml()
 
   // Scan all models, see which ones need updating
   for(const auto &model: modelslist) {
-    if(model->staleData) {
+    if(model->_isDirty) {
       modelsLabels.updateModelCell(model);
     }
   }
@@ -653,6 +655,7 @@ void ModelsList::save()
 
   f_puts("\r\n", &file);
   f_close(&file);
+  modelsLabels._isDirty = false;
 }
 
 void ModelsList::setCurrentModel(ModelCell * cell)
