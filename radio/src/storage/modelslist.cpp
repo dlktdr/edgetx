@@ -181,7 +181,12 @@ bool ModelCell::fetchRfData()
 //-----------------------------------------------------------------------------
 ModelsVector ModelMap::getUnlabeledModels()
 {
-  return ModelsVector();
+  ModelsVector unlabeledModels;
+  for (auto model : modelslist) {
+    if (modelsLabels.getLabelsByModel(model).size() == 0)
+      unlabeledModels.emplace_back(model);
+  }
+  return unlabeledModels;
 }
 
 ModelsVector ModelMap::getModelsByLabel(std::string lbl)
@@ -213,7 +218,8 @@ std::map<std::string, bool> ModelMap::getSelectedLabels(ModelCell *cell)
 {
   std::map<std::string, bool> rval;
   // Loop through all labels and add to the map default to false
-  for(const auto& lbl : labels) {
+  for(auto lbl : labels) {
+      lbl[0] = ::toupper(lbl[0]);
       rval[lbl] = false;
   }
   // Loop through all labels selected by the model, set them true
@@ -456,7 +462,6 @@ bool ModelsList::loadYaml()
   // 1) Scan /MODELS/ for all .yml models
 
   modelsLabels.addLabel("Favorite");
-  modelsLabels.addLabel("Unlabeled");
 
   DIR moddir;
   FILINFO finfo;
@@ -682,7 +687,6 @@ ModelCell * ModelsList::addModel(const char * name, bool save)
   if(name == nullptr) return nullptr;
   ModelCell * result = new ModelCell(name);
   push_back(result);
-  modelsLabels.addLabelToModel("unlabeled",result);
   if (save) this->save();
   return result;
 }

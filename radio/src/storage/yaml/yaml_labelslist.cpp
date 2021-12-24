@@ -226,10 +226,6 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
           cma = strtok(NULL, ",");
           numTokens++;
         }
-        if (numTokens == 0) {
-          TRACE_LABELS(" Adding unlabled");
-          modelsLabels.addLabelToModel("Unlabeled", mi->curmodel);
-        }
       }
     }
 

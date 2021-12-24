@@ -1298,6 +1298,22 @@ const char * STR_TIMER_MODES[] = {"OFF", "ON", "Start", "Throttle", "Throttle %"
 
 const char MODEL_NAME_EXTRA_CHARS[] = "_-.,:;<=>";
 
+std::string getLabelString(ModelCell *curmod)
+{
+  std::string allLabels;
+  int numModels = 0;
+  for (auto &label : modelsLabels.getSelectedLabels(curmod)) {
+    if (label.second) {
+      allLabels = allLabels + (numModels != 0 ? ", " : "") + label.first;
+      numModels++;
+    }
+  }
+  if (numModels == 0)
+    allLabels = "Unlabeled";
+    
+  return allLabels;
+}
+
 void ModelSetupPage::build(FormWindow * window)
 {
   FormGridLayout grid;
@@ -1321,34 +1337,52 @@ void ModelSetupPage::build(FormWindow * window)
 
   // Model labels
   new StaticText(window, grid.getLabelSlot(), "Labels", 0, COLOR_THEME_PRIMARY1);
-  grid.nextLine();
-
-  for(auto const &lbl : modelsLabels.getSelectedLabels(curmod)) {
-    new StaticText(window, grid.getLabelSlot(true), lbl.first, 0, COLOR_THEME_PRIMARY1);
-    new CheckBox(window, grid.getFieldSlot(), [=] {
-      return modelsLabels.isLabelSelected(lbl.first, curmod);
-    }, [=](int32_t newValue) {
-      // Remove a label from the model
-      if(!newValue) {
-        modelsLabels.removeLabelFromModel(lbl.first, curmod);
-        SET_DIRTY();
-        modelslist.save();
-        return;
-      // Add a label
+  labelTextButton = 
+    new TextButton(window, grid.getFieldSlot(), getLabelString(curmod), [=] () {
+      Menu *menu = new Menu(window, true);
+      for (auto &label: modelsLabels.getSelectedLabels(curmod)) {
+        menu->addLine(label.first, 
+          [=] () {
+            if (!modelsLabels.isLabelSelected(label.first, curmod))
+              modelsLabels.addLabelToModel(label.first, curmod);
+            else
+              modelsLabels.removeLabelFromModel(label.first, curmod);
+            SET_DIRTY();
+            modelslist.save();
+            labelTextButton->setText(getLabelString(curmod));            
+          }, [=] () {
+            return modelsLabels.isLabelSelected(label.first, curmod);
+          });
       }
-
-      if(modelsLabels.addLabelToModel(lbl.first, curmod)) {
-        SET_DIRTY();
-        modelslist.save();
-
-      // Unable to add the label
-      } else {
-        // TODO Popup a message.. too many labels
-        TRACE("TOO MANY");
-      }
+      return 0;
     });
-    grid.nextLine();
-  }
+
+  // for(auto const &lbl : modelsLabels.getSelectedLabels(curmod)) {
+  //   new StaticText(window, grid.getLabelSlot(true), lbl.first, 0, COLOR_THEME_PRIMARY1);
+  //   new CheckBox(window, grid.getFieldSlot(), [=] {
+  //     return modelsLabels.isLabelSelected(lbl.first, curmod);
+  //   }, [=](int32_t newValue) {
+  //     // Remove a label from the model
+  //     if(!newValue) {
+  //       modelsLabels.removeLabelFromModel(lbl.first, curmod);
+  //       SET_DIRTY();
+  //       modelslist.save();
+  //       return;
+  //     // Add a label
+  //     }
+
+  //     if(modelsLabels.addLabelToModel(lbl.first, curmod)) {
+  //       SET_DIRTY();
+  //       modelslist.save();
+
+  //     // Unable to add the label
+  //     } else {
+  //       // TODO Popup a message.. too many labels
+  //       TRACE("TOO MANY");
+  //     }
+  //   });
+  //   grid.nextLine();
+  // }
   grid.nextLine();
 
   // Bitmap
