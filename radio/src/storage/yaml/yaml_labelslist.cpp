@@ -166,11 +166,11 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
           if(!strcmp(mi->curmodel->modelFinfoHash, value)) {
             TRACE_LABELS("FILE HASH MATCHES, No need to scan this model, just load the settings");
             mi->modeldatavalid = true;
-            mi->curmodel->staleData = false; // TODO is this redundant?
+            mi->curmodel->_isDirty = false;
           } else {
             TRACE_LABELS("FILE HASH Does not Match, Open model and rebuild modelcell");
             mi->modeldatavalid = false;
-            mi->curmodel->staleData = true;
+            mi->curmodel->_isDirty = true;
           }
       }
 

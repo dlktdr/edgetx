@@ -287,5 +287,6 @@ PACK(union u_int8int16_t {
 
 constexpr uint8_t EE_GENERAL = 0x01;
 constexpr uint8_t EE_MODEL = 0x02;
+constexpr uint8_t EE_LABELS = 0x04;
 
 #endif // _MYEEPROM_H_
