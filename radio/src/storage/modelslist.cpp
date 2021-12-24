@@ -30,6 +30,7 @@ using std::list;
 #include "storage/sdcard_yaml.h"
 #include "yaml/yaml_parser.h"
 #include "yaml/yaml_labelslist.h"
+#include "yaml/yaml_datastructs.h"
 #endif
 
 #include "myeeprom.h"
@@ -124,61 +125,8 @@ void ModelCell::setRfModuleData(uint8_t moduleIdx, ModuleData* modData)
   }
 }
 
-bool ModelCell::fetchRfData()
-{
-#if !defined(SDCARD_YAML)
-  //TODO: use g_model in case fetching data for current model
-  //
-  char buf[256];
-  getModelPath(buf, modelFilename);
-
-  FIL      file;
-  uint16_t size;
-  uint8_t  version;
-
-  const char * err = openFileBin(buf, &file, &size, &version);
-  if (err || version != EEPROM_VER) return false;
-
-  FSIZE_t start_offset = f_tell(&file);
-
-  UINT read;
-  if ((f_read(&file, buf, LEN_MODEL_NAME, &read) != FR_OK) || (read != LEN_MODEL_NAME))
-    goto error;
-
-  setModelName(buf);
-
-  // 1. fetch modelId: NUM_MODULES @ offsetof(ModelHeader, modelId)
-  // if (f_lseek(&file, start_offset + offsetof(ModelHeader, modelId)) != FR_OK)
-  //   goto error;
-  if ((f_read(&file, modelId, NUM_MODULES, &read) != FR_OK) || (read != NUM_MODULES))
-    goto error;
-
-  // 2. fetch ModuleData: sizeof(ModuleData)*NUM_MODULES @ offsetof(ModelData, moduleData)
-  if (f_lseek(&file, start_offset + offsetof(ModelData, moduleData)) != FR_OK)
-    goto error;
-
-  for(uint8_t i=0; i<NUM_MODULES; i++) {
-    ModuleData modData;
-    if ((f_read(&file, &modData, NUM_MODULES, &read) != FR_OK) || (read != NUM_MODULES))
-      goto error;
-
-    setRfModuleData(i, &modData);
-  }
-
-  valid_rfData = true;
-  f_close(&file);
-  return true;
-
- error:
-  f_close(&file);
-  return false;
-
-#else
-  return false;
-#endif
-}
-
 //-----------------------------------------------------------------------------
+
 ModelsVector ModelMap::getUnlabeledModels()
 {
   ModelsVector unlabeledModels;
@@ -189,7 +137,7 @@ ModelsVector ModelMap::getUnlabeledModels()
   return unlabeledModels;
 }
 
-ModelsVector ModelMap::getModelsByLabel(std::string lbl)
+ModelsVector ModelMap::getModelsByLabel(const std::string &lbl)
 {
   int index = getIndexByLabel(lbl);
   if(index < 0)
@@ -219,7 +167,6 @@ std::map<std::string, bool> ModelMap::getSelectedLabels(ModelCell *cell)
   std::map<std::string, bool> rval;
   // Loop through all labels and add to the map default to false
   for(auto lbl : labels) {
-      lbl[0] = ::toupper(lbl[0]);
       rval[lbl] = false;
   }
   // Loop through all labels selected by the model, set them true
@@ -230,7 +177,7 @@ std::map<std::string, bool> ModelMap::getSelectedLabels(ModelCell *cell)
   return rval;
 }
 
-bool ModelMap::isLabelSelected(std::string label, ModelCell *cell)
+bool ModelMap::isLabelSelected(const std::string &label, ModelCell *cell)
 {
   auto lbm = getLabelsByModel(cell);
   if(std::find(lbm.begin(), lbm.end(), label) == lbm.end()) {
@@ -243,20 +190,18 @@ LabelsVector ModelMap::getLabels()
 {
   LabelsVector capitalizedLabels;
   for (auto label : labels) {
-    label[0] = ::toupper(label[0]);
     capitalizedLabels.emplace_back(label);
   }
 
   return capitalizedLabels;
 }
 
-int ModelMap::addLabel(std::string lbl)
+int ModelMap::addLabel(const std::string &lbl)
 {
   // Add a new label if if doesn't already exist in the list
   // Returns the index to the label
   int ind = getIndexByLabel(lbl);
   if(ind < 0) {
-    std::transform(lbl.begin(), lbl.end(), lbl.begin(), ::tolower);
     labels.push_back(lbl);
     setDirty();
     TRACE("Added a label %s", lbl.c_str());
@@ -265,7 +210,7 @@ int ModelMap::addLabel(std::string lbl)
   return ind;
 }
 
-bool ModelMap::addLabelToModel(std::string lbl, ModelCell *cell)
+bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell)
 {
   // First check that there aren't too many labels on this model
   LabelsVector lbs = getLabelsByModel(cell);
@@ -300,6 +245,62 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
   return rv;
 }
 
+bool ModelMap::renameLabel(const std::string &from, const std::string &to)
+{
+  ModelData *modeldata = (ModelData*)malloc(sizeof(ModelData));
+  if(!modeldata) {
+    TRACE("Labels: Out Of Memory");
+    return true;
+  }
+
+  bool fault = false;
+  ModelsVector mods = getModelsByLabel(from); // Find all models to be renamed
+  for (const auto &modcell: mods) {
+    readModelYaml(modcell->modelFilename, (uint8_t*)modeldata, sizeof(ModelData));
+
+    // Make sure there is room to rename
+    int nlen = strlen(modeldata->header.labels) + to.size() - from.size();
+    if(nlen > LABELS_LENGTH - 1) {
+      fault = true;
+      TRACE("Labels: Rename Error! Labels too long on %s - %s", modeldata->header.name,
+                                                                modcell->modelFilename);
+      continue;
+    }
+    char buffer[LABELS_LENGTH];
+    char *loc = strstr(modeldata->header.labels, from.c_str());
+    if(loc == NULL) {
+      TRACE("Labels: Rename Error! Could not find label in model?");
+      fault = true;
+      continue;
+    }
+    strncpy(buffer, modeldata->header.labels, loc - modeldata->header.labels);
+    TRACE("Lables after rename 1: %s", buffer);
+    strcat(buffer, to.c_str());
+    TRACE("Lables after rename 2: %s", buffer);
+    strcat(buffer, loc + from.size());
+    TRACE("Lables after rename 3: %s", buffer);
+
+    char path[256];
+    getModelPath(path, modcell->modelFilename);
+
+    if(modcell == modelslist.getCurrentModel()) {
+      // If working on the current model, write current data to file instead
+      memcpy(modeldata->header.labels,g_model.header.labels, LABELS_LENGTH);
+      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)&g_model) == NULL);
+    } else {
+      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)modeldata) == NULL);
+    }
+  }
+
+  free(modeldata);
+
+  // Issue a rescan all of all models. This will cause a decent delay
+  // depending how many files were renamed above.
+  modelslist.load();
+
+  return fault;
+}
+
 bool ModelMap::removeModels(ModelCell *cell)
 {
   bool rv=false;
@@ -312,17 +313,8 @@ bool ModelMap::removeModels(ModelCell *cell)
   return rv;
 }
 
-void ModelMap::getModelCSV(std::string &dest, ModelCell *cell)
 void ModelMap::setDirty()
 {
-  dest.clear();
-  bool comma=false;
-  for(auto const&lbl : getLabelsByModel(cell)) {
-    if(comma)
-      dest.push_back(',');
-    dest.append(lbl);
-    comma = true;
-  }
   _isDirty = true;
   storageDirty(EE_LABELS);
 }
@@ -371,7 +363,6 @@ bool ModelsList::loadTxt()
         if (!strncmp(line, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME)) {
           currentModel = model;
         }
-        model->fetchRfData();
       }
     }
 
@@ -392,7 +383,6 @@ void ModelMap::updateModelCell(ModelCell *cell)
 {
   modelsLabels.removeModels(cell);
 
-  // If can be sure this doesn't get called
   ModelData *model = (ModelData*)malloc(sizeof(ModelData)); // TODO HOPE this isn't too much extra ram on some targets... :()
   if(!model) {
     TRACE("Labels: Out Of Memory");
@@ -550,12 +540,9 @@ bool ModelsList::loadYaml()
     TRACE("LABEL Found %s", label.c_str());
   }
 
-  if(modelslist.currentModel) {
-    std::string csv;
-    modelsLabels.getModelCSV(csv, modelslist.currentModel);
-    TRACE("Current Models Labels String as generated %s", csv.c_str());
-  } else {
+  if(!modelslist.currentModel) {
     TRACE("ERROR no Current Model Found");
+    // TODO
   }
 
   // Save output
@@ -593,14 +580,14 @@ bool ModelsList::load(Format fmt)
   return res;
 }
 
-void ModelsList::save()
+const char * ModelsList::save()
 {
 #if !defined(SDCARD_YAML)
   FRESULT result = f_open(&file, RADIO_MODELSLIST_PATH, FA_CREATE_ALWAYS | FA_WRITE);
 #else
   FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_CREATE_ALWAYS | FA_WRITE);
 #endif
-  if (result != FR_OK) return;
+  if (result != FR_OK) return "Couldn't open labels.yml for writing";
   f_puts("- Models:\r\n", &file);
   for (auto const& model : modelslist) {
     f_puts("  - ", &file);
@@ -663,8 +650,12 @@ void ModelsList::setCurrentModel(ModelCell * cell)
   currentModel = cell;
   cell->lastOpened = (long long)time(NULL);
   modelsLabels.setDirty();
+
+  /// TODO
+  /*
   if (!currentModel->valid_rfData)
     currentModel->fetchRfData();
+  */
 }
 
 bool ModelsList::readNextLine(char * line, int maxlen)

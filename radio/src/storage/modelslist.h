@@ -76,7 +76,7 @@ class ModelCell
 
     bool             valid_rfData;
     uint8_t          modelId[NUM_MODULES];
-    SimpleModuleData moduleData[NUM_MODULES]; // TODO
+    SimpleModuleData moduleData[NUM_MODULES]; // TODO ***
 
     explicit ModelCell(const char * name);
     explicit ModelCell(const char * name, uint8_t len);
@@ -87,8 +87,6 @@ class ModelCell
 
     void setModelId(uint8_t moduleIdx, uint8_t id);
     void setRfModuleData(uint8_t moduleIdx, ModuleData* modData);
-
-    bool fetchRfData();
 };
 
 typedef struct {
@@ -99,29 +97,28 @@ typedef struct {
 typedef std::vector<std::pair<int, ModelCell *>> ModelLabelsVector;
 typedef std::vector<std::string> LabelsVector;
 typedef std::vector<ModelCell *> ModelsVector;
-typedef std::map<int, SLabelDetail> LabelIcons;
 
 class ModelMap : protected std::multimap<int, ModelCell *>
 {
   public:
-    ModelsVector getModelsByLabel(std::string);
-    LabelsVector getLabelsByModel(ModelCell *);
     ModelsVector getUnlabeledModels();
+    ModelsVector getModelsByLabel(const std::string &);
+    LabelsVector getLabelsByModel(ModelCell *);
     std::map<std::string, bool> getSelectedLabels(ModelCell *);
-    bool isLabelSelected(std::string, ModelCell *);
+    bool isLabelSelected(const std::string &, ModelCell *);
     LabelsVector getLabels();
-    int addLabel(std::string);
-    bool addLabelToModel(std::string, ModelCell *);
+    int addLabel(const std::string &);
+    bool addLabelToModel(const std::string &, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
-    void getModelCSV(std::string &dest, ModelCell *cell);
-    void setCurrentLabel(std::string lbl) {currentlabel = lbl; setDirty();}
+    bool renameLabel(const std::string &from, const std::string &to);
     std::string getCurrentLabel() {return currentlabel;};
+    void setCurrentLabel(const std::string &lbl) {currentlabel = lbl; setDirty();}
     void setDirty();
     bool isDirty() {return _isDirty;}
     int size() {return std::multimap<int, ModelCell *>::size();}
 
   protected:
-    void updateModelCell(ModelCell *cell);
+    void updateModelCell(ModelCell *);
     bool removeModels(ModelCell *); // Should only be called from ModelsList remove model.
     void clear() {
       _isDirty=true;
@@ -147,6 +144,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
       else
         return std::string();
     }
+
     friend class ModelsList;
 };
 
@@ -176,7 +174,7 @@ public:
   ~ModelsList();
 
   bool load(Format fmt = Format::load_default);
-  void save();
+  const char *save();
   void clear();
 
   void setCurrentModel(ModelCell * cell);
