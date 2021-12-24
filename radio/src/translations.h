@@ -226,6 +226,7 @@ extern const char STR_DELETEMODEL[];
 extern const char STR_COPYINGMODEL[];
 extern const char STR_MOVINGMODEL[];
 extern const char STR_LOADINGMODEL[];
+extern const char STR_UNLABELEDMODEL[];
 extern const char STR_NAME[];
 extern const char STR_BITMAP[];
 extern const char STR_TIMER[];

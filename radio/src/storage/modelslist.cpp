@@ -453,8 +453,6 @@ bool ModelsList::loadYaml()
 
   // 1) Scan /MODELS/ for all .yml models
 
-  modelsLabels.addLabel("Favorite");
-
   DIR moddir;
   FILINFO finfo;
   if (f_opendir(&moddir, PATH_SEPARATOR MODELS_PATH) == FR_OK) {
@@ -643,6 +641,7 @@ const char * ModelsList::save()
   f_puts("\r\n", &file);
   f_close(&file);
   modelsLabels._isDirty = false;
+  return NULL;
 }
 
 void ModelsList::setCurrentModel(ModelCell * cell)

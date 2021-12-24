@@ -440,6 +440,7 @@
 #define TR_COPYINGMODEL        "Kopierar Modell "
 #define TR_MOVINGMODEL         "Flyttar Modell "
 #define TR_LOADINGMODEL        "Laddar Modell   "
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                "Namn"
 #define TR_MODELNAME           "Modellnamn"
 #define TR_PHASENAME           "Lägesnamn "

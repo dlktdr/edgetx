@@ -416,6 +416,7 @@
 #define TR_COPYINGMODEL        "Copiando modelo.."
 #define TR_MOVINGMODEL         "Moviendo modelo..."
 #define TR_LOADINGMODEL        "Cargando modelo..."
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                "Nombre"
 #define TR_MODELNAME           TR("Nom. modelo", "Nombre modelo")
 #define TR_PHASENAME           "Nombre fase "

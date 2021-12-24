@@ -366,6 +366,7 @@
 #define TR_COPYINGMODEL                 "複製模型..."
 #define TR_MOVINGMODEL                  "移動模型..."
 #define TR_LOADINGMODEL                 "載入模型..."
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                         "名稱"
 #define TR_MODELNAME                    "模型名稱"
 #define TR_PHASENAME                    "模式名稱"
