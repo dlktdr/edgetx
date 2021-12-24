@@ -53,7 +53,7 @@ struct SimpleModuleData
 
 typedef union {
   struct {
-	  FSIZE_t	fsize;			/* File size */
+	  FSIZE_t	fsize;		/* File size */
 	  WORD	fdate;			/* Modified date */
 	  WORD	ftime;			/* Modified time */
   };
