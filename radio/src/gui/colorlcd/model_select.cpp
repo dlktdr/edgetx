@@ -220,65 +220,60 @@ void ModelsPageBody::paint(BitmapBuffer *dc)
 void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int index)
 {
   button->setPressHandler([=]() -> uint8_t {
-    if (button->hasFocus()) {
-      Menu *menu = new Menu(this);
-      if (model != modelslist.getCurrentModel()) {
-        menu->addLine(STR_SELECT_MODEL, [=]() {
-          // we store the latest changes if any
-          storageFlushCurrentModel();
-          storageCheck(true);
-          memcpy(g_eeGeneral.currModelFilename, model->modelFilename,
-                  LEN_MODEL_FILENAME);
-          loadModel(g_eeGeneral.currModelFilename, false);
-          storageDirty(EE_GENERAL);
-          storageCheck(true);
-          modelslist.setCurrentModel(model);
-          this->getParent()->getParent()->deleteLater();
-          checkAll();
-        });
-      }
-      menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
-      menu->addLine(STR_DUPLICATE_MODEL, [=]() {
-        char duplicatedFilename[LEN_MODEL_FILENAME + 1];
-        memcpy(duplicatedFilename, model->modelFilename,
-                sizeof(duplicatedFilename));
-        if (findNextFileIndex(duplicatedFilename, LEN_MODEL_FILENAME,
-                              MODELS_PATH)) {
-          sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
-                      MODELS_PATH);
-          modelslist.addModel(duplicatedFilename);
-          update(index);
-        } else {
-          POPUP_WARNING("Invalid File");
-        }
+    Menu *menu = new Menu(this);
+    if (model != modelslist.getCurrentModel()) {
+      menu->addLine(STR_SELECT_MODEL, [=]() {
+        // we store the latest changes if any
+        storageFlushCurrentModel();
+        storageCheck(true);
+        memcpy(g_eeGeneral.currModelFilename, model->modelFilename,
+                LEN_MODEL_FILENAME);
+        loadModel(g_eeGeneral.currModelFilename, false);
+        storageDirty(EE_GENERAL);
+        storageCheck(true);
+        modelslist.setCurrentModel(model);
+        this->getParent()->getParent()->deleteLater();
+        checkAll();
       });
-
-      if (model != modelslist.getCurrentModel()) {
-        // Move -- ToDo.. Should it be kept an a modelindex added
-        /*if(modelslist.size() > 1) {
-          menu->addLine(STR_MOVE_MODEL, [=]() {
-          auto moveToMenu = new Menu(parent);
-          moveToMenu->setTitle(STR_MOVE_MODEL);
-            /*for (auto newcategory: modelslist.getCategories()) {
-              if(category != newcategory) {
-                moveToMenu->addLine(std::string(newcategory->name, sizeof(newcategory->name)), [=]() {
-                  modelslist.moveModel(model, category, newcategory);
-                  update(index < (int)category->size() - 1 ? index : index - 1);
-                  modelslist.save();
-                });
-              }
-            }
-          });
-        }*/
-        menu->addLine(STR_DELETE_MODEL, [=]() {
-          new ConfirmDialog(
-              parent, STR_DELETE_MODEL,
-              std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
-                modelslist.removeModel(model);
-        });
+    }
+    menu->addLine(STR_DUPLICATE_MODEL, [=]() {
+      char duplicatedFilename[LEN_MODEL_FILENAME + 1];
+      memcpy(duplicatedFilename, model->modelFilename,
+              sizeof(duplicatedFilename));
+      if (findNextFileIndex(duplicatedFilename, LEN_MODEL_FILENAME,
+                            MODELS_PATH)) {
+        sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
+                    MODELS_PATH);
+        modelslist.addModel(duplicatedFilename);
+        update(index);
+      } else {
+        POPUP_WARNING("Invalid File");
       }
-    } else {
-      button->setFocus(SET_FOCUS_DEFAULT);
+    });
+
+    if (model != modelslist.getCurrentModel()) {
+      // Move -- ToDo.. Should it be kept an a modelindex added
+      /*if(modelslist.size() > 1) {
+        menu->addLine(STR_MOVE_MODEL, [=]() {
+        auto moveToMenu = new Menu(parent);
+        moveToMenu->setTitle(STR_MOVE_MODEL);
+          /*for (auto newcategory: modelslist.getCategories()) {
+            if(category != newcategory) {
+              moveToMenu->addLine(std::string(newcategory->name, sizeof(newcategory->name)), [=]() {
+                modelslist.moveModel(model, category, newcategory);
+                update(index < (int)category->size() - 1 ? index : index - 1);
+                modelslist.save();
+              });
+            }
+          }
+        });
+      }*/
+      menu->addLine(STR_DELETE_MODEL, [=]() {
+        new ConfirmDialog(
+            parent, STR_DELETE_MODEL,
+            std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
+              modelslist.removeModel(model);
+      });
     }
     return 1;
   });
@@ -295,7 +290,11 @@ void ModelsPageBody::update(int selected)
   // TODO - Filter list by selected labels
 
   ModelButton* selectButton = nullptr;
-  for (auto &model : modelsLabels.getModelsByLabel(selectedLabel)) {
+  ModelsVector models = selectedLabel == "Unlabeled" ?
+    modelsLabels.getUnlabeledModels() :
+    modelsLabels.getModelsByLabel(selectedLabel);
+
+  for (auto &model : models) {
     auto button = new ModelButton(
         &innerWindow, {x, y, MODEL_SELECT_CELL_WIDTH, MODEL_SELECT_CELL_HEIGHT},
         model);
@@ -426,13 +425,14 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
   // Models List and Filters - Right
   mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 10});
 
+  auto labels = modelsLabels.getLabels();
+  labels.emplace_back("Unlabeled");
   lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 },
-    modelsLabels.getLabels(),
+    labels,
     [=] () {
       return 0;
     }, [=](uint32_t value) {
-      auto a = modelsLabels.getLabels();
-      auto label = a[value];
+      auto label = labels[value];
       mdlselector->setLabel(label); // Update the list
     });
 
