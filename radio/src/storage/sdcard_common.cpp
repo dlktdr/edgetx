@@ -97,10 +97,10 @@ void storageCheck(bool immediately)
 
   if (storageDirtyMsk & EE_LABELS) {
     TRACE("sdcard write labels");
-    storageDirtyMsk &= ~EE_MODEL;
+    storageDirtyMsk &= ~EE_LABELS;
     const char * error = modelslist.save();
     if (error) {
-      TRACE("writeModel error=%s", error);
+      TRACE("writeLabels error=%s", error);
     }
   }
 }
