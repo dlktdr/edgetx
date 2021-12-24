@@ -1309,8 +1309,8 @@ std::string getLabelString(ModelCell *curmod)
     }
   }
   if (numModels == 0)
-    allLabels = "Unlabeled";
-    
+    allLabels = STR_UNLABELEDMODEL;
+
   return allLabels;
 }
 

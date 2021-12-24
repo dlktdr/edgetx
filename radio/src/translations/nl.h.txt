@@ -420,6 +420,7 @@
 #define TR_COPYINGMODEL        "Kopieer Model"
 #define TR_MOVINGMODEL         "Verplaats Model"
 #define TR_LOADINGMODEL        "Laad Model..."
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                "Naam"
 #define TR_MODELNAME           "Modelnaam"
 #define TR_PHASENAME           "Modus"

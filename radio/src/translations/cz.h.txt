@@ -416,6 +416,7 @@
 #define TR_COPYINGMODEL                "Kopíruji model.."
 #define TR_MOVINGMODEL                 "Přesouvám model."
 #define TR_LOADINGMODEL                "Aktivuji model.."
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                        "Název"
 #define TR_MODELNAME                   TR("Model", "Název modelu")
 #define TR_PHASENAME                   "Název"
