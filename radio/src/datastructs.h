@@ -58,7 +58,7 @@ static inline void check_struct()
   CHKSIZE(FrSkyBarData, 6);
   CHKSIZE(FrSkyLineData, 4);
   CHKTYPE(TelemetryScreenData, 24);
-  CHKSIZE(ModelHeader, 112);
+  CHKSIZE(ModelHeader, 12);
   CHKSIZE(CurveHeader, 4);
 #elif defined(PCBTARANIS)
   CHKSIZE(MixData, 20);
@@ -72,7 +72,7 @@ static inline void check_struct()
   CHKSIZE(FrSkyBarData, 6);
   CHKSIZE(FrSkyLineData, 6);
   CHKTYPE(TelemetryScreenData, 24);
-  CHKSIZE(ModelHeader, 124);
+  CHKSIZE(ModelHeader, 24);
   CHKSIZE(CurveHeader, 4);
 #elif defined(PCBHORUS)
   CHKSIZE(MixData, 20);
@@ -116,20 +116,23 @@ static inline void check_struct()
   CHKSIZE(TrainerData, 16);
 
 #if defined(PCBXLITES)
-  CHKSIZE(RadioData, 862);
-  CHKSIZE(ModelData, 6258);
-#elif defined(PCBXLITE)
   CHKSIZE(RadioData, 860);
-  CHKSIZE(ModelData, 6258);
+  CHKSIZE(ModelData, 6159);
+#elif defined(PCBXLITE)
+  CHKSIZE(RadioData, 858);
+  CHKSIZE(ModelData, 6159);
+#elif defined(RADIO_TPRO)
+  CHKSIZE(RadioData, 841);
+  CHKSIZE(ModelData, 6184);
 #elif defined(PCBX7)
-  CHKSIZE(RadioData, 866);
-  CHKSIZE(ModelData, 6258);
+  CHKSIZE(RadioData, 864);
+  CHKSIZE(ModelData, 6159);
 #elif defined(PCBX9E)
-  CHKSIZE(RadioData, 962);
-  CHKSIZE(ModelData, 6715);
+  CHKSIZE(RadioData, 954);
+  CHKSIZE(ModelData, 6611);
 #elif defined(PCBX9D) || defined(PCBX9DP)
-  CHKSIZE(RadioData, 900);
-  CHKSIZE(ModelData, 6705);
+  CHKSIZE(RadioData, 896);
+  CHKSIZE(ModelData, 6603);
 #elif defined(PCBHORUS)
   #if defined(PCBX10)
     CHKSIZE(RadioData, 921);

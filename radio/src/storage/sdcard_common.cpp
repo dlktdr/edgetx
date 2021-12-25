@@ -94,7 +94,7 @@ void storageCheck(bool immediately)
       TRACE("writeModel error=%s", error);
     }
   }
-
+#if defined(STORAGE_MODELSLIST)
   if (storageDirtyMsk & EE_LABELS) {
     TRACE("sdcard write labels");
     storageDirtyMsk &= ~EE_LABELS;
@@ -103,6 +103,7 @@ void storageCheck(bool immediately)
       TRACE("writeLabels error=%s", error);
     }
   }
+#endif
 }
 
 #if defined(STORAGE_MODELSLIST)
