@@ -67,55 +67,7 @@ class ModelButton : public Button
 
   void load()
   {
-#if defined(SDCARD_RAW)
-    uint8_t version;
-#endif
-
-    PACK(struct {
-      ModelHeader header;
-      TimerData timers[MAX_TIMERS];
-    })
-    partialModel;
     const char *error = nullptr;
-
-    if (strncmp(modelCell->modelFilename, g_eeGeneral.currModelFilename,
-                LEN_MODEL_FILENAME) == 0) {
-      memcpy(&partialModel.header, &g_model.header, sizeof(partialModel));
-#if defined(SDCARD_RAW)
-      version = EEPROM_VER;
-#endif
-    } else {
-#if defined(SDCARD_RAW)
-      error =
-          readModelBin(modelCell->modelFilename, (uint8_t *)&partialModel.header,
-                       sizeof(partialModel), &version);
-#else
-      error = readModel(modelCell->modelFilename,
-                        (uint8_t *)&partialModel.header, sizeof(partialModel));
-#endif
-    }
-
-    if (!error) {
-      if (modelCell->modelName[0] == '\0' &&
-          partialModel.header.name[0] != '\0') {
-
-#if defined(SDCARD_RAW)
-        if (version == 219) {
-          int len = (int)sizeof(partialModel.header.name);
-          char* str = partialModel.header.name;
-          for (int i=0; i < len; i++) {
-            str[i] = zchar2char(str[i]);
-          }
-          // Trim string
-          while(len > 0 && str[len-1]) {
-            if (str[len - 1] != ' ' && str[len - 1] != '\0') break;
-            str[--len] = '\0';
-          }
-        }
-#endif
-        modelCell->setModelName(partialModel.header.name);
-      }
-    }
 
     delete buffer;
     buffer = new BitmapBuffer(BMP_RGB565, width(), height());
@@ -128,7 +80,7 @@ class ModelButton : public Button
       buffer->drawText(width() / 2, height() / 2, "(Invalid Model)",
                        COLOR_THEME_SECONDARY1 | CENTERED);
     } else {
-      GET_FILENAME(filename, BITMAPS_PATH, partialModel.header.bitmap, "");
+      GET_FILENAME(filename, BITMAPS_PATH, modelCell->modelBitmap, "");
       const BitmapBuffer *bitmap = BitmapBuffer::loadBitmap(filename);
       if (bitmap) {
         buffer->drawScaledBitmap(bitmap, 0, 0, width(), height());
