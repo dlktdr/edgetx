@@ -1304,7 +1304,7 @@ std::string getLabelString(ModelCell *curmod)
   int numModels = 0;
   for (auto &label : modelsLabels.getSelectedLabels(curmod)) {
     if (label.second) {
-      allLabels = allLabels + (numModels != 0 ? ", " : "") + label.first;
+      allLabels = allLabels + (numModels != 0 ? "," : "") + label.first;
       numModels++;
     }
   }
