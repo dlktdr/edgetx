@@ -185,7 +185,7 @@ class ModelButton : public Button
 //-----------------------------------------------------------------------------
 
 ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
-    FormWindow(parent, rect), 
+    FormWindow(parent, rect),
   innerWindow(this, { 4, 4, rect.w - 8, rect.h - 8 })
 {
   update();
@@ -410,7 +410,7 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   rect_t r = {LCD_W - (BUTTON_WIDTH + 5), 6, BUTTON_WIDTH, BUTTON_HEIGHT };
   newButton = new TextButton(window, r, "New", [=] () {
     storageCheck(true);
-    auto model = modelslist.addModel("unlabeled", false);
+    auto model = modelslist.addModel(createModel(), false);
     model->setModelName(g_model.header.name);
     modelslist.setCurrentModel(model);
     modelslist.save();
