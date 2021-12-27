@@ -25,7 +25,7 @@
 #include <algorithm>
 #include <stdint.h>
 #include <list>
-                                                                                                                                       #include <map>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -131,9 +131,8 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     LabelsVector labels; // Storage space for discovered labels
     std::string currentlabel = "";
 
-    int getIndexByLabel(std::string str)
+    int getIndexByLabel(const std::string &str)
     {
-      std::transform(str.begin(), str.end(), str.begin(), ::tolower);
       auto a = std::find(labels.begin(), labels.end(), str);
       return a == labels.end() ? -1 : a - labels.begin();
     }
