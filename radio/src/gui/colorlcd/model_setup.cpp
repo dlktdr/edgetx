@@ -1337,19 +1337,19 @@ void ModelSetupPage::build(FormWindow * window)
 
   // Model labels
   new StaticText(window, grid.getLabelSlot(), "Labels", 0, COLOR_THEME_PRIMARY1);
-  labelTextButton = 
+  labelTextButton =
     new TextButton(window, grid.getFieldSlot(), getLabelString(curmod), [=] () {
       Menu *menu = new Menu(window, true);
       for (auto &label: modelsLabels.getSelectedLabels(curmod)) {
-        menu->addLine(label.first, 
+        menu->addLine(label.first,
           [=] () {
             if (!modelsLabels.isLabelSelected(label.first, curmod))
               modelsLabels.addLabelToModel(label.first, curmod);
             else
               modelsLabels.removeLabelFromModel(label.first, curmod);
+            labelTextButton->setText(getLabelString(curmod));
+            strcpy(g_model.header.labels, getLabelString(curmod).c_str());
             SET_DIRTY();
-            modelslist.save();
-            labelTextButton->setText(getLabelString(curmod));            
           }, [=] () {
             return modelsLabels.isLabelSelected(label.first, curmod);
           });
