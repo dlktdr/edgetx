@@ -224,6 +224,7 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
         new ConfirmDialog(
             parent, STR_DELETE_MODEL,
             std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
+              // TODO -- Update list?
               modelslist.removeModel(model);
       });
     }
@@ -242,7 +243,7 @@ void ModelsPageBody::update(int selected)
   // TODO - Filter list by selected labels
 
   ModelButton* selectButton = nullptr;
-  ModelsVector models = selectedLabel == "Unlabeled" ?
+  ModelsVector models = selectedLabel == STR_UNLABELEDMODEL ?
     modelsLabels.getUnlabeledModels() :
     modelsLabels.getModelsByLabel(selectedLabel);
 
@@ -377,7 +378,7 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
   mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 10});
 
   auto labels = modelsLabels.getLabels();
-  labels.emplace_back("Unlabeled");
+  labels.emplace_back(STR_UNLABELEDMODEL);
   lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 },
     labels,
     [=] () {
