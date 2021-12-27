@@ -657,6 +657,21 @@ void ModelsList::setCurrentModel(ModelCell * cell)
   */
 }
 
+void ModelsList::updateCurrentModelCell()
+{
+  auto mdl = std::find(begin(), end(), currentModel);
+  if(mdl != end()) {
+    strcpy((*mdl)->modelBitmap,g_model.header.bitmap);
+    (*mdl)->setModelName(g_model.header.name);
+    (*mdl)->setRfData(&g_model);
+    for(int i=0; i < NUM_MODULES; i++) {
+      //(*mdl)->setModelId(i, g_model.);
+    }
+  } else {
+    TRACE("ModelList Error - Can't find current model");
+  }
+}
+
 bool ModelsList::readNextLine(char * line, int maxlen)
 {
   if (f_gets(line, maxlen, &file) != NULL) {

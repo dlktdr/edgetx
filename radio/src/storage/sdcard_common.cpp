@@ -93,6 +93,10 @@ void storageCheck(bool immediately)
     if (error) {
       TRACE("writeModel error=%s", error);
     }
+#if defined(STORAGE_MODELSLIST)
+  modelslist.updateCurrentModelCell();
+  storageDirtyMsk |= EE_LABELS;
+#endif
   }
 #if defined(STORAGE_MODELSLIST)
   if (storageDirtyMsk & EE_LABELS) {

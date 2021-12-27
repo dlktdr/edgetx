@@ -177,6 +177,7 @@ public:
   void clear();
 
   void setCurrentModel(ModelCell * cell);
+  void updateCurrentModelCell();
 
   ModelCell * getCurrentModel() const
   {
