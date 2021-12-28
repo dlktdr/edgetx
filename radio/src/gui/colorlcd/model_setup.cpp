@@ -1357,32 +1357,12 @@ void ModelSetupPage::build(FormWindow * window)
       return 0;
     });
 
-  // for(auto const &lbl : modelsLabels.getSelectedLabels(curmod)) {
-  //   new StaticText(window, grid.getLabelSlot(true), lbl.first, 0, COLOR_THEME_PRIMARY1);
-  //   new CheckBox(window, grid.getFieldSlot(), [=] {
-  //     return modelsLabels.isLabelSelected(lbl.first, curmod);
-  //   }, [=](int32_t newValue) {
-  //     // Remove a label from the model
-  //     if(!newValue) {
-  //       modelsLabels.removeLabelFromModel(lbl.first, curmod);
-  //       SET_DIRTY();
-  //       modelslist.save();
-  //       return;
-  //     // Add a label
-  //     }
+  grid.nextLine();
+  new TextButton(window, grid.getFieldSlot(), "Rename", [=] () {
+      modelsLabels.renameLabel("other", "Models");
+      return 0;
+  });
 
-  //     if(modelsLabels.addLabelToModel(lbl.first, curmod)) {
-  //       SET_DIRTY();
-  //       modelslist.save();
-
-  //     // Unable to add the label
-  //     } else {
-  //       // TODO Popup a message.. too many labels
-  //       TRACE("TOO MANY");
-  //     }
-  //   });
-  //   grid.nextLine();
-  // }
   grid.nextLine();
 
   // Bitmap

@@ -247,6 +247,9 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 
 bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 {
+  if(from == "" || to == "")
+    return true;
+
   ModelData *modeldata = (ModelData*)malloc(sizeof(ModelData));
   if(!modeldata) {
     TRACE("Labels: Out Of Memory");
@@ -266,29 +269,49 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
                                                                 modcell->modelFilename);
       continue;
     }
-    char buffer[LABELS_LENGTH];
-    char *loc = strstr(modeldata->header.labels, from.c_str());
-    if(loc == NULL) {
-      TRACE("Labels: Rename Error! Could not find label in model?");
-      fault = true;
-      continue;
+
+    // Separate CSV
+    LabelsVector lbls;
+    char *cma ;
+    cma = strtok(modeldata->header.labels, ",");
+    int numTokens = 0;
+    while(cma != NULL) {
+      lbls.push_back(cma);
+      cma = strtok(NULL, ",");
+      numTokens++;
     }
-    strncpy(buffer, modeldata->header.labels, loc - modeldata->header.labels);
-    TRACE("Lables after rename 1: %s", buffer);
-    strcat(buffer, to.c_str());
-    TRACE("Lables after rename 2: %s", buffer);
-    strcat(buffer, loc + from.size());
-    TRACE("Lables after rename 3: %s", buffer);
+
+    // Replace from->to strings
+    for(auto &lbl: lbls) {
+      if(lbl == from)
+        lbl = to;
+    }
+
+    // Remove duplicates
+    std::sort(lbls.begin(), lbls.end());
+    auto last = std::unique(lbls.begin(), lbls.end());
+    lbls.erase(last, lbls.end());
+    lbls.resize(std::distance(lbls.begin(), last));
+
+    // Write back
+    bool comma=false;
+    modeldata->header.labels[0] = '\0';
+    for(auto lbl: lbls) {
+      if(comma)
+        strcat(modeldata->header.labels, ",");
+      strcat(modeldata->header.labels, lbl.c_str());
+      comma = true;
+    }
 
     char path[256];
     getModelPath(path, modcell->modelFilename);
 
-    if(modcell == modelslist.getCurrentModel()) {
+    if(&(*modcell) == modelslist.getCurrentModel()) {
       // If working on the current model, write current data to file instead
-      memcpy(modeldata->header.labels,g_model.header.labels, LABELS_LENGTH);
-      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)&g_model) == NULL);
+      memcpy(g_model.header.labels, modeldata->header.labels, LABELS_LENGTH);
+      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)&g_model) != NULL);
     } else {
-      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)modeldata) == NULL);
+      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)modeldata) != NULL);
     }
   }
 
@@ -296,6 +319,7 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 
   // Issue a rescan all of all models. This will cause a decent delay
   // depending how many files were renamed above.
+  modelslist.clear();
   modelslist.load();
 
   return fault;
@@ -665,7 +689,7 @@ void ModelsList::updateCurrentModelCell()
     (*mdl)->setModelName(g_model.header.name);
     (*mdl)->setRfData(&g_model);
     for(int i=0; i < NUM_MODULES; i++) {
-      //(*mdl)->setModelId(i, g_model.);
+      //(*mdl)->setModelId(i, g_model.); // TODO
     }
   } else {
     TRACE("ModelList Error - Can't find current model");
@@ -703,7 +727,7 @@ void ModelsList::removeModel(ModelCell * model)
 {
   std::remove(modelslist.begin(), modelslist.end(), model);
   modelsLabels.removeModels(model);
-  save();
+  modelsLabels.setDirty();
 }
 
 bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len)
