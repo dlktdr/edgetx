@@ -1358,12 +1358,6 @@ void ModelSetupPage::build(FormWindow * window)
     });
 
   grid.nextLine();
-  new TextButton(window, grid.getFieldSlot(), "Rename", [=] () {
-      modelsLabels.renameLabel("other", "Models");
-      return 0;
-  });
-
-  grid.nextLine();
 
   // Bitmap
   new StaticText(window, grid.getLabelSlot(), STR_BITMAP, 0, COLOR_THEME_PRIMARY1);
