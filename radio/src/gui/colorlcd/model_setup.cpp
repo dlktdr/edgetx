@@ -1340,18 +1340,18 @@ void ModelSetupPage::build(FormWindow * window)
   labelTextButton =
     new TextButton(window, grid.getFieldSlot(), getLabelString(curmod), [=] () {
       Menu *menu = new Menu(window, true);
-      for (auto &label: modelsLabels.getSelectedLabels(curmod)) {
-        menu->addLine(label.first,
+      for (auto &label: modelsLabels.getLabels()) {
+        menu->addLine(label,
           [=] () {
-            if (!modelsLabels.isLabelSelected(label.first, curmod))
-              modelsLabels.addLabelToModel(label.first, curmod);
+            if (!modelsLabels.isLabelSelected(label, curmod))
+              modelsLabels.addLabelToModel(label, curmod);
             else
-              modelsLabels.removeLabelFromModel(label.first, curmod);
+              modelsLabels.removeLabelFromModel(label, curmod);
             labelTextButton->setText(getLabelString(curmod));
             strcpy(g_model.header.labels, getLabelString(curmod).c_str());
             SET_DIRTY();
           }, [=] () {
-            return modelsLabels.isLabelSelected(label.first, curmod);
+            return modelsLabels.isLabelSelected(label, curmod);
           });
       }
       return 0;
