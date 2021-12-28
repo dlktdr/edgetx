@@ -27,7 +27,8 @@
 #include "storage/modelslist.h"
 
 #include <cstring>
-//#define DEBUG_LABELS
+
+#define DEBUG_LABELS
 
 #ifdef DEBUG_LABELS
 #define TRACE_LABELS(...) TRACE(__VA_ARGS__)
@@ -50,7 +51,7 @@ struct labelslist_iter
     };
 
     ModelCell   *curmodel;
-    bool        modeldatavalid;
+    bool        modeldatavalid; // Used to determine if reading yaml values is necessary
     uint8_t     level;
     char        current_attr[16]; // set after find_node()
 };
@@ -78,8 +79,10 @@ static bool to_parent(void* ctx)
     if (mi->level == labelslist_iter::Root)
         return false;
 
-    if(mi->level == labelslist_iter::LabelsRoot)
-      mi->level = labelslist_iter::Root;
+    if(mi->level == labelslist_iter::LabelName) {
+      TRACE_LABELS("Forced Models Root");
+      mi->level = labelslist_iter::ModelsRoot;
+    }
     else
       mi->level--;
 
@@ -128,23 +131,43 @@ static bool find_node(void* ctx, char* buf, uint8_t len)
       TRACE_LABELS("YAML New Level %u", mi->level);
     }
 
-    if(mi->level == labelslist_iter::ModelName)  { // Model List
+    if(mi->level == labelslist_iter::LabelsRoot && strcasecmp(mi->current_attr,"models") == 0) {
+      TRACE_LABELS("Forced root");
+      mi->level = labelslist_iter::LabelsRoot;
+      TRACE_LABELS("YAML New Level %u", mi->level);
+    }
+
+    // Model List
+    if(mi->level == labelslist_iter::ModelName)  {
       bool found=false;
-      for (auto const& i : modelslist) {
-          TRACE_LABELS("Comparing %s <-> %s", mi->current_attr, i->modelFilename);
-          if(!strcmp(i->modelFilename, mi->current_attr)) {
-            TRACE_LABELS("This file actually exists. Saving the pointer");
-            mi->modeldatavalid = false;
-            mi->curmodel = i;
-            found=true;
-            break;
-          }
+      for(auto &filehash : modelslist.fileHashInfo) {
+        if(filehash.name == mi->current_attr) {
+          TRACE_LABELS("  Model %s has a real file, creating a modelcell");
+          ModelCell *model = new ModelCell(mi->current_attr);
+          strcpy(model->modelFinfoHash, filehash.hash);
+          modelslist.push_back(model);
+          filehash.celladded = true;
+          if(filehash.curmodel == true)
+            modelslist.setCurrentModel(model);
+          mi->curmodel = model;
+          mi->modeldatavalid = false;
+          mi->curmodel->_isDirty = true;
+          found = true;
+          break;
         }
+      }
       if(!found) {
         mi->curmodel = NULL;
         TRACE_LABELS("File does not exist in /MODELS");
       }
     }
+
+    // Labels List
+    if(mi->level == labelslist_iter::LabelName)  {
+      TRACE_LABELS("Label Found -- %s", mi->current_attr);
+      modelsLabels.addLabel(mi->current_attr);
+    }
+
     return true;
 }
 
@@ -185,7 +208,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "lastopen")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->lastOpened = (time_t)strtoul(value, NULL, 0);
-        TRACE_LABELS("Last Opened %lu". mi->curmode->lastOpened);
+        TRACE_LABELS("Last Opened %lu", value);
       }
 
     // Model ID0
