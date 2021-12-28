@@ -189,10 +189,10 @@ bool ModelMap::isLabelSelected(const std::string &label, ModelCell *cell)
 LabelsVector ModelMap::getLabels()
 {
   LabelsVector capitalizedLabels;
-  for (auto label : labels) {
-    capitalizedLabels.emplace_back(label);
+  for (auto &label : labels) {
+    if(label.size() > 0)
+      capitalizedLabels.emplace_back(label);
   }
-
   return capitalizedLabels;
 }
 
@@ -243,6 +243,15 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
     rv = true;
   }
   return rv;
+}
+
+void ModelMap::removeUnusedLabels()
+{
+  // Doesn't actually remove them but sets blank, keep indicies intact
+  // Won't be returned on getlabels call
+  for(auto &lbl : labels)
+    if(getModelsByLabel(lbl).size() == 0)
+      lbl = "";
 }
 
 bool ModelMap::renameLabel(const std::string &from, const std::string &to)
