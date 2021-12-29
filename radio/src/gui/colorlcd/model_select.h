@@ -92,6 +92,13 @@ class ModelLabelsWindow : public Page {
     TextButton *newButton;
     std::string currentLabel;
 
+    LabelsVector getLabels()
+    {
+      auto labels = modelsLabels.getLabels();
+      labels.emplace_back(STR_UNLABELEDMODEL);
+      return labels;
+    }
+
     void buildHead(PageHeader *window);
     void buildBody(FormWindow *window);
 };

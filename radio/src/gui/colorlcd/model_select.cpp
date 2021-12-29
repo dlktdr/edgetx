@@ -36,11 +36,15 @@ constexpr int MODEL_CELLS_PER_LINE = 2;
 constexpr int BUTTON_HEIGHT = 30;
 constexpr int BUTTON_WIDTH  = 75;
 constexpr LcdFlags textFont = FONT(STD);
+constexpr rect_t detailsDialogRect = {50, 50, 400, 100};
+constexpr int labelWidth = 150;
 #else
 constexpr int MODEL_CELLS_PER_LINE = 2;
 constexpr int BUTTON_HEIGHT = 30;
 constexpr int BUTTON_WIDTH  = 65;
 constexpr LcdFlags textFont = FONT(XS);
+constexpr rect_t detailsDialogRect = {5, 50, LCD_W - 10, 340};
+constexpr int labelWidth = 120;
 #endif
 
 constexpr coord_t MODEL_CELL_PADDING = 6;
@@ -284,6 +288,42 @@ void ModelsPageBody::update(int selected)
 
 //-----------------------------------------------------------------------------
 
+class NewLabelDialog : public Dialog
+{
+  public:
+    NewLabelDialog(Window *parent, std::function<void (std::string label)> saveHandler = nullptr) :
+      Dialog(parent, "Enter New Label", detailsDialogRect),
+      saveHandler(saveHandler),
+      label("")
+    {
+      FormGridLayout grid(detailsDialogRect.w);
+      grid.setLabelWidth(labelWidth);
+      grid.spacer(8);
+
+      new StaticText(&content->form, grid.getLabelSlot(), "Label", 0, COLOR_THEME_PRIMARY1);
+      new TextEdit(&content->form, grid.getFieldSlot(), label, 20);
+      grid.nextLine();
+
+      rect_t r = {detailsDialogRect.w - (BUTTON_WIDTH + 5), grid.getWindowHeight() + 5, BUTTON_WIDTH, BUTTON_HEIGHT };
+      new TextButton(&content->form, r, STR_SAVE, [=] () {
+        if (saveHandler != nullptr)
+          saveHandler(label);
+        deleteLater();
+        return 0;
+      }, BUTTON_BACKGROUND | OPAQUE, textFont);
+      r.x -= (BUTTON_WIDTH + 5);
+      new TextButton(&content->form, r, STR_CANCEL, [=] () {
+        deleteLater();
+        return 0;
+      }, BUTTON_BACKGROUND | OPAQUE, textFont);
+    }
+
+  protected:
+    std::function<void (std::string label)> saveHandler;
+    char label[20];
+
+};
+
 ModelLabelsWindow::ModelLabelsWindow() :
   Page(ICON_MODEL)
 {
@@ -371,9 +411,17 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 
   r.x -= (BUTTON_WIDTH + 10);
-  auto newLabelButton = new TextButton(window, r, "New Label", [=] () {
-    return 0;
-  }, BUTTON_BACKGROUND | OPAQUE, textFont);
+  new TextButton(window, r, "New Label", 
+    [=] () {
+      new NewLabelDialog(window, 
+        [=] (std::string label) {
+          modelsLabels.addLabel(label);
+          auto labels = getLabels();
+          lblselector->setNames(labels);
+          mdlselector->setLabel(label); // Update the list
+        });
+      return 0;
+    }, BUTTON_BACKGROUND | OPAQUE, textFont);
 
 }
 
@@ -382,14 +430,12 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
   // Models List and Filters - Right
   mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 10});
 
-  auto labels = modelsLabels.getLabels();
-  labels.emplace_back(STR_UNLABELEDMODEL);
   lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 },
-    labels,
+    getLabels(),
     [=] () {
       return 0;
     }, [=](uint32_t value) {
-      auto label = labels[value];
+      auto label = getLabels()[value];
       mdlselector->setLabel(label); // Update the list
     });
 
