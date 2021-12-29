@@ -189,10 +189,10 @@ bool ModelMap::isLabelSelected(const std::string &label, ModelCell *cell)
 LabelsVector ModelMap::getLabels()
 {
   LabelsVector capitalizedLabels;
-  for (auto label : labels) {
-    capitalizedLabels.emplace_back(label);
+  for (auto &label : labels) {
+    if(label.size() > 0)
+      capitalizedLabels.emplace_back(label);
   }
-
   return capitalizedLabels;
 }
 
@@ -245,8 +245,20 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
   return rv;
 }
 
+void ModelMap::removeUnusedLabels()
+{
+  // Doesn't actually remove them but sets blank, keep indicies intact
+  // Won't be returned on getlabels call
+  for(auto &lbl : labels)
+    if(getModelsByLabel(lbl).size() == 0)
+      lbl = "";
+}
+
 bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 {
+  if(from == "" || to == "")
+    return true;
+
   ModelData *modeldata = (ModelData*)malloc(sizeof(ModelData));
   if(!modeldata) {
     TRACE("Labels: Out Of Memory");
@@ -266,29 +278,49 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
                                                                 modcell->modelFilename);
       continue;
     }
-    char buffer[LABELS_LENGTH];
-    char *loc = strstr(modeldata->header.labels, from.c_str());
-    if(loc == NULL) {
-      TRACE("Labels: Rename Error! Could not find label in model?");
-      fault = true;
-      continue;
+
+    // Separate CSV
+    LabelsVector lbls;
+    char *cma ;
+    cma = strtok(modeldata->header.labels, ",");
+    int numTokens = 0;
+    while(cma != NULL) {
+      lbls.push_back(cma);
+      cma = strtok(NULL, ",");
+      numTokens++;
     }
-    strncpy(buffer, modeldata->header.labels, loc - modeldata->header.labels);
-    TRACE("Lables after rename 1: %s", buffer);
-    strcat(buffer, to.c_str());
-    TRACE("Lables after rename 2: %s", buffer);
-    strcat(buffer, loc + from.size());
-    TRACE("Lables after rename 3: %s", buffer);
+
+    // Replace from->to strings
+    for(auto &lbl: lbls) {
+      if(lbl == from)
+        lbl = to;
+    }
+
+    // Remove duplicates
+    std::sort(lbls.begin(), lbls.end());
+    auto last = std::unique(lbls.begin(), lbls.end());
+    lbls.erase(last, lbls.end());
+    lbls.resize(std::distance(lbls.begin(), last));
+
+    // Write back
+    bool comma=false;
+    modeldata->header.labels[0] = '\0';
+    for(auto lbl: lbls) {
+      if(comma)
+        strcat(modeldata->header.labels, ",");
+      strcat(modeldata->header.labels, lbl.c_str());
+      comma = true;
+    }
 
     char path[256];
     getModelPath(path, modcell->modelFilename);
 
-    if(modcell == modelslist.getCurrentModel()) {
+    if(&(*modcell) == modelslist.getCurrentModel()) {
       // If working on the current model, write current data to file instead
-      memcpy(modeldata->header.labels,g_model.header.labels, LABELS_LENGTH);
-      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)&g_model) == NULL);
+      memcpy(g_model.header.labels, modeldata->header.labels, LABELS_LENGTH);
+      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)&g_model) != NULL);
     } else {
-      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)modeldata) == NULL);
+      fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)modeldata) != NULL);
     }
   }
 
@@ -296,6 +328,7 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 
   // Issue a rescan all of all models. This will cause a decent delay
   // depending how many files were renamed above.
+  modelslist.clear();
   modelslist.load();
 
   return fault;
@@ -373,7 +406,7 @@ bool ModelsList::loadTxt()
   return false;
 }
 
-#if defined(SDCARD_YAML)
+//#if defined(SDCARD_YAML)
 
 /* updateModelCell
  *     Opens a YAML file, reads the data and updates the ModelCell
@@ -430,29 +463,11 @@ bool ModelsList::loadYaml()
   // Clear labels + map
   modelslist.clear();
   modelsLabels.clear();
-
-  // 1) Scan /MODELS/ for all .yml models
-  //    - Create a ModelCell for each model in ModelList
-  //    - Create a hash based on a the file info (name,size,modified,etc...) Used to detect a change in the file
-
-  // 2) Read Labels.yml
-  //    - Check if the modelfile name exists in Modellist. Ignore if the file isn't there will be removed from labels.yml on next write
-  //    - If file exists in modelslist compare the file hash to the Modellist one.
-  //    - If has different open the .yml file and grab all information, update modelslist
-  //         Labels
-  //         Model Name
-  //         Module ID's
-  //         Set Last Opened to now() (Sort by last used option)
-
-  // 3) Loop over all ModelsList items which are now synced to real files
-  //     Add label to ModelLabelsUnorderedMultiMap<std::string, ModelCell*>
-
-  // 4) Fav label will always be created if it doesn't already exist *** TODO
+  fileHashInfo.clear();
 
   DEBUG_TIMER_START(debugTimerYamlScan);
 
-  // 1) Scan /MODELS/ for all .yml models
-
+  // Scan all models in folder
   DIR moddir;
   FILINFO finfo;
   if (f_opendir(&moddir, PATH_SEPARATOR MODELS_PATH) == FR_OK) {
@@ -469,86 +484,89 @@ bool ModelsList::loadYaml()
         continue;
       }
 
-      char hbuf[FILE_HASH_LENGTH + 1];
-      FILInfoToHexStr(hbuf, &finfo);
-      TRACE("File - %s \r\n  HASH - %s", finfo.fname, hbuf);
-
-      // Create and add the model
-      ModelCell *model = new ModelCell(finfo.fname);
-      strcpy(model->modelFinfoHash, hbuf);
-      modelslist.push_back(model);
-
-      // See if this is the current model
-      if (!strncmp(finfo.fname, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME)) {
-        TRACE("FOUND CURRENT MODEL, loading");
-        currentModel = model;
-      }
+      // Store hash & filename
+      filedat cf;
+      FILInfoToHexStr(cf.hash, &finfo);
+      cf.name = finfo.fname;
+      cf.celladded = false;
+      if (!strncmp(finfo.fname, g_eeGeneral.currModelFilename, LEN_MODEL_FILENAME))
+        cf.curmodel = true;
+      else
+        cf.curmodel = false;
+      fileHashInfo.push_back(cf);
+      TRACE("File - %s \r\n  HASH - %s - CM: %s", finfo.fname, cf.hash, cf.curmodel?"Y":"N");
     }
     f_closedir(&moddir);
   }
 
-  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
-#ifdef DEBUG_TIMERS
-  TRACE("  $$$$$$$$$$$  Time to scan models and create file hashes %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
-#endif
-
-  // 2) Read Labels.yml
-
+  // Scan labels.yml
   char line[LEN_MODELS_IDX_LINE+1];
   FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_OPEN_EXISTING | FA_READ);
   if (result == FR_OK) {
     YamlParser yp;
     void* ctx = get_labelslist_iter();
-
     yp.init(get_labelslist_parser_calls(), ctx);
-
     UINT bytes_read=0;
     while (f_read(&file, line, sizeof(line), &bytes_read) == FR_OK) {
-
-      // reached EOF?
-      if (bytes_read == 0)
-        break;
-
-      if (yp.parse(line, bytes_read) != YamlParser::CONTINUE_PARSING)
-        break;
+      if (bytes_read == 0) break;
+      if (yp.parse(line, bytes_read) != YamlParser::CONTINUE_PARSING) break;
     }
 
     f_close(&file);
   }
 
-  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
-#ifdef DEBUG_TIMERS
-  TRACE("  $$$$$$$$$$$  Time to compare models %lu us", debugTimers[debugTimerYamlScan].getLast());
-#endif
+  // Add modelcells for any remaining models that weren't in labels.yml
+  for(auto &filehash : fileHashInfo) {
+    ModelCell *model = NULL;
+    if(filehash.celladded == false) {
+      TRACE("  Created a modelcell for %s, not in labels.yml", filehash.name.c_str());
+      model = new ModelCell(filehash.name.c_str());
+      strcpy(model->modelFinfoHash, filehash.hash);
+      modelslist.push_back(model);
+      filehash.celladded = true;
+      model->_isDirty = true;
+    }
+  }
 
-  // Scan all models, see which ones need updating
-  for(const auto &model: modelslist) {
+  // Scan all models, to see if update needed
+  bool updatelabelsyml=false;
+  for(auto &model : modelslist) {
+    // Open and read each model if it's marked as dirty
     if(model->_isDirty) {
+      updatelabelsyml = true;
       modelsLabels.updateModelCell(model);
     }
   }
 
-  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
-#ifdef DEBUG_TIMERS
-  TRACE("  $$$$$$$$$$$  Time to scan all models that needed updating %lu us\r\n\r\n", debugTimers[debugTimerYamlScan].getLast());
-#endif
+  fileHashInfo.clear();
 
-  // Scan all models, see which ones need updating
-  for(const auto &label: modelsLabels.getLabels()) {
-    TRACE("LABEL Found %s", label.c_str());
+  // If any items differed save the file
+  if(updatelabelsyml == true) {
+    TRACE("LABELS.YML Needs to be saved");
+    // Remove any unused labels before save
+    modelsLabels.removeUnusedLabels();
+    modelslist.save();
+  } else {
+    TRACE("LABELS.YML MATCHES ---- Yeah!!");
   }
 
   if(!modelslist.currentModel) {
     TRACE("ERROR no Current Model Found");
-    // TODO
+    if(modelslist.size()) {
+      modelslist.setCurrentModel(modelslist.at(0));
+      TRACE("  - Set current model to first available");
+    } else {
+      TRACE("  - No Models Found, making a new one");
+      // No models found, make a new one
+      auto model = modelslist.addModel(createModel(), false);
+      modelslist.setCurrentModel(model);
+      modelslist.updateCurrentModelCell();
+    }
   }
-
-  // Save output
-  modelslist.save();
 
   return true;
 }
-#endif
+//#endif
 
 bool ModelsList::load(Format fmt)
 {
@@ -586,7 +604,20 @@ const char * ModelsList::save()
   FRESULT result = f_open(&file, LABELSLIST_YAML_PATH, FA_CREATE_ALWAYS | FA_WRITE);
 #endif
   if (result != FR_OK) return "Couldn't open labels.yml for writing";
-  f_puts("- Models:\r\n", &file);
+
+  // Save current selection
+  f_puts("- Labels:\r\n", &file);
+
+  modelsLabels.removeUnusedLabels();
+  std::string cursel = modelsLabels.getCurrentLabel();
+  LabelsVector lbls = modelsLabels.getLabels();
+  for(auto &lbl : lbls) {
+    f_printf(&file, "  - %s:\r\n", lbl.c_str());
+    if(lbl == cursel)
+      f_printf(&file, "    - selected: true\r\n", lbl.c_str());
+  }
+
+  f_puts("  Models:\r\n", &file);
   for (auto const& model : modelslist) {
     f_puts("  - ", &file);
     f_puts(model->modelFilename, &file);
@@ -632,15 +663,10 @@ const char * ModelsList::save()
       f_printf(&file, "      lastopen: %lld\r\n", (long long)model->lastOpened);
   }
 
-  // Save current selection
-  f_puts("\r\n  Labels:\r\n", &file);
-  f_puts("  - selection:", &file);
-  f_puts(modelsLabels.getCurrentLabel().c_str(), &file);
-  f_puts("\r\n", &file);
-
   f_puts("\r\n", &file);
   f_close(&file);
   modelsLabels._isDirty = false;
+
   return NULL;
 }
 
@@ -655,6 +681,21 @@ void ModelsList::setCurrentModel(ModelCell * cell)
   if (!currentModel->valid_rfData)
     currentModel->fetchRfData();
   */
+}
+
+void ModelsList::updateCurrentModelCell()
+{
+  auto mdl = std::find(begin(), end(), currentModel);
+  if(mdl != end()) {
+    strcpy((*mdl)->modelBitmap,g_model.header.bitmap);
+    (*mdl)->setModelName(g_model.header.name);
+    (*mdl)->setRfData(&g_model);
+    for(int i=0; i < NUM_MODULES; i++) {
+      //(*mdl)->setModelId(i, g_model.); // TODO
+    }
+  } else {
+    TRACE("ModelList Error - Can't find current model");
+  }
 }
 
 bool ModelsList::readNextLine(char * line, int maxlen)
@@ -688,7 +729,7 @@ void ModelsList::removeModel(ModelCell * model)
 {
   std::remove(modelslist.begin(), modelslist.end(), model);
   modelsLabels.removeModels(model);
-  save();
+  modelsLabels.setDirty();
 }
 
 bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len)

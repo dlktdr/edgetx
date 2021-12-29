@@ -96,58 +96,39 @@ void convertBinRadioData(const char * path, int version)
 #if defined(SIMU)
   RTOS_WAIT_MS(200);
 #endif
-////// TODO **** NEED TO SCAN MODELS HERE TOO IF INTENDING TO DELETE CATEGORIES :(
-  /*const char* error = nullptr;
-  for (auto category_ptr : modelslist.getCategories()) {
 
-    auto model_it = category_ptr->begin();
+  const char* error = nullptr;
+  for(auto model_it = modelslist.begin(); model_it != modelslist.end(); ++model_it) {
+    uint8_t model_version = 0;
+    auto* model_ptr = *model_it;
+    char* filename = model_ptr->modelFilename;
 
-    while(model_it != category_ptr->end()) {
+    TRACE("converting '%s' (%d/%d)", filename, converted, to_convert);
+    drawProgressScreen(filename, converted, to_convert);
 
-      uint8_t model_version = 0;
-      auto* model_ptr = *model_it;
-      char* filename = model_ptr->modelFilename;
+    // read only the version number (size=0)
+    error = readModelBin(filename, nullptr, 0, &model_version);
+    if (!error) {
+      // TODO: error handling
+      error = convertBinModelData(filename, model_version);
 
-      TRACE("converting '%s' (%d/%d)", filename, converted, to_convert);
-      drawProgressScreen(filename, converted, to_convert);
-
-      // read only the version number (size=0)
-      error = readModelBin(filename, nullptr, 0, &model_version);
-      if (!error) {
-        // TODO: error handling
-        error = convertBinModelData(filename, model_version);
-        ++model_it;
-
-        if (error) {
-          TRACE("ERROR converting '%s': %s", filename, error);
-          category_ptr->removeModel(model_ptr);
-        } else {
-          PartialModel partial;
-          memclear(&partial, sizeof(PartialModel));
-
-          readModelYaml(filename, reinterpret_cast<uint8_t*>(&partial), sizeof(partial));
-          model_ptr->setModelName(partial.header.name);
-        }
-      } else {
-        TRACE("ERROR reading '%s': %s", filename, error);
-
-        // remove that file from the models list
-        ++model_it;
-        category_ptr->removeModel(model_ptr);
+      if (error) {
+        TRACE("ERROR converting '%s': %s", filename, error);
       }
+    } else {
+      TRACE("ERROR reading '%s': %s", filename, error);
+    }
 
-      converted++;
+    converted++;
 
 #if defined(SIMU)
-      RTOS_WAIT_MS(200);
+    RTOS_WAIT_MS(200);
 #endif
-    }
-  }*/
+  }
 
 #if defined(SDCARD_YAML) || defined(STORAGE_MODELSLIST)
-  modelslist.save();
-  // trigger models list reload
   modelslist.clear();
+  modelslist.load();
 #endif
 }
 
@@ -243,6 +224,9 @@ bool eeConvert()
 
   // General Settings conversion
   int version = conversionVersionStart;
+
+  sdCheckAndCreateDirectory(RADIO_PATH);
+  sdCheckAndCreateDirectory(MODELS_PATH);
 
 #if STORAGE_CONVERSIONS < 220
   if (version == 219) {

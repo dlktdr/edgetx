@@ -25,7 +25,7 @@
 #include <algorithm>
 #include <stdint.h>
 #include <list>
-                                                                                                                                       #include <map>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -65,13 +65,13 @@ typedef union {
 class ModelCell
 {
   public:
-    char modelFilename[LEN_MODEL_FILENAME + 1];
-    char modelName[LEN_MODEL_NAME + 1] = {};
-    char modelFinfoHash[FILE_HASH_LENGTH + 1];
+    char modelFilename[LEN_MODEL_FILENAME + 1] = "";
+    char modelName[LEN_MODEL_NAME + 1] = "";
+    char modelFinfoHash[FILE_HASH_LENGTH + 1] = "";
 #if LEN_BITMAP_NAME > 0
     char modelBitmap[LEN_BITMAP_NAME];
 #endif
-    time_t lastOpened;
+    time_t lastOpened=0;
     bool _isDirty = true;
 
     bool             valid_rfData;
@@ -110,6 +110,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     int addLabel(const std::string &);
     bool addLabelToModel(const std::string &, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
+    void removeUnusedLabels();
     bool renameLabel(const std::string &from, const std::string &to);
     std::string getCurrentLabel() {return currentlabel;};
     void setCurrentLabel(const std::string &lbl) {currentlabel = lbl; setDirty();}
@@ -131,9 +132,8 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     LabelsVector labels; // Storage space for discovered labels
     std::string currentlabel = "";
 
-    int getIndexByLabel(std::string str)
+    int getIndexByLabel(const std::string &str)
     {
-      std::transform(str.begin(), str.end(), str.begin(), ::tolower);
       auto a = std::find(labels.begin(), labels.end(), str);
       return a == labels.end() ? -1 : a - labels.begin();
     }
@@ -178,6 +178,7 @@ public:
   void clear();
 
   void setCurrentModel(ModelCell * cell);
+  void updateCurrentModelCell();
 
   ModelCell * getCurrentModel() const
   {
@@ -198,6 +199,14 @@ public:
   uint8_t findNextUnusedModelId(uint8_t moduleIdx);
 
   void onNewModelCreated(ModelCell* cell, ModelData* model);
+
+  typedef struct {
+    std::string name;
+    char hash[FILE_HASH_LENGTH + 1];
+    bool curmodel=false;
+    bool celladded=false;
+  } filedat;
+  std::vector<filedat> fileHashInfo;
 
 protected:
   FIL file;

@@ -1304,7 +1304,7 @@ std::string getLabelString(ModelCell *curmod)
   int numModels = 0;
   for (auto &label : modelsLabels.getSelectedLabels(curmod)) {
     if (label.second) {
-      allLabels = allLabels + (numModels != 0 ? ", " : "") + label.first;
+      allLabels = allLabels + (numModels != 0 ? "," : "") + label.first;
       numModels++;
     }
   }
@@ -1337,52 +1337,26 @@ void ModelSetupPage::build(FormWindow * window)
 
   // Model labels
   new StaticText(window, grid.getLabelSlot(), "Labels", 0, COLOR_THEME_PRIMARY1);
-  labelTextButton = 
+  labelTextButton =
     new TextButton(window, grid.getFieldSlot(), getLabelString(curmod), [=] () {
       Menu *menu = new Menu(window, true);
-      for (auto &label: modelsLabels.getSelectedLabels(curmod)) {
-        menu->addLine(label.first, 
+      for (auto &label: modelsLabels.getLabels()) {
+        menu->addLine(label,
           [=] () {
-            if (!modelsLabels.isLabelSelected(label.first, curmod))
-              modelsLabels.addLabelToModel(label.first, curmod);
+            if (!modelsLabels.isLabelSelected(label, curmod))
+              modelsLabels.addLabelToModel(label, curmod);
             else
-              modelsLabels.removeLabelFromModel(label.first, curmod);
+              modelsLabels.removeLabelFromModel(label, curmod);
+            labelTextButton->setText(getLabelString(curmod));
+            strcpy(g_model.header.labels, getLabelString(curmod).c_str());
             SET_DIRTY();
-            modelslist.save();
-            labelTextButton->setText(getLabelString(curmod));            
           }, [=] () {
-            return modelsLabels.isLabelSelected(label.first, curmod);
+            return modelsLabels.isLabelSelected(label, curmod);
           });
       }
       return 0;
     });
 
-  // for(auto const &lbl : modelsLabels.getSelectedLabels(curmod)) {
-  //   new StaticText(window, grid.getLabelSlot(true), lbl.first, 0, COLOR_THEME_PRIMARY1);
-  //   new CheckBox(window, grid.getFieldSlot(), [=] {
-  //     return modelsLabels.isLabelSelected(lbl.first, curmod);
-  //   }, [=](int32_t newValue) {
-  //     // Remove a label from the model
-  //     if(!newValue) {
-  //       modelsLabels.removeLabelFromModel(lbl.first, curmod);
-  //       SET_DIRTY();
-  //       modelslist.save();
-  //       return;
-  //     // Add a label
-  //     }
-
-  //     if(modelsLabels.addLabelToModel(lbl.first, curmod)) {
-  //       SET_DIRTY();
-  //       modelslist.save();
-
-  //     // Unable to add the label
-  //     } else {
-  //       // TODO Popup a message.. too many labels
-  //       TRACE("TOO MANY");
-  //     }
-  //   });
-  //   grid.nextLine();
-  // }
   grid.nextLine();
 
   // Bitmap

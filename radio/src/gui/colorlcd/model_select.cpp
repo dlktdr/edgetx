@@ -67,55 +67,7 @@ class ModelButton : public Button
 
   void load()
   {
-#if defined(SDCARD_RAW)
-    uint8_t version;
-#endif
-
-    PACK(struct {
-      ModelHeader header;
-      TimerData timers[MAX_TIMERS];
-    })
-    partialModel;
     const char *error = nullptr;
-
-    if (strncmp(modelCell->modelFilename, g_eeGeneral.currModelFilename,
-                LEN_MODEL_FILENAME) == 0) {
-      memcpy(&partialModel.header, &g_model.header, sizeof(partialModel));
-#if defined(SDCARD_RAW)
-      version = EEPROM_VER;
-#endif
-    } else {
-#if defined(SDCARD_RAW)
-      error =
-          readModelBin(modelCell->modelFilename, (uint8_t *)&partialModel.header,
-                       sizeof(partialModel), &version);
-#else
-      error = readModel(modelCell->modelFilename,
-                        (uint8_t *)&partialModel.header, sizeof(partialModel));
-#endif
-    }
-
-    if (!error) {
-      if (modelCell->modelName[0] == '\0' &&
-          partialModel.header.name[0] != '\0') {
-
-#if defined(SDCARD_RAW)
-        if (version == 219) {
-          int len = (int)sizeof(partialModel.header.name);
-          char* str = partialModel.header.name;
-          for (int i=0; i < len; i++) {
-            str[i] = zchar2char(str[i]);
-          }
-          // Trim string
-          while(len > 0 && str[len-1]) {
-            if (str[len - 1] != ' ' && str[len - 1] != '\0') break;
-            str[--len] = '\0';
-          }
-        }
-#endif
-        modelCell->setModelName(partialModel.header.name);
-      }
-    }
 
     delete buffer;
     buffer = new BitmapBuffer(BMP_RGB565, width(), height());
@@ -128,7 +80,7 @@ class ModelButton : public Button
       buffer->drawText(width() / 2, height() / 2, "(Invalid Model)",
                        COLOR_THEME_SECONDARY1 | CENTERED);
     } else {
-      GET_FILENAME(filename, BITMAPS_PATH, partialModel.header.bitmap, "");
+      GET_FILENAME(filename, BITMAPS_PATH, modelCell->modelBitmap, "");
       const BitmapBuffer *bitmap = BitmapBuffer::loadBitmap(filename);
       if (bitmap) {
         buffer->drawScaledBitmap(bitmap, 0, 0, width(), height());
@@ -185,7 +137,7 @@ class ModelButton : public Button
 //-----------------------------------------------------------------------------
 
 ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
-    FormWindow(parent, rect), 
+    FormWindow(parent, rect),
   innerWindow(this, { 4, 4, rect.w - 8, rect.h - 8 })
 {
   update();
@@ -272,6 +224,7 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
         new ConfirmDialog(
             parent, STR_DELETE_MODEL,
             std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
+              // TODO -- Update list?
               modelslist.removeModel(model);
       });
     }
@@ -290,7 +243,7 @@ void ModelsPageBody::update(int selected)
   // TODO - Filter list by selected labels
 
   ModelButton* selectButton = nullptr;
-  ModelsVector models = selectedLabel == "Unlabeled" ?
+  ModelsVector models = selectedLabel == STR_UNLABELEDMODEL ?
     modelsLabels.getUnlabeledModels() :
     modelsLabels.getModelsByLabel(selectedLabel);
 
@@ -410,11 +363,10 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   rect_t r = {LCD_W - (BUTTON_WIDTH + 5), 6, BUTTON_WIDTH, BUTTON_HEIGHT };
   newButton = new TextButton(window, r, "New", [=] () {
     storageCheck(true);
-    auto model = modelslist.addModel("unlabeled", false);
-    model->setModelName(g_model.header.name);
+    auto model = modelslist.addModel(createModel(), false);
     modelslist.setCurrentModel(model);
-    modelslist.save();
-    mdlselector->update(modelslist.size() - 1);
+    modelslist.updateCurrentModelCell();
+    mdlselector->update(modelslist.size() - 1); // TODO.. foce to unlabeled category first?
     return 0;
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 
@@ -431,7 +383,7 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
   mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 10});
 
   auto labels = modelsLabels.getLabels();
-  labels.emplace_back("Unlabeled");
+  labels.emplace_back(STR_UNLABELEDMODEL);
   lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 },
     labels,
     [=] () {
