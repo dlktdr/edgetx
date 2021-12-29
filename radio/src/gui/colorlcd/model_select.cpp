@@ -418,6 +418,11 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
     return 0;
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 
+  r.x -= (BUTTON_WIDTH + 10);
+  auto newLabelButton = new TextButton(window, r, "New Label", [=] () {
+    return 0;
+  }, BUTTON_BACKGROUND | OPAQUE, textFont);
+
 }
 
 void ModelLabelsWindow::buildBody(FormWindow *window)
