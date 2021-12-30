@@ -100,11 +100,11 @@ typedef std::vector<ModelCell *> ModelsVector;
 
 /**
  * @brief ModelMap is a multimap of all models and their cooresponding
- * labels
+ *        labels.
  *
  */
 
-class ModelMap : protected std::multimap<int, ModelCell *>
+class ModelMap : protected std::multimap<uint16_t, ModelCell *>
 {
   public:
     ModelsVector getUnlabeledModels();
@@ -117,12 +117,13 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     bool addLabelToModel(const std::string &, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
     bool removeLabel(const std::string &);
+    bool moveLabelTo(unsigned current, unsigned newind);
     bool renameLabel(const std::string &from, const std::string &to);
     std::string getCurrentLabel() {return currentlabel;};
     void setCurrentLabel(const std::string &lbl) {currentlabel = lbl; setDirty();}
     void setDirty(bool save=false);
     bool isDirty() {return _isDirty;}
-    int size() {return std::multimap<int, ModelCell *>::size();}
+    int size() {return std::multimap<uint16_t, ModelCell *>::size();}
 
   protected:
     void updateModelCell(ModelCell *);
@@ -130,7 +131,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     void clear() {
       _isDirty=true;
       labels.clear();
-      std::multimap<int, ModelCell *>::clear();
+      std::multimap<uint16_t, ModelCell *>::clear();
     }
 
   private:

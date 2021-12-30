@@ -28,8 +28,6 @@
 
 #include <cstring>
 
-#define DEBUG_LABELS
-
 #ifdef DEBUG_LABELS
 #define TRACE_LABELS(...) TRACE(__VA_ARGS__)
 #else

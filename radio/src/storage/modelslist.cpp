@@ -347,6 +347,40 @@ bool ModelMap::removeLabel(const std::string &label)
 }
 
 /**
+ * @brief Moves a labels order
+ *
+ * @param current Index of the label to move
+ * @param toindex Index where to place the new label
+ * @return 1 Failure
+ * @return 0 Success
+ */
+
+bool ModelMap::moveLabelTo(unsigned curind, unsigned newind)
+{
+  if(curind == newind ||
+     curind >= labels.size() ||
+     newind >= labels.size())
+    return false;
+
+  if(labels.at(curind) == "")
+    return false;
+
+  // Update the multimap index
+  if(curind < newind) { // Move forward
+    std::rotate(labels.rend() - curind - 1, labels.rend() - curind, labels.rend() - newind);
+  } else { // Move back
+    std::rotate(labels.begin() + curind, labels.begin() + curind + 1, labels.begin() + newind + 1);
+  }
+
+  // Reload the new labels order
+  modelslist.save();
+  modelslist.clear();
+  modelslist.load();
+
+  return false;
+}
+
+/**
  * @brief Rename a label
  * @details Opens all models which have a label that matches the <from> string.
  *          Renames the label with <to> string and saves file.
@@ -688,10 +722,10 @@ bool ModelsList::loadYaml()
 
   // If any items differed save the file
   if(updatelabelsyml == true) {
-    TRACE("LABELS.YML Needs to be saved");
+    TRACE("LABELS.YML Wasn't in sync. Needs to be saved");
     modelslist.save();
   } else {
-    TRACE("LABELS.YML MATCHES ---- Yeah!!");
+    TRACE("LABELS.YML Is in Sync! No models were read");
   }
 
   if(!modelslist.currentModel) {
@@ -702,7 +736,7 @@ bool ModelsList::loadYaml()
     } else {
       TRACE("  - No Models Found, making a new one");
       // No models found, make a new one
-      auto model = modelslist.addModel(createModel(), false);
+      auto model = modelslist.addModel(createModel(), true);
       modelslist.setCurrentModel(model);
     }
   }
@@ -860,6 +894,15 @@ void ModelsList::updateCurrentModelCell()
     TRACE("ModelList Error - Can't find current model");
   }
 }
+
+/**
+ * @brief Reads a line from a file. Used by loadTxt
+ *
+ * @param line Storage for the read line
+ * @param maxlen maximum read length
+ * @return true Success
+ * @return false Failure
+ */
 
 bool ModelsList::readNextLine(char * line, int maxlen)
 {
