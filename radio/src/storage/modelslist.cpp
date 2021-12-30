@@ -320,13 +320,25 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
   return rv;
 }
 
-void ModelMap::removeUnusedLabels()
+/**
+ * @brief Removes a label
+ * @details Remove a label from the list, only if there are no models that have
+ *          the label selected
+ *
+ * @param label Label to be removed
+ * @return true Label wasn't found
+ * @return false Success
+ */
+
+bool ModelMap::removeLabel(const std::string &label)
 {
-  // Doesn't actually remove them but sets blank, keep indicies intact
-  // Won't be returned on getlabels call
-  for(auto &lbl : labels)
-    if(getModelsByLabel(lbl).size() == 0)
+  for(auto &lbl : labels) {
+    if(lbl == label && getModelsByLabel(lbl).size() == 0) {
       lbl = "";
+      return false;
+    }
+  }
+  return true;
 }
 
 /**

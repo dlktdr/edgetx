@@ -98,6 +98,12 @@ typedef std::vector<std::pair<int, ModelCell *>> ModelLabelsVector;
 typedef std::vector<std::string> LabelsVector;
 typedef std::vector<ModelCell *> ModelsVector;
 
+/**
+ * @brief ModelMap is a multimap of all models and their cooresponding
+ * labels
+ *
+ */
+
 class ModelMap : protected std::multimap<int, ModelCell *>
 {
   public:
@@ -110,7 +116,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     int addLabel(const std::string &);
     bool addLabelToModel(const std::string &, ModelCell *);
     bool removeLabelFromModel(const std::string &label, ModelCell *);
-    void removeUnusedLabels();
+    bool removeLabel(const std::string &);
     bool renameLabel(const std::string &from, const std::string &to);
     std::string getCurrentLabel() {return currentlabel;};
     void setCurrentLabel(const std::string &lbl) {currentlabel = lbl; setDirty();}
