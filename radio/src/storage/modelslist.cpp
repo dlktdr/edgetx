@@ -126,6 +126,11 @@ void ModelCell::setRfModuleData(uint8_t moduleIdx, ModuleData* modData)
 }
 
 //-----------------------------------------------------------------------------
+/**
+ * @brief Gets all models which don't have any labels selected
+ *
+ * @return ModelsVector vector<ModelCell>
+ */
 
 ModelsVector ModelMap::getUnlabeledModels()
 {
@@ -136,6 +141,13 @@ ModelsVector ModelMap::getUnlabeledModels()
   }
   return unlabeledModels;
 }
+
+/**
+ * @brief Returns all models that have a sepecified label
+ *
+ * @param lbl Label to search
+ * @return ModelsVector aka vector<ModelCell*> of all models belonging to a label
+ */
 
 ModelsVector ModelMap::getModelsByLabel(const std::string &lbl)
 {
@@ -150,6 +162,13 @@ ModelsVector ModelMap::getModelsByLabel(const std::string &lbl)
   return rv;
 }
 
+/**
+ * @brief Gets all labels that a model currently has selected
+ *
+ * @param mdl Model to search
+ * @return LabelsVector aka vector<string> of all labels selected by a model
+ */
+
 LabelsVector ModelMap::getLabelsByModel(ModelCell *mdl)
 {
   if(mdl == nullptr) return LabelsVector();
@@ -161,6 +180,14 @@ LabelsVector ModelMap::getLabelsByModel(ModelCell *mdl)
   }
   return rv;
 }
+
+/**
+ * @brief Get a map of all labels and their selection status
+ * @details Returns a map of all the labels and if they are selected in a model.
+ *
+ * @param cell ModelCell to search
+ * @return std::map<std::string, bool> Map Containing all labels with a boolean if they are selected
+ */
 
 std::map<std::string, bool> ModelMap::getSelectedLabels(ModelCell *cell)
 {
@@ -177,6 +204,15 @@ std::map<std::string, bool> ModelMap::getSelectedLabels(ModelCell *cell)
   return rval;
 }
 
+/**
+ * @brief Returns if a label is selected in the model
+ *
+ * @param label Label to search
+ * @param cell Model to search
+ * @return true Label is selected
+ * @return false Label not seleced OR label not found
+ */
+
 bool ModelMap::isLabelSelected(const std::string &label, ModelCell *cell)
 {
   auto lbm = getLabelsByModel(cell);
@@ -185,6 +221,12 @@ bool ModelMap::isLabelSelected(const std::string &label, ModelCell *cell)
   }
   return true;
 }
+
+/**
+ * @brief Returns a list of the current labels
+ *
+ * @return LabelsVector vector<string> of all labels
+ */
 
 LabelsVector ModelMap::getLabels()
 {
@@ -195,6 +237,17 @@ LabelsVector ModelMap::getLabels()
   }
   return capitalizedLabels;
 }
+
+/**
+ * @brief Adds a label
+ * @details  Checks if the label already exists. If it does it returns the
+ *           index to it. If label doesn't exist it adds it at the end of the
+ *           list and returns the new index
+ *           Won't allow creation of the special case label "Unlabeled" STR_UNLABELEDMODEL
+ *
+ * @param lbl Adds a label to the list
+ * @return int -1 on failure, label index on success
+ */
 
 int ModelMap::addLabel(const std::string &lbl)
 {
@@ -213,6 +266,15 @@ int ModelMap::addLabel(const std::string &lbl)
   }
   return ind;
 }
+
+/**
+ * @brief Adds a label to a model
+ *
+ * @param lbl Label to be added
+ * @param cell Model to add the label
+ * @return true Couldn't add label, not enough memory available in labels string
+ * @return false Success
+ */
 
 bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell)
 {
@@ -233,6 +295,15 @@ bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell)
   insert(std::pair<int, ModelCell *>(labelindex,cell));
   return true;
 }
+
+/**
+ * @brief Removes a label from a model
+ *
+ * @param label Label to be removed
+ * @param cell Model to remove the label from
+ * @return true Couldn't find the label
+ * @return false Success
+ */
 
 bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 {
@@ -257,6 +328,20 @@ void ModelMap::removeUnusedLabels()
     if(getModelsByLabel(lbl).size() == 0)
       lbl = "";
 }
+
+/**
+ * @brief Rename a label
+ * @details Opens all models which have a label that matches the <from> string.
+ *          Renames the label with <to> string and saves file.
+ *          If working on the current model it replaces the label string in
+ *            g_model and saves the current copy in memory.
+ *
+ * @param from Label to search
+ * @param to Replacement label
+ * @return true failure Label couldn't be found, YAML couldn't be read
+ * @return false success
+ */
+
 
 bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 {
@@ -330,13 +415,20 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 
   free(modeldata);
 
-  // Issue a rescan all of all models. This will cause a decent delay
-  // depending how many files were renamed above.
+  // Issue a rescan all of all models.
   modelslist.clear();
   modelslist.load();
 
   return fault;
 }
+
+/**
+ * @brief Removes all models from the map
+ *
+ * @param cell Model to remove
+ * @return true Failure finding a model
+ * @return false Success
+ */
 
 bool ModelMap::removeModels(ModelCell *cell)
 {
@@ -349,6 +441,11 @@ bool ModelMap::removeModels(ModelCell *cell)
   }
   return rv;
 }
+
+/**
+ * @brief Sets the ModelMap to dirty.
+ * @details Causes labels.yml to be written after a delay in sdcard_common.cpp->storageCheck()
+ */
 
 void ModelMap::setDirty()
 {
@@ -410,10 +507,12 @@ bool ModelsList::loadTxt()
   return false;
 }
 
-//#if defined(SDCARD_YAML)
+#if defined(SDCARD_YAML)
 
-/* updateModelCell
- *     Opens a YAML file, reads the data and updates the ModelCell
+ /**
+  * @brief Opens a YAML file, reads the data and updates the ModelCell
+  *
+  * @param cell Model to update
   */
 
 void ModelMap::updateModelCell(ModelCell *cell)
@@ -446,7 +545,13 @@ void ModelMap::updateModelCell(ModelCell *cell)
   free(model);
 }
 
-// Simple Hash of the Files
+/**
+ * @brief Creates a Hash based on the file information
+ *
+ * @param buffer Buffer to store the output data
+ * @param finfo Files info handle
+ * @return char* Pointer to buffer supplied
+ */
 
 char *FILInfoToHexStr(char buffer[17], FILINFO *finfo)
 {
@@ -461,6 +566,13 @@ char *FILInfoToHexStr(char buffer[17], FILINFO *finfo)
   }
   return buffer;
 }
+
+/**
+ * @brief Loads the Labels and Models from the labels.yml file
+ *
+ * @return true On success
+ * @return false On failure
+ */
 
 bool ModelsList::loadYaml()
 {
@@ -570,7 +682,15 @@ bool ModelsList::loadYaml()
 
   return true;
 }
-//#endif
+#endif
+
+/**
+ * @brief Called to load the model data from file
+ *
+ * @param fmt Format::txt - Opens models.txt file, Format::yaml_txt - Opens labels.yml
+ * @return true on success
+ * @return false on failure
+ */
 
 bool ModelsList::load(Format fmt)
 {
@@ -599,6 +719,13 @@ bool ModelsList::load(Format fmt)
   loaded = true;
   return res;
 }
+
+/**
+ * @brief Writes labels.yml file
+ *
+ * @return const char* NULL on success
+ * @return const char* Error String on failure
+ */
 
 const char * ModelsList::save()
 {
@@ -674,18 +801,23 @@ const char * ModelsList::save()
   return NULL;
 }
 
+/**
+ * @brief set the currently loaded model.
+ *
+ * @param cell Model to set as current
+ */
+
 void ModelsList::setCurrentModel(ModelCell * cell)
 {
   currentModel = cell;
   cell->lastOpened = (long long)time(NULL);
   modelsLabels.setDirty();
-
-  /// TODO
-  /*
-  if (!currentModel->valid_rfData)
-    currentModel->fetchRfData();
-  */
 }
+
+/**
+ * @brief Takes the current g_model data in memory and updates the ModelCell
+ *        data to match.
+ */
 
 void ModelsList::updateCurrentModelCell()
 {
