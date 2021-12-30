@@ -200,8 +200,15 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
                             MODELS_PATH)) {
         sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
                     MODELS_PATH);
-        modelslist.addModel(duplicatedFilename);
-        update(index);
+        ModelCell *newmodel = modelslist.addModel(duplicatedFilename);
+        // Duplicated model should have same labels as orig. Add them
+        for(const auto &lbl : modelsLabels.getLabelsByModel(model)) {
+          modelsLabels.addLabelToModel(lbl, newmodel);
+        }
+        // Copy name & new filename
+        strcpy(newmodel->modelName, model->modelName);
+        strcpy(newmodel->modelFilename,duplicatedFilename);
+        update();
       } else {
         POPUP_WARNING("Invalid File");
       }
