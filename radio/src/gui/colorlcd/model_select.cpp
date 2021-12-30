@@ -422,10 +422,11 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
     [=] () {
       new NewLabelDialog(window, 
         [=] (std::string label) {
-          modelsLabels.addLabel(label);
-          auto labels = getLabels();
-          lblselector->setNames(labels);
-          mdlselector->setLabel(label); // Update the list
+          if(modelsLabels.addLabel(label) >= 0) {
+            auto labels = getLabels();
+            lblselector->setNames(labels);
+            mdlselector->setLabel(label); // Update the list
+          }
         });
       return 0;
     }, BUTTON_BACKGROUND | OPAQUE, textFont);

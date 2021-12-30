@@ -198,6 +198,10 @@ LabelsVector ModelMap::getLabels()
 
 int ModelMap::addLabel(const std::string &lbl)
 {
+  if(lbl.size() == 0)
+    return -1;
+  if(lbl == STR_UNLABELEDMODEL)
+    return -1;
   // Add a new label if if doesn't already exist in the list
   // Returns the index to the label
   int ind = getIndexByLabel(lbl);
