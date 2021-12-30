@@ -34,14 +34,14 @@
 #if LCD_W > LCD_H
 constexpr int MODEL_CELLS_PER_LINE = 2;
 constexpr int BUTTON_HEIGHT = 30;
-constexpr int BUTTON_WIDTH  = 75;
+constexpr int BUTTON_WIDTH  = 85;
 constexpr LcdFlags textFont = FONT(STD);
 constexpr rect_t detailsDialogRect = {50, 50, 400, 100};
 constexpr int labelWidth = 150;
 #else
 constexpr int MODEL_CELLS_PER_LINE = 2;
 constexpr int BUTTON_HEIGHT = 30;
-constexpr int BUTTON_WIDTH  = 65;
+constexpr int BUTTON_WIDTH  = 75;
 constexpr LcdFlags textFont = FONT(XS);
 constexpr rect_t detailsDialogRect = {5, 50, LCD_W - 10, 340};
 constexpr int labelWidth = 120;
@@ -295,21 +295,22 @@ void ModelsPageBody::update(int selected)
 }
 
 //-----------------------------------------------------------------------------
-
-class NewLabelDialog : public Dialog
+class LabelDialog : public Dialog
 {
   public:
-    NewLabelDialog(Window *parent, std::function<void (std::string label)> saveHandler = nullptr) :
-      Dialog(parent, "Enter New Label", detailsDialogRect),
-      saveHandler(saveHandler),
-      label("")
+    LabelDialog(Window *parent, char *label, std::function<void (std::string label)> saveHandler = nullptr) :
+      Dialog(parent, "Enter Label", detailsDialogRect),
+      saveHandler(saveHandler)
     {
+      strncpy(this->label, label, MAX_LABEL_SIZE);
+      this->label[MAX_LABEL_SIZE] = '\0';
+
       FormGridLayout grid(detailsDialogRect.w);
       grid.setLabelWidth(labelWidth);
       grid.spacer(8);
 
       new StaticText(&content->form, grid.getLabelSlot(), "Label", 0, COLOR_THEME_PRIMARY1);
-      new TextEdit(&content->form, grid.getFieldSlot(), label, 20);
+      new TextEdit(&content->form, grid.getFieldSlot(), label, MAX_LABEL_SIZE);
       grid.nextLine();
 
       rect_t r = {detailsDialogRect.w - (BUTTON_WIDTH + 5), grid.getWindowHeight() + 5, BUTTON_WIDTH, BUTTON_HEIGHT };
@@ -328,8 +329,7 @@ class NewLabelDialog : public Dialog
 
   protected:
     std::function<void (std::string label)> saveHandler;
-    char label[20];
-
+    char label[MAX_LABEL_SIZE+1];
 };
 
 ModelLabelsWindow::ModelLabelsWindow() :
@@ -421,7 +421,8 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   r.x -= (BUTTON_WIDTH + 10);
   new TextButton(window, r, "New Label",
     [=] () {
-      new NewLabelDialog(window,
+      tmpLabel[0] = '\0';
+      new LabelDialog(window, tmpLabel,
         [=] (std::string label) {
           if(modelsLabels.addLabel(label) >= 0) {
             auto labels = getLabels();
@@ -431,7 +432,6 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
         });
       return 0;
     }, BUTTON_BACKGROUND | OPAQUE, textFont);
-
 }
 
 void ModelLabelsWindow::buildBody(FormWindow *window)
@@ -447,6 +447,33 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
       auto label = getLabels()[value];
       mdlselector->setLabel(label); // Update the list
     });
+  lblselector->setLongPressHandler([=] (event_t event) {
+    Menu * menu = new Menu(window);
+    menu->addLine("Rename Label", [=] () {
+      auto oldLabel = getLabels()[lblselector->getSelected()];
+      strncpy(tmpLabel, oldLabel.c_str(), MAX_LABEL_SIZE);
+      tmpLabel[MAX_LABEL_SIZE] = '\0';
+
+      new LabelDialog(window, tmpLabel,
+        [=] (std::string newLabel) {
+          modelsLabels.renameLabel(oldLabel, newLabel);
+          auto labels = getLabels();
+          lblselector->setNames(labels);
+          mdlselector->setLabel(newLabel); // Update the list
+        });
+      return 0;
+    });
+    menu->addLine("Delete Label", [=] () {
+      auto labelToDelete = getLabels()[lblselector->getSelected()];
+      if (confirmationDialog("Delete Label", labelToDelete.c_str())) {
+        modelsLabels.removeLabel(labelToDelete);
+        auto labels = getLabels();
+        lblselector->setNames(labels);
+        mdlselector->setLabel(labels[lblselector->getSelected()]);
+      }
+      return 0;
+    });
+  });
 
   /*auto sortby = new Choice(this, {300,5,100,35} , 0 , 2, [=]{});
   sortby->addValue("Name");

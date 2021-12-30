@@ -28,6 +28,7 @@
 #include <algorithm>
 #include "listbox.h"
 
+constexpr int MAX_LABEL_SIZE = 30;
 
 class ModelSelectMenu: public TabsGroup {
   public:
@@ -87,6 +88,7 @@ class ModelLabelsWindow : public Page {
 #endif
 
   protected:
+    char tmpLabel[MAX_LABEL_SIZE + 1];
     ListBox *lblselector;
     ModelsPageBody *mdlselector;
     TextButton *newButton;
