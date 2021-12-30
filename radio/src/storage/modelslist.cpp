@@ -323,10 +323,12 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 /**
  * @brief Removes a label
  * @details Remove a label from the list, only if there are no models that have
- *          the label selected
+ *          the label selected. The label isn't actually removed only set blank
+ *          this is to keep the proper index of the multimap.
+ *          On reboot it will be re-synced again.
  *
  * @param label Label to be removed
- * @return true Label wasn't found
+ * @return true Label wasn't found or not empty
  * @return false Success
  */
 
@@ -447,9 +449,13 @@ bool ModelMap::removeModels(ModelCell *cell)
   bool rv=true;
   // Erase items that match in the map
   for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
-    itr = (itr->second == cell) ? erase(itr) : std::next(itr);
-    setDirty();
-    rv = false;
+    if(itr->second == cell) {
+      itr = erase(itr);
+      setDirty();
+      rv = false;
+    } else {
+      itr = std::next(itr);
+    }
   }
   return rv;
 }
@@ -639,7 +645,6 @@ bool ModelsList::loadYaml()
       if (bytes_read == 0) break;
       if (yp.parse(line, bytes_read) != YamlParser::CONTINUE_PARSING) break;
     }
-
     f_close(&file);
   }
 
@@ -871,11 +876,48 @@ ModelCell * ModelsList::addModel(const char * name, bool save)
   return result;
 }
 
-void ModelsList::removeModel(ModelCell * model)
+/**
+ * @brief Removes a model from the list and the modelmap.
+ * @details The models filename is moved into the sub folder DELETED_MODELS_PATH
+ *          rather than deleting the model. If left in current location would
+ *          be re-scanned on boot
+ *
+ * @param model Model to be deleted
+ * @return false Successfully removed
+ * @return true Failure
+ */
+
+bool ModelsList::removeModel(ModelCell * model)
 {
-  std::remove(modelslist.begin(), modelslist.end(), model);
+  erase(std::remove(begin(), end(), model), end());
   modelsLabels.removeModels(model);
-  modelsLabels.setDirty();
+
+  // Create deleted folder if it doesn't exist
+  DIR deletedFolder;
+  FRESULT result = f_opendir(&deletedFolder, DELETED_MODELS_PATH);
+  if (result != FR_OK) {
+    if (result == FR_NO_PATH)
+      result = f_mkdir(DELETED_MODELS_PATH);
+    if (result != FR_OK) {
+      TRACE("Unable to create deleted models folder");
+      return true;
+    }
+  }
+
+  // Move model into deleted folder. If not moved will be re-added on next reboot
+  if(!sdCopyFile(model->modelFilename, MODELS_PATH, model->modelFilename, DELETED_MODELS_PATH)) {
+    char curFilename[sizeof(MODELS_PATH) + LEN_MODEL_FILENAME + 2] = "";
+    strcat(curFilename, MODELS_PATH PATH_SEPARATOR);
+    strcat(curFilename, model->modelFilename);
+    TRACE("Deleting Model %s", model->modelFilename);
+
+    if(f_unlink(curFilename) != FR_OK) {
+      TRACE("Unable to delete file");
+      return true;
+    }
+  }
+
+  return false;
 }
 
 bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len)

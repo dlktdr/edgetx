@@ -34,6 +34,7 @@ extern FIL g_oLogFile;
 #define PATH_SEPARATOR      "/"
 #define ROOT_PATH           PATH_SEPARATOR
 #define MODELS_PATH         ROOT_PATH "MODELS"      // no trailing slash = important
+#define DELETED_MODELS_PATH MODELS_PATH PATH_SEPARATOR "DELETED"
 #define RADIO_PATH          ROOT_PATH "RADIO"       // no trailing slash = important
 #define LOGS_PATH           ROOT_PATH "LOGS"
 #define SCREENSHOTS_PATH    ROOT_PATH "SCREENSHOTS"

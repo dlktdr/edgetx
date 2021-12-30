@@ -199,7 +199,7 @@ public:
   bool readNextLine(char * line, int maxlen);
 
   ModelCell * addModel(const char * name, bool save=true);
-  void removeModel(ModelCell * model);
+  bool removeModel(ModelCell * model);
 
   bool isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len);
   uint8_t findNextUnusedModelId(uint8_t moduleIdx);

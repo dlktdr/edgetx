@@ -234,9 +234,10 @@ void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int inde
       menu->addLine(STR_DELETE_MODEL, [=]() {
         new ConfirmDialog(
             parent, STR_DELETE_MODEL,
-            std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {});
-              // TODO -- Update list?
+            std::string(model->modelName, sizeof(model->modelName)).c_str(), [=]() {
               modelslist.removeModel(model);
+              update();
+            });
       });
     }
     return 1;
@@ -418,9 +419,9 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 
   r.x -= (BUTTON_WIDTH + 10);
-  new TextButton(window, r, "New Label", 
+  new TextButton(window, r, "New Label",
     [=] () {
-      new NewLabelDialog(window, 
+      new NewLabelDialog(window,
         [=] (std::string label) {
           if(modelsLabels.addLabel(label) >= 0) {
             auto labels = getLabels();
