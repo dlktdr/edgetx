@@ -120,7 +120,7 @@ class ModelMap : protected std::multimap<int, ModelCell *>
     bool renameLabel(const std::string &from, const std::string &to);
     std::string getCurrentLabel() {return currentlabel;};
     void setCurrentLabel(const std::string &lbl) {currentlabel = lbl; setDirty();}
-    void setDirty();
+    void setDirty(bool save=false);
     bool isDirty() {return _isDirty;}
     int size() {return std::multimap<int, ModelCell *>::size();}
 

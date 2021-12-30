@@ -337,6 +337,7 @@ bool ModelMap::removeLabel(const std::string &label)
   for(auto &lbl : labels) {
     if(lbl == label && getModelsByLabel(lbl).size() == 0) {
       lbl = "";
+      setDirty();
       return false;
     }
   }
@@ -427,6 +428,14 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
     }
   }
 
+  // Rename the label
+  for(auto &lbl: labels) {
+    if(lbl == from) {
+      lbl = to;
+      setDirty(true);
+    }
+  }
+
   free(modeldata);
 
   // Issue a rescan all of all models.
@@ -465,10 +474,11 @@ bool ModelMap::removeModels(ModelCell *cell)
  * @details Causes labels.yml to be written after a delay in sdcard_common.cpp->storageCheck()
  */
 
-void ModelMap::setDirty()
+void ModelMap::setDirty(bool save)
 {
   _isDirty = true;
   storageDirty(EE_LABELS);
+  if(save) storageCheck(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -865,6 +875,13 @@ bool ModelsList::readNextLine(char * line, int maxlen)
   return false;
 }
 
+/**
+ * @brief Creates a new ModelCell
+ *
+ * @param name Model Name
+ * @param save True Update yaml right away
+ * @return ModelCell* New Model
+ */
 
 ModelCell * ModelsList::addModel(const char * name, bool save)
 {
