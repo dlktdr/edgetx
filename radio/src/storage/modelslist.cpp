@@ -334,6 +334,8 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 
 bool ModelMap::removeLabel(const std::string &label)
 {
+  // Remove all the labels
+  renameLabel(label, "");
   for(auto &lbl : labels) {
     if(lbl == label && getModelsByLabel(lbl).size() == 0) {
       lbl = "";
@@ -357,10 +359,9 @@ bool ModelMap::removeLabel(const std::string &label)
  * @return false success
  */
 
-
 bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 {
-  if(from == "" || to == "")
+  if(from == "")
     return true;
 
   ModelData *modeldata = (ModelData*)malloc(sizeof(ModelData));
@@ -410,6 +411,8 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
     bool comma=false;
     modeldata->header.labels[0] = '\0';
     for(auto lbl: lbls) {
+      if(lbl == "")
+        continue;
       if(comma)
         strcat(modeldata->header.labels, ",");
       strcat(modeldata->header.labels, lbl.c_str());

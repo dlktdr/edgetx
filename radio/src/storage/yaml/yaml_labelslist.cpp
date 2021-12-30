@@ -133,7 +133,7 @@ static bool find_node(void* ctx, char* buf, uint8_t len)
 
     if(mi->level == labelslist_iter::LabelsRoot && strcasecmp(mi->current_attr,"models") == 0) {
       TRACE_LABELS("Forced root");
-      mi->level = labelslist_iter::LabelsRoot;
+      mi->level = labelslist_iter::ModelsRoot;
       TRACE_LABELS("YAML New Level %u", mi->level);
     }
 
