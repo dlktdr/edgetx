@@ -192,13 +192,13 @@ LabelsVector ModelMap::getLabelsByModel(ModelCell *mdl)
 std::map<std::string, bool> ModelMap::getSelectedLabels(ModelCell *cell)
 {
   std::map<std::string, bool> rval;
-  // Loop through all labels and add to the map default to false
-  for(auto lbl : labels) {
-      rval[lbl] = false;
+  for(auto lbl : labels) { // Add all labels
+    if(lbl == "")
+      continue;
+    rval[lbl] = false;
   }
-  // Loop through all labels selected by the model, set them true
   LabelsVector modlbl = getLabelsByModel(cell);
-  for(const auto& ml : modlbl) {
+  for(const auto& ml : modlbl) { // Set to true if selected by the model
     rval[ml] = true;
   }
   return rval;
@@ -230,12 +230,12 @@ bool ModelMap::isLabelSelected(const std::string &label, ModelCell *cell)
 
 LabelsVector ModelMap::getLabels()
 {
-  LabelsVector capitalizedLabels;
+  LabelsVector rv;
   for (auto &label : labels) {
     if(label.size() > 0)
-      capitalizedLabels.emplace_back(label);
+      rv.emplace_back(label);
   }
-  return capitalizedLabels;
+  return rv;
 }
 
 /**
@@ -287,13 +287,13 @@ bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell)
   sz += lbl.size() + 1; // New label + ','
   if(sz > LABELS_LENGTH - 1) {
     TRACE("Cannot add the %s label to the model. Too many labels", lbl.c_str());
-    return false;
+    return true;
   }
 
   setDirty();
   int labelindex = addLabel(lbl);
   insert(std::pair<int, ModelCell *>(labelindex,cell));
-  return true;
+  return false;
 }
 
 /**
@@ -309,13 +309,13 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
 {
   int lblind=getIndexByLabel(label);
   if(lblind < 0)
-    return false;
-  bool rv=false;
+    return true;
+  bool rv=true;
   // Erase items that match in the map
   for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
     itr = (itr->first == lblind && itr->second == cell) ? erase(itr) : std::next(itr);
     setDirty();
-    rv = true;
+    rv = false;
   }
   return rv;
 }
@@ -444,12 +444,12 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 
 bool ModelMap::removeModels(ModelCell *cell)
 {
-  bool rv=false;
+  bool rv=true;
   // Erase items that match in the map
   for (ModelMap::const_iterator itr = cbegin() ; itr != cend() ; ) {
     itr = (itr->second == cell) ? erase(itr) : std::next(itr);
     setDirty();
-    rv = true;
+    rv = false;
   }
   return rv;
 }
@@ -671,8 +671,6 @@ bool ModelsList::loadYaml()
   // If any items differed save the file
   if(updatelabelsyml == true) {
     TRACE("LABELS.YML Needs to be saved");
-    // Remove any unused labels before save
-    modelsLabels.removeUnusedLabels();
     modelslist.save();
   } else {
     TRACE("LABELS.YML MATCHES ---- Yeah!!");
@@ -688,7 +686,6 @@ bool ModelsList::loadYaml()
       // No models found, make a new one
       auto model = modelslist.addModel(createModel(), false);
       modelslist.setCurrentModel(model);
-      modelslist.updateCurrentModelCell();
     }
   }
 
@@ -751,7 +748,6 @@ const char * ModelsList::save()
   // Save current selection
   f_puts("- Labels:\r\n", &file);
 
-  modelsLabels.removeUnusedLabels();
   std::string cursel = modelsLabels.getCurrentLabel();
   LabelsVector lbls = modelsLabels.getLabels();
   for(auto &lbl : lbls) {
@@ -823,6 +819,7 @@ void ModelsList::setCurrentModel(ModelCell * cell)
 {
   currentModel = cell;
   cell->lastOpened = (long long)time(NULL);
+  updateCurrentModelCell();
   modelsLabels.setDirty();
 }
 
@@ -868,6 +865,7 @@ ModelCell * ModelsList::addModel(const char * name, bool save)
 {
   if(name == nullptr) return nullptr;
   ModelCell * result = new ModelCell(name);
+  strcpy(result->modelFilename, name);
   push_back(result);
   if (save) this->save();
   return result;
