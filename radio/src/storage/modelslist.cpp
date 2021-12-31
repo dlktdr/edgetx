@@ -541,6 +541,13 @@ void ModelsList::clear()
   init();
 }
 
+/**
+ * @brief Load and parse the models.txt file
+ *
+ * @return true On Success
+ * @return false On Failure
+ */
+
 bool ModelsList::loadTxt()
 {
   char line[LEN_MODELS_IDX_LINE+1];
@@ -985,6 +992,42 @@ bool ModelsList::removeModel(ModelCell * model)
   return false;
 }
 
+/**
+ * @brief Moves a model in the list for customization of order
+ *
+ * @param curindex Index of the model to move
+ * @param toindex Destination index of the model
+ * @return true Failure
+ * @return false Success
+ */
+
+bool ModelsList::moveModelTo(unsigned curindex, unsigned toindex)
+{
+  if(curindex == toindex ||
+    curindex >= size() ||
+    toindex >= size())
+  return true;
+
+  if(curindex < toindex) { // Move forward
+    std::rotate(rend() - curindex - 1, rend() - curindex, rend() - toindex);
+  } else { // Move back
+    std::rotate(begin() + curindex, begin() + curindex + 1, begin() + toindex + 1);
+  }
+
+  modelsLabels.setDirty();
+  return false;
+}
+
+/**
+ * @brief Checks if a models RF module has a unique id
+ *
+ * @param moduleIdx Module number 0 <-> NUM_MODULES
+ * @param warn_buf Buffer to store the warning string
+ * @param warn_buf_len Length of buffer
+ * @return true ID is unique
+ * @return false ID is used
+ */
+
 bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len)
 {
   ModelCell* modelCell = modelslist.getCurrentModel();
@@ -1047,6 +1090,14 @@ bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_
   return !hit_found;
 }
 
+/**
+ * @brief Finds the next free RF Module ID
+ *
+ * @param moduleIdx RF Module to search (Internal/External) 0 <-> NUM_MODULES
+ * @return 0 No unused ID found
+ * @return uint8_t Next free ID
+ */
+
 uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
 {
   ModelCell * modelCell = modelslist.getCurrentModel();
@@ -1088,14 +1139,4 @@ uint8_t ModelsList::findNextUnusedModelId(uint8_t moduleIdx)
 
   // failed finding something...
   return 0;
-}
-
-void ModelsList::onNewModelCreated(ModelCell* cell, ModelData* model)
-{
-  cell->setModelName(model->header.name);
-  cell->setRfData(model);
-
-  uint8_t new_id = findNextUnusedModelId(INTERNAL_MODULE);
-  model->header.modelId[INTERNAL_MODULE] = new_id;
-  cell->setModelId(INTERNAL_MODULE, new_id);
 }

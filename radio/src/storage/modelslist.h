@@ -123,7 +123,6 @@ class ModelMap : protected std::multimap<uint16_t, ModelCell *>
     void setCurrentLabel(const std::string &lbl) {currentlabel = lbl; setDirty();}
     void setDirty(bool save=false);
     bool isDirty() {return _isDirty;}
-    int size() {return std::multimap<uint16_t, ModelCell *>::size();}
 
   protected:
     void updateModelCell(ModelCell *);
@@ -201,11 +200,10 @@ public:
 
   ModelCell * addModel(const char * name, bool save=true);
   bool removeModel(ModelCell * model);
+  bool moveModelTo(unsigned curindex, unsigned toindex);
 
   bool isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_buf_len);
   uint8_t findNextUnusedModelId(uint8_t moduleIdx);
-
-  void onNewModelCreated(ModelCell* cell, ModelData* model);
 
   typedef struct {
     std::string name;
