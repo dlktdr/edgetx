@@ -30,6 +30,8 @@
 
 constexpr int MAX_LABEL_SIZE = 30;
 
+class ModelButton;
+
 class ModelSelectMenu: public TabsGroup {
   public:
     ModelSelectMenu();
@@ -64,7 +66,7 @@ class ModelsPageBody : public FormWindow
 
   protected:
     FormWindow innerWindow;
-    void initPressHandler(Button *button, ModelCell *model, int index);
+    void initPressHandlers(ModelButton *button, ModelCell *model, int index);
     std::string selectedLabel;
     std::function<void(void)> getCreateModelAction()
     {
@@ -92,6 +94,7 @@ class ModelLabelsWindow : public Page {
     ListBox *lblselector;
     ModelsPageBody *mdlselector;
     TextButton *newButton;
+    TextButton *newLabelButton;
     std::string currentLabel;
 
     LabelsVector getLabels()

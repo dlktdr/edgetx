@@ -27,9 +27,16 @@
 #include "opentx.h"
 #include "listbox.h"
 
+inline tmr10ms_t getTicks()
+{
+  return g_tmr10ms;
+}
+
 #define LABELS_WIDTH 90
 #define LABELS_LEFT 5
 #define LABELS_TOP (60)
+
+constexpr int LONG_PRESS_10MS = 40;
 
 #if LCD_W > LCD_H
 constexpr int MODEL_CELLS_PER_LINE = 2;
@@ -62,12 +69,85 @@ class ModelButton : public Button
       Button(parent, rect), modelCell(modelCell)
   {
     load();
+#if defined(HARDWARE_TOUCH)
+    duration10ms = 0;
+#endif
   }
 
   ~ModelButton()
   {
     if (buffer) { delete buffer; }
   }
+
+#if defined(HARDWARE_KEYS)
+  void onEvent(event_t event) override
+  {
+    switch (event) {
+      case EVT_KEY_LONG(KEY_ENTER):
+        if (longPressHandler) {
+          killEvents(event);
+          longPressHandler();
+        }
+        break;
+
+      case EVT_KEY_FIRST(KEY_ENTER): // eat this because we dont want button to take action
+        break;
+      case EVT_KEY_BREAK(KEY_ENTER):
+        onPress();
+        break;
+        
+      default:
+        Button::onEvent(event);
+    }
+  }
+#endif
+
+#if defined(HARDWARE_TOUCH)
+  bool onTouchStart(coord_t x, coord_t y) override
+  {
+    if (duration10ms == 0) {
+      duration10ms = getTicks();
+    }
+    captureWindow(this);
+
+    return Button::onTouchStart(x, y);
+  }
+
+  bool onTouchEnd(coord_t x, coord_t y) override
+  {
+    duration10ms = 0;
+    if (!longPressed)
+      return Button::onTouchEnd(x, y);
+    else {
+      longPressed = false;
+      return true;
+    }
+  }
+
+
+  bool isLongPress()
+  {
+    unsigned int curTimer = getTicks();
+    return (duration10ms != 0 && curTimer - duration10ms > LONG_PRESS_10MS);
+  }
+
+  void checkEvents() override
+  {
+    Button::checkEvents();
+
+    if (isLongPress()) {
+      if (longPressHandler) {
+        longPressHandler();
+        killAllEvents();
+        duration10ms = 0;
+        longPressed = true;
+        return;
+      }
+    }
+
+
+  }
+#endif
 
   void load()
   {
@@ -96,6 +176,11 @@ class ModelButton : public Button
     }
   }
 
+  void setLongPressHandler(std::function<void ()> handler)
+  {
+    longPressHandler = std::move(handler);
+  }
+
   void paint(BitmapBuffer *dc) override
   {
     FormField::paint(dc);
@@ -115,7 +200,7 @@ class ModelButton : public Button
       //   textColor = COLOR_THEME_PRIMARY2;
       // }
       // else {
-        dc->drawFilledRect(0, 0, width(), 20, SOLID, COLOR_THEME_PRIMARY2, 5);
+        dc->drawFilledRect(0, 0, width(), 20, SOLID, COLOR_THEME_PRIMARY2);
         textColor = COLOR_THEME_SECONDARY1;
       // }
 
@@ -136,6 +221,11 @@ class ModelButton : public Button
  protected:
   ModelCell *modelCell;
   BitmapBuffer *buffer = nullptr;
+#if defined(HARDWARE_TOUCH)
+  bool longPressed = false;
+  std::function<void ()> longPressHandler = nullptr;
+  uint32_t duration10ms;
+#endif
 };
 
 //-----------------------------------------------------------------------------
@@ -173,8 +263,23 @@ void ModelsPageBody::paint(BitmapBuffer *dc)
   dc->drawSolidRect(0, getScrollPositionY(), rect.w, rect.h, 2, COLOR_THEME_FOCUS);
 }
 
-void ModelsPageBody::initPressHandler(Button *button, ModelCell *model, int index)
+void ModelsPageBody::initPressHandlers(ModelButton *button, ModelCell *model, int index)
 {
+  button->setLongPressHandler([=] () {
+    Menu *menu = new Menu(this, true);
+    for (auto &label: modelsLabels.getLabels()) {
+      menu->addLine(label,
+        [=] () {
+          if (!modelsLabels.isLabelSelected(label, model))
+            modelsLabels.addLabelToModel(label, model);
+          else
+            modelsLabels.removeLabelFromModel(label, model);
+        }, [=] () {
+          return modelsLabels.isLabelSelected(label, model);
+        });
+    }
+  });
+
   button->setPressHandler([=]() -> uint8_t {
     Menu *menu = new Menu(this);
     if (model != modelslist.getCurrentModel()) {
@@ -263,7 +368,7 @@ void ModelsPageBody::update(int selected)
     auto button = new ModelButton(
         &innerWindow, {x, y, MODEL_SELECT_CELL_WIDTH, MODEL_SELECT_CELL_HEIGHT},
         model);
-    initPressHandler(button, model, index);
+    initPressHandlers(button, model, index);
     if (selected == index) {
       selectButton = button;
     }
@@ -340,10 +445,10 @@ ModelLabelsWindow::ModelLabelsWindow() :
 
   lblselector->setNextField(mdlselector);
   lblselector->setPreviousField(newButton);
-  mdlselector->setNextField(newButton);
-  newButton->setPreviousField(mdlselector);
+  mdlselector->setNextField(newLabelButton);
+  newLabelButton->setPreviousField(mdlselector);
   newButton->setNextField(lblselector);
-
+  
   lblselector->setFocus();
 }
 
@@ -376,7 +481,7 @@ void ModelLabelsWindow::onEvent(event_t event)
     onKeyPress();
     FormField *focus = dynamic_cast<FormField *>(getFocus());
     if (isChildOfMdlSelector(focus))
-      newButton->setFocus();
+      newLabelButton->setFocus();
     else if (focus != nullptr && focus->getNextField()) {
       focus->getNextField()->setFocus(SET_FOCUS_FORWARD, focus);
     }
@@ -418,7 +523,7 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 
   r.x -= (BUTTON_WIDTH + 10);
-  new TextButton(window, r, "New Label",
+  newLabelButton = new TextButton(window, r, "New Label",
     [=] () {
       tmpLabel[0] = '\0';
       new LabelDialog(window, tmpLabel,
