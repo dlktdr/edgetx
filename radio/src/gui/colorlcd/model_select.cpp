@@ -410,11 +410,10 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   // new model button
   rect_t r = {LCD_W - (BUTTON_WIDTH + 5), 6, BUTTON_WIDTH, BUTTON_HEIGHT };
   newButton = new TextButton(window, r, "New", [=] () {
-    storageCheck(true);
-    auto model = modelslist.addModel(createModel(), false);
-    modelslist.setCurrentModel(model);
-    modelslist.updateCurrentModelCell();
-    mdlselector->update(modelslist.size() - 1); // TODO.. foce to unlabeled category first?
+      storageCheck(true); // Save
+      modelslist.setCurrentModel(modelslist.addModel(createModel(), false));
+      lblselector->setSelected(modelsLabels.getLabels().size());
+      mdlselector->update(modelsLabels.getUnlabeledModels().size()-1);
     return 0;
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 

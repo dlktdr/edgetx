@@ -823,7 +823,6 @@ const char * ModelsList::save()
       f_puts("\"\r\n", &file);
 
       // TODO Maybe make sub-items.. or not use at all?
-      f_printf(&file, "      id1: %u\r\n",(unsigned int)model->modelId[0]);
 #if NUM_MODULES == 2
       f_printf(&file, "      id2: %u\r\n",(unsigned int)model->modelId[1]);
 #endif

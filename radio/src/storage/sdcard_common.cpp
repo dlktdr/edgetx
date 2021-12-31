@@ -86,28 +86,29 @@ void storageCheck(bool immediately)
     }
   }
 
-  if (storageDirtyMsk & EE_MODEL) {
-    TRACE("eeprom write model");
-    storageDirtyMsk &= ~EE_MODEL;
-    const char * error = writeModel();
-    if (error) {
-      TRACE("writeModel error=%s", error);
-    }
-#if defined(STORAGE_MODELSLIST)
-  modelslist.updateCurrentModelCell();
-  storageDirtyMsk |= EE_LABELS;
-#endif
-  }
 #if defined(STORAGE_MODELSLIST)
   if (storageDirtyMsk & EE_LABELS) {
     TRACE("sdcard write labels");
     storageDirtyMsk &= ~EE_LABELS;
+    modelslist.updateCurrentModelCell();
     const char * error = modelslist.save();
     if (error) {
       TRACE("writeLabels error=%s", error);
     }
   }
 #endif
+
+  if (storageDirtyMsk & EE_MODEL) {
+    TRACE("eeprom write model");
+    storageDirtyMsk &= ~EE_MODEL;
+#if defined(STORAGE_MODELSLIST)
+    storageDirtyMsk |= EE_LABELS;
+#endif
+    const char * error = writeModel();
+    if (error) {
+      TRACE("writeModel error=%s", error);
+    }
+  }
 }
 
 #if defined(STORAGE_MODELSLIST)
