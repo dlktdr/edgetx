@@ -210,20 +210,47 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
       }
 
     // Model ID0
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "id0")) {
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "modid0")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->setModelId(0, atoi(value));
         TRACE_LABELS("Set the models id0 to %s", value);
       }
-
 #if NUM_MODULES == 2
     // Model ID0
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "id1")) {
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "modid1")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->setModelId(1, atoi(value));
         TRACE_LABELS("Set the models id1 to %s", value);
       }
 #endif
+
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod0type")) {
+      if(mi->curmodel != NULL) {
+        mi->curmodel->moduleData[0].type = atoi(value);
+        TRACE_LABELS("Set the models module type to %s", value);
+      }
+#if NUM_MODULES == 2
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod1type")) {
+      if(mi->curmodel != NULL) {
+        mi->curmodel->moduleData[1].type = atoi(value);
+        TRACE_LABELS("Set the models module type to %s", value);
+      }
+#endif
+
+
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod0protocol")) {
+      if(mi->curmodel != NULL) {
+        mi->curmodel->moduleData[0].rfProtocol = atoi(value);
+        TRACE_LABELS("Set the models rfProtocol0 to %s", value);
+      }
+#if NUM_MODULES == 2
+    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod1protocol")) {
+      if(mi->curmodel != NULL) {
+        mi->curmodel->moduleData[1].rfProtocol = atoi(value);
+        TRACE_LABELS("Set the models rfProtocol1 to %s", value);
+      }
+#endif
+
 
     // Model Bitmap
 #if LEN_BITMAP_NAME > 0

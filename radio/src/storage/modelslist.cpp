@@ -360,12 +360,11 @@ bool ModelMap::moveLabelTo(unsigned curind, unsigned newind)
   if(curind == newind ||
      curind >= labels.size() ||
      newind >= labels.size())
-    return false;
+    return true;
 
   if(labels.at(curind) == "")
-    return false;
+    return true;
 
-  // Update the multimap index
   if(curind < newind) { // Move forward
     std::rotate(labels.rend() - curind - 1, labels.rend() - curind, labels.rend() - newind);
   } else { // Move back
@@ -823,14 +822,21 @@ const char * ModelsList::save()
       f_puts("\"\r\n", &file);
 
       // TODO Maybe make sub-items.. or not use at all?
+      f_printf(&file, "      modid0: %u\r\n",(unsigned int)model->modelId[0]);
 #if NUM_MODULES == 2
-      f_printf(&file, "      id2: %u\r\n",(unsigned int)model->modelId[1]);
+      f_printf(&file, "      modid1: %u\r\n",(unsigned int)model->modelId[1]);
 #endif
 
-      f_printf(&file, "      mod1type: %u\r\n",(unsigned int)model->moduleData[0].type);
+      f_printf(&file, "      mod0type: %u\r\n",(unsigned int)model->moduleData[0].type);
 #if NUM_MODULES == 2
-      f_printf(&file, "      mod2type: %u\r\n",(unsigned int)model->moduleData[1].type);
+      f_printf(&file, "      mod1type: %u\r\n",(unsigned int)model->moduleData[1].type);
 #endif
+
+      f_printf(&file, "      mod0protocol: %u\r\n",(unsigned int)model->moduleData[0].rfProtocol);
+#if NUM_MODULES == 2
+      f_printf(&file, "      mod1protocol: %u\r\n",(unsigned int)model->moduleData[1].rfProtocol);
+#endif
+
 
       f_puts("      labels: \"", &file);
       LabelsVector labels = modelsLabels.getLabelsByModel(model);
@@ -886,9 +892,6 @@ void ModelsList::updateCurrentModelCell()
     strcpy((*mdl)->modelBitmap,g_model.header.bitmap);
     (*mdl)->setModelName(g_model.header.name);
     (*mdl)->setRfData(&g_model);
-    for(int i=0; i < NUM_MODULES; i++) {
-      //(*mdl)->setModelId(i, g_model.); // TODO
-    }
   } else {
     TRACE("ModelList Error - Can't find current model");
   }
