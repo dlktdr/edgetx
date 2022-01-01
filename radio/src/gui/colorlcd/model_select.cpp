@@ -79,6 +79,7 @@ class ModelButton : public Button
     if (buffer) { delete buffer; }
   }
 
+
 #if defined(HARDWARE_KEYS)
   void onEvent(event_t event) override
   {
@@ -103,50 +104,59 @@ class ModelButton : public Button
 #endif
 
 #if defined(HARDWARE_TOUCH)
-  bool onTouchStart(coord_t x, coord_t y) override
-  {
-    if (duration10ms == 0) {
-      duration10ms = getTicks();
-    }
-    captureWindow(this);
-
-    return Button::onTouchStart(x, y);
-  }
-
-  bool onTouchEnd(coord_t x, coord_t y) override
-  {
-    duration10ms = 0;
-    if (!longPressed)
-      return Button::onTouchEnd(x, y);
-    else {
-      longPressed = false;
-      return true;
-    }
-  }
-
-
-  bool isLongPress()
-  {
-    unsigned int curTimer = getTicks();
-    return (duration10ms != 0 && curTimer - duration10ms > LONG_PRESS_10MS);
-  }
-
-  void checkEvents() override
-  {
-    Button::checkEvents();
-
-    if (isLongPress()) {
-      if (longPressHandler) {
-        longPressHandler();
-        killAllEvents();
+    bool onTouchSlide(coord_t x, coord_t y, coord_t startX, coord_t startY, coord_t slideX, coord_t slideY) override
+    {
+      slid = true;
+      if (touchState.event == TE_SLIDE_END) {
         duration10ms = 0;
-        longPressed = true;
-        return;
+      }
+      
+      return Button::onTouchSlide(x, y, startX, startY, slideX, slideY);
+    }
+
+    bool onTouchStart(coord_t x, coord_t y) override
+    {
+      slid = false;
+      if (duration10ms == 0) {
+        duration10ms = getTicks();
+      }
+      captureWindow(this);
+
+      return Button::onTouchStart(x, y);
+    }
+
+    bool onTouchEnd(coord_t x, coord_t y) override
+    {
+      duration10ms = 0;
+      if (!longPressed)
+        return Button::onTouchEnd(x, y);
+      else {
+        longPressed = false;
+        return true;
       }
     }
 
 
-  }
+    bool isLongPress()
+    {
+      unsigned int curTimer = getTicks();
+      return (!slid && duration10ms != 0 && curTimer - duration10ms > LONG_PRESS_10MS);
+    }
+
+    void checkEvents() override
+    {
+      Button::checkEvents();
+
+      if (isLongPress()) {
+        if (longPressHandler) {
+          longPressHandler();
+          killAllEvents();
+          duration10ms = 0;
+          longPressed = true;
+          return;
+        }
+      }
+    }
 #endif
 
   void load()
@@ -219,15 +229,37 @@ class ModelButton : public Button
   const char *modelFilename() { return modelCell->modelFilename; }
 
  protected:
+  bool slid = false;
   ModelCell *modelCell;
   BitmapBuffer *buffer = nullptr;
+  std::function<void ()> longPressHandler = nullptr;
 #if defined(HARDWARE_TOUCH)
   bool longPressed = false;
-  std::function<void ()> longPressHandler = nullptr;
   uint32_t duration10ms;
 #endif
 };
 
+//-----------------------------------------------------------------------------
+class MyMenu : public Menu
+{
+  public:
+    using Menu::Menu;
+    void setFinishHandler(std::function<void ()> finishHandler)
+    {
+      _finishHandler = std::move(finishHandler);
+    }
+  
+    void deleteLater(bool detach = true, bool trash = true) override
+    {
+      if (_finishHandler != nullptr) {
+        _finishHandler();
+      }
+      Menu::deleteLater(detach, trash);
+    }
+
+  protected:
+    std::function<void ()> _finishHandler = nullptr;
+};
 //-----------------------------------------------------------------------------
 
 ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
@@ -257,6 +289,30 @@ void ModelsPageBody::onEvent(event_t event)
 }
 #endif
 
+void ModelsPageBody::checkEvents()
+{
+  if (refresh) {
+    refresh = false;
+    int index = -1;
+    auto focusWindow = getFocus();
+    auto children = getChildren();
+    // if the window is dirty then update it but keep the same focused model.
+    if (focusWindow != nullptr && children.size() > 0) {
+      std::list<Window *>::iterator it = children.begin();
+      for (int i = 0; i < children.size(); i++) {
+        if (*it == focusWindow) {
+          index = i;
+          break;
+        }
+        ++it;
+      }
+    }
+
+    update(index);
+  }
+
+  FormWindow::checkEvents();
+}
 
 void ModelsPageBody::paint(BitmapBuffer *dc)
 {
@@ -266,7 +322,16 @@ void ModelsPageBody::paint(BitmapBuffer *dc)
 void ModelsPageBody::initPressHandlers(ModelButton *button, ModelCell *model, int index)
 {
   button->setLongPressHandler([=] () {
-    Menu *menu = new Menu(this, true);
+    button->setFocus();
+    MyMenu *menu = new MyMenu(this, true);
+    menu->setTitle(model->modelName);
+    menu->setFinishHandler([=] () {
+      if (isDirty) {
+        isDirty = false;
+        refresh = true;
+      }
+    });
+
     for (auto &label: modelsLabels.getLabels()) {
       menu->addLine(label,
         [=] () {
@@ -274,6 +339,8 @@ void ModelsPageBody::initPressHandlers(ModelButton *button, ModelCell *model, in
             modelsLabels.addLabelToModel(label, model);
           else
             modelsLabels.removeLabelFromModel(label, model);
+
+          isDirty = true;
         }, [=] () {
           return modelsLabels.isLabelSelected(label, model);
         });
@@ -282,6 +349,7 @@ void ModelsPageBody::initPressHandlers(ModelButton *button, ModelCell *model, in
 
   button->setPressHandler([=]() -> uint8_t {
     Menu *menu = new Menu(this);
+    menu->setTitle(model->modelName);
     if (model != modelslist.getCurrentModel()) {
       menu->addLine(STR_SELECT_MODEL, [=]() {
         // we store the latest changes if any
@@ -320,22 +388,6 @@ void ModelsPageBody::initPressHandlers(ModelButton *button, ModelCell *model, in
     });
 
     if (model != modelslist.getCurrentModel()) {
-      // Move -- ToDo.. Should it be kept an a modelindex added
-      /*if(modelslist.size() > 1) {
-        menu->addLine(STR_MOVE_MODEL, [=]() {
-        auto moveToMenu = new Menu(parent);
-        moveToMenu->setTitle(STR_MOVE_MODEL);
-          /*for (auto newcategory: modelslist.getCategories()) {
-            if(category != newcategory) {
-              moveToMenu->addLine(std::string(newcategory->name, sizeof(newcategory->name)), [=]() {
-                modelslist.moveModel(model, category, newcategory);
-                update(index < (int)category->size() - 1 ? index : index - 1);
-                modelslist.save();
-              });
-            }
-          }
-        });
-      }*/
       menu->addLine(STR_DELETE_MODEL, [=]() {
         new ConfirmDialog(
             parent, STR_DELETE_MODEL,
@@ -391,12 +443,6 @@ void ModelsPageBody::update(int selected)
   if (selectButton != nullptr) {
     selectButton->setFocus();
   }
-
-  /*if (category->empty()) {
-    setFocus();
-  } else if (selectButton) {
-    selectButton->setFocus();
-  }*/
 }
 
 //-----------------------------------------------------------------------------
@@ -404,7 +450,7 @@ class LabelDialog : public Dialog
 {
   public:
     LabelDialog(Window *parent, char *label, std::function<void (std::string label)> saveHandler = nullptr) :
-      Dialog(parent, "Enter Label", detailsDialogRect),
+      Dialog(parent, STR_ENTER_LABEL, detailsDialogRect),
       saveHandler(saveHandler)
     {
       strncpy(this->label, label, MAX_LABEL_SIZE);
@@ -414,7 +460,7 @@ class LabelDialog : public Dialog
       grid.setLabelWidth(labelWidth);
       grid.spacer(8);
 
-      new StaticText(&content->form, grid.getLabelSlot(), "Label", 0, COLOR_THEME_PRIMARY1);
+      new StaticText(&content->form, grid.getLabelSlot(), STR_LABEL, 0, COLOR_THEME_PRIMARY1);
       new TextEdit(&content->form, grid.getFieldSlot(), label, MAX_LABEL_SIZE);
       grid.nextLine();
 
@@ -443,6 +489,7 @@ ModelLabelsWindow::ModelLabelsWindow() :
   buildBody(&body);
   buildHead(&header);
 
+  // make PG_UP and PG_DN work
   lblselector->setNextField(mdlselector);
   lblselector->setPreviousField(newButton);
   mdlselector->setNextField(newLabelButton);
@@ -450,6 +497,22 @@ ModelLabelsWindow::ModelLabelsWindow() :
   newButton->setNextField(lblselector);
   
   lblselector->setFocus();
+
+  // find the first label of the current model and make that label active
+  auto currentModel = modelslist.getCurrentModel();
+  if (currentModel != nullptr) {
+    auto modelLabels = modelsLabels.getLabelsByModel(currentModel);
+    if (modelLabels.size() > 0) {
+      auto allLabels = getLabels();
+      auto found = std::find(allLabels.begin(), allLabels.end(), modelLabels[0]);
+      if (found != allLabels.end()) {
+        lblselector->setSelected(found - allLabels.begin());
+      }
+    } else {
+      // the current model has no labels so set the active label to "Unlabled"
+      lblselector->setSelected(getLabels().size() - 1);
+    }
+  }
 }
 
 bool isChildOfMdlSelector(Window *window)
@@ -502,11 +565,11 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   new StaticText(window,
                   {PAGE_TITLE_LEFT, PAGE_TITLE_TOP, LCD_W - PAGE_TITLE_LEFT,
                   PAGE_LINE_HEIGHT},
-                  "Select Model", 0, COLOR_THEME_PRIMARY2 | flags);
+                  STR_SELECT_MODEL, 0, COLOR_THEME_PRIMARY2 | flags);
 
   auto curModel = modelslist.getCurrentModel();
-  auto modelName = curModel != nullptr ? curModel->modelName : "None";
-  std::string titleName = "Current: " + std::string(modelName);
+  auto modelName = curModel != nullptr ? curModel->modelName : STR_NONE;
+  std::string titleName = STR_CURRENT_MODEL + std::string(": ") + std::string(modelName);
   new StaticText(window,
                   {PAGE_TITLE_LEFT, PAGE_TITLE_TOP + PAGE_LINE_HEIGHT,
                   LCD_W - PAGE_TITLE_LEFT, PAGE_LINE_HEIGHT},
@@ -514,16 +577,16 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
 
   // new model button
   rect_t r = {LCD_W - (BUTTON_WIDTH + 5), 6, BUTTON_WIDTH, BUTTON_HEIGHT };
-  newButton = new TextButton(window, r, "New", [=] () {
+  newButton = new TextButton(window, r, STR_NEW, [=] () {
       storageCheck(true); // Save
       modelslist.setCurrentModel(modelslist.addModel(createModel(), false));
       lblselector->setSelected(modelsLabels.getLabels().size());
-      mdlselector->update(modelsLabels.getUnlabeledModels().size()-1);
+      mdlselector->update(modelsLabels.getUnlabeledModels().size() - 1);
     return 0;
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 
   r.x -= (BUTTON_WIDTH + 10);
-  newLabelButton = new TextButton(window, r, "New Label",
+  newLabelButton = new TextButton(window, r, STR_NEW_LABEL,
     [=] () {
       tmpLabel[0] = '\0';
       new LabelDialog(window, tmpLabel,
@@ -553,7 +616,7 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
     });
   lblselector->setLongPressHandler([=] (event_t event) {
     Menu * menu = new Menu(window);
-    menu->addLine("Rename Label", [=] () {
+    menu->addLine(STR_RENAME_LABEL, [=] () {
       auto oldLabel = getLabels()[lblselector->getSelected()];
       strncpy(tmpLabel, oldLabel.c_str(), MAX_LABEL_SIZE);
       tmpLabel[MAX_LABEL_SIZE] = '\0';
@@ -567,9 +630,9 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
         });
       return 0;
     });
-    menu->addLine("Delete Label", [=] () {
+    menu->addLine(STR_DELETE_LABEL, [=] () {
       auto labelToDelete = getLabels()[lblselector->getSelected()];
-      if (confirmationDialog("Delete Label", labelToDelete.c_str())) {
+      if (confirmationDialog(STR_DELETE_LABEL, labelToDelete.c_str())) {
         modelsLabels.removeLabel(labelToDelete);
         auto labels = getLabels();
         lblselector->setNames(labels);
@@ -578,9 +641,4 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
       return 0;
     });
   });
-
-  /*auto sortby = new Choice(this, {300,5,100,35} , 0 , 2, [=]{});
-  sortby->addValue("Name");
-  sortby->addValue("ID");
-  sortby->addValue("Recent");*/
 }

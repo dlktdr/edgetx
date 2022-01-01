@@ -1159,6 +1159,16 @@ extern const char STR_EDIT_THEME[];
 extern const char STR_DETAILS[];
 extern const char STR_THEME_EDITOR[];
 
+extern const char STR_ENTER_LABEL[];
+extern const char STR_LABEL[];
+extern const char STR_SELECT_MODEL[];
+extern const char STR_NONE[];
+extern const char STR_CURRENT_MODEL[];
+extern const char STR_NEW[];
+extern const char STR_NEW_LABEL[];
+extern const char STR_RENAME_LABEL[];
+extern const char STR_DELETE_LABEL[];
+
 #if defined(COLORLCD)
 
 extern const char STR_MAIN_MENU_SELECT_MODEL[];

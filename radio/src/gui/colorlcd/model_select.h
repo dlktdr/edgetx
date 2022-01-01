@@ -46,6 +46,8 @@ class ModelsPageBody : public FormWindow
     void setLabel(std::string &lbl) {selectedLabel = lbl; update();}
     void update(int selected = -1);
 
+    void checkEvents() override;
+
     #if defined(HARDWARE_KEYS)
     void onEvent(event_t event) override;
     #endif
@@ -65,6 +67,8 @@ class ModelsPageBody : public FormWindow
   }
 
   protected:
+    bool isDirty = false;
+    bool refresh = false;
     FormWindow innerWindow;
     void initPressHandlers(ModelButton *button, ModelCell *model, int index);
     std::string selectedLabel;
