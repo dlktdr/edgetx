@@ -36,19 +36,18 @@
 
 #include "dataconstants.h"
 
-// #define MODELCELL_WIDTH                172
-// #define MODELCELL_HEIGHT               59
-
 // modelXXXXXXX.bin F,FF F,3F,FF\r\n
 #define LEN_MODELS_IDX_LINE (LEN_MODEL_FILENAME + sizeof(" F,FF F,3F,FF\r\n")-1)
+
+#define DEFAULT_MODEL_SORT DATE_DES
 
 struct ModelData;
 struct ModuleData;
 
 struct SimpleModuleData
 {
-  uint8_t type;
-  uint8_t rfProtocol;
+  uint8_t type=0;
+  uint8_t rfProtocol=0;
 };
 
 typedef union {
@@ -69,14 +68,14 @@ class ModelCell
     char modelName[LEN_MODEL_NAME + 1] = "";
     char modelFinfoHash[FILE_HASH_LENGTH + 1] = "";
 #if LEN_BITMAP_NAME > 0
-    char modelBitmap[LEN_BITMAP_NAME];
+    char modelBitmap[LEN_BITMAP_NAME] = "";
 #endif
     time_t lastOpened=0;
     bool _isDirty = true;
 
     bool             valid_rfData;
-    uint8_t          modelId[NUM_MODULES];
-    SimpleModuleData moduleData[NUM_MODULES]; // TODO ***
+    uint8_t          modelId[NUM_MODULES] = {0,0};
+    SimpleModuleData moduleData[NUM_MODULES];
 
     explicit ModelCell(const char * name);
     explicit ModelCell(const char * name, uint8_t len);
@@ -97,6 +96,13 @@ typedef struct {
 typedef std::vector<std::pair<int, ModelCell *>> ModelLabelsVector;
 typedef std::vector<std::string> LabelsVector;
 typedef std::vector<ModelCell *> ModelsVector;
+typedef enum {
+  NO_SORT,
+  NAME_ASC,
+  NAME_DES,
+  DATE_ASC,
+  DATE_DES,
+} ModelsSortBy;
 
 /**
  * @brief ModelMap is a multimap of all models and their cooresponding
@@ -107,8 +113,8 @@ typedef std::vector<ModelCell *> ModelsVector;
 class ModelMap : protected std::multimap<uint16_t, ModelCell *>
 {
   public:
-    ModelsVector getUnlabeledModels();
-    ModelsVector getModelsByLabel(const std::string &);
+    ModelsVector getUnlabeledModels(ModelsSortBy sortby=DEFAULT_MODEL_SORT);
+    ModelsVector getModelsByLabel(const std::string &, ModelsSortBy sortby=DEFAULT_MODEL_SORT);
     LabelsVector getLabelsByModel(ModelCell *);
     std::map<std::string, bool> getSelectedLabels(ModelCell *);
     bool isLabelSelected(const std::string &, ModelCell *);
@@ -132,6 +138,7 @@ class ModelMap : protected std::multimap<uint16_t, ModelCell *>
       labels.clear();
       std::multimap<uint16_t, ModelCell *>::clear();
     }
+    void sortModelsBy(ModelsVector &mv, ModelsSortBy sortby);
 
   private:
     bool _isDirty=true;

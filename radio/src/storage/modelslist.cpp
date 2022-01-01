@@ -132,13 +132,14 @@ void ModelCell::setRfModuleData(uint8_t moduleIdx, ModuleData* modData)
  * @return ModelsVector vector<ModelCell>
  */
 
-ModelsVector ModelMap::getUnlabeledModels()
+ModelsVector ModelMap::getUnlabeledModels(ModelsSortBy sortby)
 {
   ModelsVector unlabeledModels;
   for (auto model : modelslist) {
     if (modelsLabels.getLabelsByModel(model).size() == 0)
       unlabeledModels.emplace_back(model);
   }
+  sortModelsBy(unlabeledModels, sortby);
   return unlabeledModels;
 }
 
@@ -149,7 +150,7 @@ ModelsVector ModelMap::getUnlabeledModels()
  * @return ModelsVector aka vector<ModelCell*> of all models belonging to a label
  */
 
-ModelsVector ModelMap::getModelsByLabel(const std::string &lbl)
+ModelsVector ModelMap::getModelsByLabel(const std::string &lbl, ModelsSortBy sortby)
 {
   int index = getIndexByLabel(lbl);
   if(index < 0)
@@ -159,6 +160,8 @@ ModelsVector ModelMap::getModelsByLabel(const std::string &lbl)
     if(it->first == index)
       rv.push_back(it->second);
   }
+
+  sortModelsBy(rv, sortby);
   return rv;
 }
 
@@ -506,6 +509,34 @@ bool ModelMap::removeModels(ModelCell *cell)
 }
 
 /**
+ * @brief Sorts a ModelsVector by sortby
+ *
+ * @param mv ModeslVector to sort
+ * @param sortby NAME_ASC, NAME_DES, DATE_ASC, DATE_DES,
+ */
+
+void ModelMap::sortModelsBy(ModelsVector &mv, ModelsSortBy sortby)
+{
+  if(sortby == DATE_DES) {
+    std::sort(mv.begin(), mv.end(), [](ModelCell *a, ModelCell *b)->bool{
+      return a->lastOpened > b->lastOpened;
+    });
+  } else if(sortby == DATE_ASC) {
+    std::sort(mv.begin(), mv.end(), [](ModelCell *a, ModelCell *b)->bool{
+      return a->lastOpened < b->lastOpened;
+    });
+  } else if(sortby == NAME_ASC) {
+    std::sort(mv.begin(), mv.end(), [](ModelCell *a, ModelCell *b)->bool{
+      return a->modelName > b->modelName;
+    });
+  } else if(sortby == NAME_DES) {
+    std::sort(mv.begin(), mv.end(), [](ModelCell *a, ModelCell *b)->bool{
+      return a->modelName < b->modelName;
+    });
+  }
+}
+
+/**
  * @brief Sets the ModelMap to dirty.
  * @details Causes labels.yml to be written after a delay in sdcard_common.cpp->storageCheck()
  */
@@ -590,7 +621,7 @@ void ModelMap::updateModelCell(ModelCell *cell)
 {
   modelsLabels.removeModels(cell);
 
-  ModelData *model = (ModelData*)malloc(sizeof(ModelData)); // TODO HOPE this isn't too much extra ram on some targets... :()
+  ModelData *model = (ModelData*)malloc(sizeof(ModelData));
   if(!model) {
     TRACE("Labels: Out Of Memory");
     return;
@@ -734,19 +765,6 @@ bool ModelsList::loadYaml()
     TRACE("LABELS.YML Is in Sync! No models were read");
   }
 
-  if(!modelslist.currentModel) {
-    TRACE("ERROR no Current Model Found");
-    if(modelslist.size()) {
-      modelslist.setCurrentModel(modelslist.at(0));
-      TRACE("  - Set current model to first available");
-    } else {
-      TRACE("  - No Models Found, making a new one");
-      // No models found, make a new one
-      auto model = modelslist.addModel(createModel(), true);
-      modelslist.setCurrentModel(model);
-    }
-  }
-
   return true;
 }
 #endif
@@ -780,7 +798,17 @@ bool ModelsList::load(Format fmt)
   }
 #endif
 
-  if (!currentModel) { // TODO
+  if(!currentModel) {
+    TRACE("ERROR no Current Model Found");
+    if(modelslist.size()) {
+      modelslist.setCurrentModel(modelslist.at(0));
+      TRACE("  - Set current model to first available");
+    } else {
+      TRACE("  - No Models Found, making a new one");
+      // No models found, make a new one
+      auto model = modelslist.addModel(createModel(), true);
+      modelslist.setCurrentModel(model);
+    }
   }
 
   loaded = true;
@@ -820,30 +848,33 @@ const char * ModelsList::save()
     f_puts(model->modelFilename, &file);
     f_puts(":\r\n", &file);
 
-      f_puts("    - hash: \"", &file);
-      f_puts(model->modelFinfoHash, &file);
-      f_puts("\"\r\n", &file);
+    f_puts("    - hash: \"", &file);
+    f_puts(model->modelFinfoHash, &file);
+    f_puts("\"\r\n", &file);
 
-      f_puts("      name: \"", &file);
-      f_puts(model->modelName, &file);
-      f_puts("\"\r\n", &file);
+    f_puts("      name: \"", &file);
+    f_puts(model->modelName, &file);
+    f_puts("\"\r\n", &file);
 
-      // TODO Maybe make sub-items.. or not use at all?
+    // TODO Maybe make sub-items instead.
+    if(model->modelId[0])
       f_printf(&file, "      modid0: %u\r\n",(unsigned int)model->modelId[0]);
 #if NUM_MODULES == 2
+    if(model->modelId[1])
       f_printf(&file, "      modid1: %u\r\n",(unsigned int)model->modelId[1]);
 #endif
-
+    if(model->moduleData[0].type)
       f_printf(&file, "      mod0type: %u\r\n",(unsigned int)model->moduleData[0].type);
 #if NUM_MODULES == 2
+    if(model->moduleData[1].type)
       f_printf(&file, "      mod1type: %u\r\n",(unsigned int)model->moduleData[1].type);
 #endif
-
+    if(model->moduleData[0].rfProtocol)
       f_printf(&file, "      mod0protocol: %u\r\n",(unsigned int)model->moduleData[0].rfProtocol);
 #if NUM_MODULES == 2
+    if(model->moduleData[0].type)
       f_printf(&file, "      mod1protocol: %u\r\n",(unsigned int)model->moduleData[1].rfProtocol);
 #endif
-
 
       f_puts("      labels: \"", &file);
       LabelsVector labels = modelsLabels.getLabelsByModel(model);
