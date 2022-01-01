@@ -205,7 +205,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
     // Last Opened
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "lastopen")) {
       if(mi->curmodel != NULL) {
-        mi->curmodel->lastOpened = (time_t)strtoul(value, NULL, 0);
+        mi->curmodel->lastOpened = (gtime_t)strtol(value, NULL, 0);
         TRACE_LABELS("Last Opened %lu", value);
       }
 

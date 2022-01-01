@@ -21,7 +21,6 @@
 
 #include "modelslist.h"
 #include <algorithm>
-#include <time.h>
 
 using std::list;
 
@@ -129,6 +128,7 @@ void ModelCell::setRfModuleData(uint8_t moduleIdx, ModuleData* modData)
 /**
  * @brief Gets all models which don't have any labels selected
  *
+ * @param sortby
  * @return ModelsVector vector<ModelCell>
  */
 
@@ -893,8 +893,9 @@ const char * ModelsList::save()
       f_puts(model->modelBitmap, &file);
       f_puts("\"\r\n", &file);
 #endif
-
-      f_printf(&file, "      lastopen: %lld\r\n", (long long)model->lastOpened);
+      f_puts("      lastopen: ", &file);
+      f_puts(std::to_string(model->lastOpened).c_str(), &file);
+      f_puts("\r\n", &file);
   }
 
   f_puts("\r\n", &file);
@@ -913,7 +914,9 @@ const char * ModelsList::save()
 void ModelsList::setCurrentModel(ModelCell * cell)
 {
   currentModel = cell;
-  cell->lastOpened = (long long)time(NULL);
+  struct gtm t;
+  gettime(&t);
+  cell->lastOpened = gmktime(&t);
   updateCurrentModelCell();
   modelsLabels.setDirty();
 }

@@ -299,7 +299,7 @@ void ModelsPageBody::checkEvents()
     // if the window is dirty then update it but keep the same focused model.
     if (focusWindow != nullptr && children.size() > 0) {
       std::list<Window *>::iterator it = children.begin();
-      for (int i = 0; i < children.size(); i++) {
+      for (int i = 0; i < (int)children.size(); i++) {
         if (*it == focusWindow) {
           index = i;
           break;
@@ -581,7 +581,7 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
       storageCheck(true); // Save
       modelslist.setCurrentModel(modelslist.addModel(createModel(), false));
       lblselector->setSelected(modelsLabels.getLabels().size());
-      mdlselector->update(modelsLabels.getUnlabeledModels().size() - 1);
+      mdlselector->update(0);
     return 0;
   }, BUTTON_BACKGROUND | OPAQUE, textFont);
 

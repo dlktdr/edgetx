@@ -35,6 +35,7 @@
 #endif
 
 #include "dataconstants.h"
+#include "rtc.h"
 
 // modelXXXXXXX.bin F,FF F,3F,FF\r\n
 #define LEN_MODELS_IDX_LINE (LEN_MODEL_FILENAME + sizeof(" F,FF F,3F,FF\r\n")-1)
@@ -70,7 +71,7 @@ class ModelCell
 #if LEN_BITMAP_NAME > 0
     char modelBitmap[LEN_BITMAP_NAME] = "";
 #endif
-    time_t lastOpened=0;
+    gtime_t lastOpened=0;
     bool _isDirty = true;
 
     bool             valid_rfData;
