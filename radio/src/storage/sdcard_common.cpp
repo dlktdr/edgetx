@@ -90,7 +90,6 @@ void storageCheck(bool immediately)
   if (storageDirtyMsk & EE_LABELS) {
     TRACE("sdcard write labels");
     storageDirtyMsk &= ~EE_LABELS;
-    modelslist.updateCurrentModelCell();
     const char * error = modelslist.save();
     if (error) {
       TRACE("writeLabels error=%s", error);

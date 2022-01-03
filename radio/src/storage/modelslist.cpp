@@ -159,7 +159,6 @@ ModelsVector ModelMap::getModelsByLabel(const std::string &lbl, ModelsSortBy sor
     if(it->first == index)
       rv.push_back(it->second);
   }
-
   sortModelsBy(rv, sortby);
   return rv;
 }
@@ -485,7 +484,7 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 
 #if defined(DEBUG_TIMERS)
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
-  TRACE_LABELS("Labels: Time to rename %d labels %luus", mods.size(), debugTimers[debugTimerYamlScan].getLast());
+  TRACE("Labels: Time to rename %d labels %luus", mods.size(), debugTimers[debugTimerYamlScan].getLast());
 #endif
 
   return fault;
@@ -630,10 +629,11 @@ void ModelMap::updateModelCell(ModelCell *cell)
 
   ModelData *model = (ModelData*)malloc(sizeof(ModelData));
   if(!model) {
-    TRACE_LABELS("Labels: Out Of Memory");
+    TRACE("Labels: Out Of Memory");
     return;
   }
 
+  TRACE("Labels: Updating model %s", cell->modelFilename);
   readModelYaml(cell->modelFilename, (uint8_t*)model, sizeof(ModelData));
   strcpy(cell->modelName, model->header.name);
   strcpy(cell->modelBitmap, model->header.bitmap);
@@ -726,7 +726,7 @@ bool ModelsList::loadYaml()
 
 #if defined(DEBUG_TIMERS)
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
-  TRACE_LABELS("Lables: Time to scan models folder %luus", debugTimers[debugTimerYamlScan].getLast());
+  TRACE("Lables: Time to scan models folder %luus", debugTimers[debugTimerYamlScan].getLast());
 #endif
 
   // Scan labels.yml
@@ -746,7 +746,7 @@ bool ModelsList::loadYaml()
 
 #if defined(DEBUG_TIMERS)
   DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
-  TRACE_LABELS("Lables: Time to scan labels.yml %luus", debugTimers[debugTimerYamlScan].getLast());
+  TRACE("Lables: Time to scan labels.yml %luus", debugTimers[debugTimerYamlScan].getLast());
 #endif
 
   // Add modelcells for any remaining models that weren't in labels.yml
@@ -945,13 +945,15 @@ void ModelsList::setCurrentModel(ModelCell * cell)
 
 void ModelsList::updateCurrentModelCell()
 {
-  auto mdl = std::find(begin(), end(), currentModel);
-  if(mdl != end()) {
-    strcpy((*mdl)->modelBitmap,g_model.header.bitmap);
-    (*mdl)->setModelName(g_model.header.name);
-    (*mdl)->setRfData(&g_model);
+  if(currentModel) {
+#if LEN_BITMAP_NAME > 0
+    strncpy(currentModel->modelBitmap,g_model.header.bitmap, sizeof(LEN_BITMAP_NAME));
+    currentModel->modelBitmap[LEN_BITMAP_NAME-1] = '\0';
+#endif
+    currentModel->setModelName(g_model.header.name);
+    currentModel->setRfData(&g_model);
   } else {
-    TRACE_LABELS("ModelList Error - Can't find current model");
+    TRACE("ModelList Error - No Current Model");
   }
 }
 
