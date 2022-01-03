@@ -40,6 +40,12 @@ using std::list;
 
 #include <cstring>
 
+#ifdef DEBUG_LABELS
+#define TRACE_LABELS(...) TRACE(__VA_ARGS__)
+#else
+#define TRACE_LABELS(...)
+#endif
+
 ModelsList modelslist;
 ModelMap modelsLabels;
 
@@ -47,10 +53,6 @@ ModelCell::ModelCell(const char* name) : valid_rfData(false)
 {
   strncpy(modelFilename, name, sizeof(modelFilename)-1);
   modelFilename[sizeof(modelFilename)-1] = '\0';
-#if LEN_BITMAP_NAME > 0
-    modelBitmap[0] = '\0';
-#endif
-
 }
 
 ModelCell::ModelCell(const char* name, uint8_t len) : valid_rfData(false)
@@ -59,9 +61,6 @@ ModelCell::ModelCell(const char* name, uint8_t len) : valid_rfData(false)
 
   memcpy(modelFilename, name, len);
   modelFilename[len] = '\0';
-#if LEN_BITMAP_NAME > 0
-    modelBitmap[0] = '\0';
-#endif
 }
 
 void ModelCell::setModelName(char * name)
@@ -264,7 +263,7 @@ int ModelMap::addLabel(const std::string &lbl)
   if(ind < 0) {
     labels.push_back(lbl);
     setDirty();
-    TRACE("Added a label %s", lbl.c_str());
+    TRACE_LABELS("Added a label %s", lbl.c_str());
     return labels.size() - 1;
   }
   return ind;
@@ -397,6 +396,9 @@ bool ModelMap::moveLabelTo(unsigned curind, unsigned newind)
 
 bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 {
+
+  DEBUG_TIMER_START(debugTimerYamlScan);
+
   if(from == "")
     return true;
 
@@ -480,6 +482,11 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
   // Issue a rescan all of all models.
   modelslist.clear();
   modelslist.load();
+
+#if defined(DEBUG_TIMERS)
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE_LABELS("Labels: Time to rename %d labels %luus", mods.size(), debugTimers[debugTimerYamlScan].getLast());
+#endif
 
   return fault;
 }
@@ -623,7 +630,7 @@ void ModelMap::updateModelCell(ModelCell *cell)
 
   ModelData *model = (ModelData*)malloc(sizeof(ModelData));
   if(!model) {
-    TRACE("Labels: Out Of Memory");
+    TRACE_LABELS("Labels: Out Of Memory");
     return;
   }
 
@@ -712,10 +719,15 @@ bool ModelsList::loadYaml()
       else
         cf.curmodel = false;
       fileHashInfo.push_back(cf);
-      TRACE("File - %s \r\n  HASH - %s - CM: %s", finfo.fname, cf.hash, cf.curmodel?"Y":"N");
+      TRACE_LABELS("File - %s \r\n  HASH - %s - CM: %s", finfo.fname, cf.hash, cf.curmodel?"Y":"N");
     }
     f_closedir(&moddir);
   }
+
+#if defined(DEBUG_TIMERS)
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE_LABELS("Lables: Time to scan models folder %luus", debugTimers[debugTimerYamlScan].getLast());
+#endif
 
   // Scan labels.yml
   char line[LEN_MODELS_IDX_LINE+1];
@@ -732,11 +744,16 @@ bool ModelsList::loadYaml()
     f_close(&file);
   }
 
+#if defined(DEBUG_TIMERS)
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE_LABELS("Lables: Time to scan labels.yml %luus", debugTimers[debugTimerYamlScan].getLast());
+#endif
+
   // Add modelcells for any remaining models that weren't in labels.yml
   for(auto &filehash : fileHashInfo) {
     ModelCell *model = NULL;
     if(filehash.celladded == false) {
-      TRACE("  Created a modelcell for %s, not in labels.yml", filehash.name.c_str());
+      TRACE_LABELS("  Created a modelcell for %s, not in labels.yml", filehash.name.c_str());
       model = new ModelCell(filehash.name.c_str());
       strcpy(model->modelFinfoHash, filehash.hash);
       modelslist.push_back(model);
@@ -759,10 +776,10 @@ bool ModelsList::loadYaml()
 
   // If any items differed save the file
   if(updatelabelsyml == true) {
-    TRACE("LABELS.YML Wasn't in sync. Needs to be saved");
+    TRACE_LABELS("LABELS.YML Wasn't in sync. Needs to be saved");
     modelslist.save();
   } else {
-    TRACE("LABELS.YML Is in Sync! No models were read");
+    TRACE_LABELS("LABELS.YML Is in Sync! No models were read");
   }
 
   return true;
@@ -934,7 +951,7 @@ void ModelsList::updateCurrentModelCell()
     (*mdl)->setModelName(g_model.header.name);
     (*mdl)->setRfData(&g_model);
   } else {
-    TRACE("ModelList Error - Can't find current model");
+    TRACE_LABELS("ModelList Error - Can't find current model");
   }
 }
 
@@ -1015,10 +1032,10 @@ bool ModelsList::removeModel(ModelCell * model)
     char curFilename[sizeof(MODELS_PATH) + LEN_MODEL_FILENAME + 2] = "";
     strcat(curFilename, MODELS_PATH PATH_SEPARATOR);
     strcat(curFilename, model->modelFilename);
-    TRACE("Deleting Model %s", model->modelFilename);
+    TRACE_LABELS("Deleting Model %s", model->modelFilename);
 
     if(f_unlink(curFilename) != FR_OK) {
-      TRACE("Unable to delete file");
+      TRACE("Labels: Unable to delete file");
       return true;
     }
   }
