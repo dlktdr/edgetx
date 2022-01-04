@@ -934,7 +934,6 @@ void ModelsList::setCurrentModel(ModelCell * cell)
   struct gtm t;
   gettime(&t);
   cell->lastOpened = gmktime(&t);
-  updateCurrentModelCell();
   modelsLabels.setDirty();
 }
 
@@ -952,6 +951,7 @@ void ModelsList::updateCurrentModelCell()
 #endif
     currentModel->setModelName(g_model.header.name);
     currentModel->setRfData(&g_model);
+    modelsLabels.setDirty();
   } else {
     TRACE("ModelList Error - No Current Model");
   }

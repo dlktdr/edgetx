@@ -96,7 +96,7 @@ class ModelButton : public Button
       case EVT_KEY_BREAK(KEY_ENTER):
         onPress();
         break;
-        
+
       default:
         Button::onEvent(event);
     }
@@ -110,7 +110,7 @@ class ModelButton : public Button
       if (touchState.event == TE_SLIDE_END) {
         duration10ms = 0;
       }
-      
+
       return Button::onTouchSlide(x, y, startX, startY, slideX, slideY);
     }
 
@@ -248,7 +248,7 @@ class MyMenu : public Menu
     {
       _finishHandler = std::move(finishHandler);
     }
-  
+
     void deleteLater(bool detach = true, bool trash = true) override
     {
       if (_finishHandler != nullptr) {
@@ -495,7 +495,7 @@ ModelLabelsWindow::ModelLabelsWindow() :
   mdlselector->setNextField(newLabelButton);
   newLabelButton->setPreviousField(mdlselector);
   newButton->setNextField(lblselector);
-  
+
   lblselector->setFocus();
 
   // find the first label of the current model and make that label active
@@ -578,8 +578,13 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
   // new model button
   rect_t r = {LCD_W - (BUTTON_WIDTH + 5), 6, BUTTON_WIDTH, BUTTON_HEIGHT };
   newButton = new TextButton(window, r, STR_NEW, [=] () {
-      storageCheck(true); // Save
-      modelslist.setCurrentModel(modelslist.addModel(createModel(), false));
+      storageCheck(true); // Save current
+      ModelCell *newCell = modelslist.addModel("", false);
+      modelslist.setCurrentModel(newCell);
+      const char *nfname = createModel();
+      strncpy(newCell->modelFilename, nfname, LEN_MODEL_FILENAME);
+      newCell->modelFilename[LEN_MODEL_FILENAME] = '\0';
+      newCell->setModelName(g_model.header.name);
       lblselector->setSelected(modelsLabels.getLabels().size());
       mdlselector->update(0);
     return 0;

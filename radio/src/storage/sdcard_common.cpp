@@ -100,10 +100,16 @@ void storageCheck(bool immediately)
   if (storageDirtyMsk & EE_MODEL) {
     TRACE("eeprom write model");
     storageDirtyMsk &= ~EE_MODEL;
-#if defined(STORAGE_MODELSLIST)
-    storageDirtyMsk |= EE_LABELS;
-#endif
     const char * error = writeModel();
+#if defined(STORAGE_MODELSLIST)
+    // If model was updated, also update the important modelcell info.
+    modelslist.getCurrentModel()->setModelName(g_model.header.name);
+    modelslist.getCurrentModel()->setRfData(&g_model);
+  #if LEN_BITMAP_NAME > 0
+    strncpy(modelslist.getCurrentModel()->modelBitmap,g_model.header.bitmap, LEN_BITMAP_NAME);
+    modelslist.getCurrentModel()->modelBitmap[LEN_BITMAP_NAME-1] = '\0';
+  #endif
+#endif
     if (error) {
       TRACE("writeModel error=%s", error);
     }
