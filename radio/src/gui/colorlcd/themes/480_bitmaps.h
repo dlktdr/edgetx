@@ -276,20 +276,3 @@ const uint8_t mask_moveico[] = {
 #include "mask_moveico.lbm"
 };
 
-const uint8_t mask_sort_alpha_up[] = {
-#include "mask_sort_alpha_up.lbm"
-};
-
-const uint8_t mask_sort_alpha_down[] = {
-#include "mask_sort_alpha_down.lbm"
-};
-
-const uint8_t mask_sort_date_up[] = {
-#include "mask_sort_date_up.lbm"
-};
-
-const uint8_t mask_sort_date_down[] = {
-#include "mask_sort_date_down.lbm"
-};
-
-

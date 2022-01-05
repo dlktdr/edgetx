@@ -27,6 +27,24 @@
 #include "opentx.h"
 #include "listbox.h"
 
+// bitmaps for toolbar
+const uint8_t mask_sort_alpha_up[] = {
+#include "mask_sort_alpha_up.lbm"
+};
+
+const uint8_t mask_sort_alpha_down[] = {
+#include "mask_sort_alpha_down.lbm"
+};
+
+const uint8_t mask_sort_date_up[] = {
+#include "mask_sort_date_up.lbm"
+};
+
+const uint8_t mask_sort_date_down[] = {
+#include "mask_sort_date_down.lbm"
+};
+
+
 inline tmr10ms_t getTicks()
 {
   return g_tmr10ms;
@@ -63,14 +81,97 @@ constexpr coord_t MODEL_SELECT_CELL_WIDTH =
 constexpr coord_t MODEL_SELECT_CELL_HEIGHT = 92;
 
 
-class ButtonHolder : FormWindow
+class ToolbarButton : public Button
+{
+  public:
+    ToolbarButton(FormGroup *parent, const rect_t &rect, const uint8_t *bitmap, std::function<uint8_t ()> pressHandler = nullptr) :
+      Button(parent, rect, pressHandler, 0),
+      _bitmap(bitmap)
+    {
+    }
+
+    void setSelected(bool selected)
+    {
+      _selected = selected;
+      invalidate();
+    }
+
+    void setBitmap(const uint8_t *bitmap)
+    {
+      _bitmap = bitmap;
+      invalidate();
+    }
+
+    void paint (BitmapBuffer *dc) override
+    {
+      int width;
+      uint32_t bgColor = !_selected ? COLOR_THEME_SECONDARY3 : COLOR_THEME_SECONDARY2;
+      auto bm = getBitmap(_bitmap, bgColor, COLOR_THEME_PRIMARY1, &width);
+      dc->drawScaledBitmap(bm, 2, 2, this->width() - 4, this->height() - 4);
+      delete bm;
+    }
+  
+  protected:
+    const uint8_t *_bitmap;
+    bool _selected = false;
+
+    BitmapBuffer *getBitmap(const uint8_t *maskData, uint32_t bgColor,
+                            uint32_t fgColor, int *width)
+    {
+      auto mask = BitmapBuffer::load8bitMask(maskData);
+      BitmapBuffer *newBm =
+          new BitmapBuffer(BMP_RGB565, mask->width(), mask->height());
+      newBm->clear(bgColor);
+      newBm->drawMask(0, 0, mask, fgColor);
+      delete mask;
+      return newBm;
+    }
+};
+
+class ButtonHolder : public FormWindow
 {
   public:
     ButtonHolder(Window *parent, const rect_t &rect) :
       FormWindow(parent, rect)
     {
-      
+      sortAlphaButton = new ToolbarButton(this, {0, 0, height(), height()}, mask_sort_alpha_up, [=] () {
+        if (sortAlpha == 0) {
+          sortAlpha = 1;
+          sortAlphaButton->setBitmap(mask_sort_alpha_down);
+          
+        } else {
+          sortAlpha = 0;
+          sortAlphaButton->setBitmap(mask_sort_alpha_up);
+        }
+
+        sortAlphaButton->setSelected(true);
+        sortDateButton->setSelected(false);
+
+        return 0;
+      });
+
+      sortDateButton = new ToolbarButton(this, {height() + 4, 0, height(), height()}, mask_sort_date_up, [=] () {
+        if (sortDate == 0) {
+          sortDate = 1;
+          sortDateButton->setBitmap(mask_sort_date_down);
+          
+        } else {
+          sortDate = 0;
+          sortDateButton->setBitmap(mask_sort_date_up);
+        }
+
+        sortAlphaButton->setSelected(false);
+        sortDateButton->setSelected(true);
+
+        return 0;
+      });
+
     }
+  protected:
+    int sortAlpha = 0;
+    int sortDate = 0;
+    ToolbarButton *sortAlphaButton = nullptr;
+    ToolbarButton *sortDateButton = nullptr;
 
 };
 
@@ -622,8 +723,10 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
 
 void ModelLabelsWindow::buildBody(FormWindow *window)
 {
+  new ButtonHolder(window, {LABELS_WIDTH + LABELS_LEFT + 3, window->height() - 33, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, 25 });
+
   // Models List and Filters - Right
-  mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 10});
+  mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 40});
 
   lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 },
     getLabels(),
