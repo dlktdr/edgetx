@@ -68,7 +68,7 @@ constexpr int MODEL_CELLS_PER_LINE = 2;
 constexpr int BUTTON_HEIGHT = 30;
 constexpr int BUTTON_WIDTH  = 75;
 constexpr LcdFlags textFont = FONT(XS);
-constexpr rect_t detailsDialogRect = {5, 50, LCD_W - 10, 340};
+constexpr rect_t detailsDialogRect = {5, 50, LCD_W - 10, 100};
 constexpr int labelWidth = 120;
 #endif
 
@@ -90,6 +90,7 @@ class ToolbarButton : public Button
     {
     }
 
+    inline bool getSelected() { return _selected; }
     void setSelected(bool selected)
     {
       _selected = selected;
@@ -128,51 +129,66 @@ class ToolbarButton : public Button
     }
 };
 
+
 class ButtonHolder : public FormWindow
 {
+  private:
+    struct ButtonInfo
+    {
+      ToolbarButton *button;
+      const uint8_t *states[2];
+      int sortState;
+    };
+
   public:
     ButtonHolder(Window *parent, const rect_t &rect) :
       FormWindow(parent, rect)
     {
-      sortAlphaButton = new ToolbarButton(this, {0, 0, height(), height()}, mask_sort_alpha_up, [=] () {
-        if (sortAlpha == 0) {
-          sortAlpha = 1;
-          sortAlphaButton->setBitmap(mask_sort_alpha_down);
-          
-        } else {
-          sortAlpha = 0;
-          sortAlphaButton->setBitmap(mask_sort_alpha_up);
-        }
+      addButton(mask_sort_alpha_up, mask_sort_alpha_down);
+      addButton(mask_sort_date_up, mask_sort_date_down);
 
-        sortAlphaButton->setSelected(true);
-        sortDateButton->setSelected(false);
-
-        return 0;
-      });
-
-      sortDateButton = new ToolbarButton(this, {height() + 4, 0, height(), height()}, mask_sort_date_up, [=] () {
-        if (sortDate == 0) {
-          sortDate = 1;
-          sortDateButton->setBitmap(mask_sort_date_down);
-          
-        } else {
-          sortDate = 0;
-          sortDateButton->setBitmap(mask_sort_date_up);
-        }
-
-        sortAlphaButton->setSelected(false);
-        sortDateButton->setSelected(true);
-
-        return 0;
-      });
-
+      buttons[0].button->setSelected(true);
     }
-  protected:
-    int sortAlpha = 0;
-    int sortDate = 0;
-    ToolbarButton *sortAlphaButton = nullptr;
-    ToolbarButton *sortDateButton = nullptr;
 
+    void addButton(const uint8_t *state1Bm, const uint8_t *state2Bm)
+    {
+      int buttonNumber = buttons.size();
+      auto tb = new ToolbarButton(this, {buttonNumber * (height() + 4), 0, height(), height()}, state1Bm);
+      tb->setPressHandler([=] () {
+        bool isSelected = tb->getSelected();
+        
+        ButtonInfo *b = nullptr;
+        for (int i = 0; i < (int) buttons.size(); i++) {
+          buttons[i].button->setSelected(false);
+          if (tb == buttons[i].button) {
+            b = &buttons[i];
+          }
+        }
+        tb->setSelected(true);
+
+        if (isSelected && b != nullptr) {
+          if (b->sortState == 0) 
+            b->sortState = 1;
+          else
+            b->sortState = 0;
+
+          tb->setBitmap(b->states[b->sortState]);
+        }
+        return 0;
+      });
+
+      ButtonInfo bi = {
+        tb,
+        state1Bm,
+        state2Bm,
+        0
+      };
+
+      buttons.push_back(bi);
+    }
+
+  protected:
+    std::vector<ButtonInfo> buttons;
 };
 
 //-----------------------------------------------------------------------------
@@ -375,6 +391,7 @@ class MyMenu : public Menu
   protected:
     std::function<void ()> _finishHandler = nullptr;
 };
+
 //-----------------------------------------------------------------------------
 
 ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
@@ -603,6 +620,8 @@ class LabelDialog : public Dialog
     char label[MAX_LABEL_SIZE+1];
 };
 
+//-----------------------------------------------------------------------------
+
 ModelLabelsWindow::ModelLabelsWindow() :
   Page(ICON_MODEL)
 {
@@ -648,7 +667,6 @@ bool isChildOfMdlSelector(Window *window)
   return false;
 }
 
-
 #if defined(HARDWARE_KEYS)
 void ModelLabelsWindow::onEvent(event_t event)
 {
@@ -677,7 +695,10 @@ void ModelLabelsWindow::onEvent(event_t event)
 void ModelLabelsWindow::buildHead(PageHeader *window)
 {
   LcdFlags flags = 0;
-  if (LCD_W < LCD_H) {
+
+  bool verticalDisplay = LCD_W < LCD_H;
+
+  if (verticalDisplay) {
     flags = FONT(XS);
   }
 
@@ -689,7 +710,10 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
 
   auto curModel = modelslist.getCurrentModel();
   auto modelName = curModel != nullptr ? curModel->modelName : STR_NONE;
-  std::string titleName = STR_CURRENT_MODEL + std::string(": ") + std::string(modelName);
+
+  std::string titleName = ! verticalDisplay ? 
+                  STR_CURRENT_MODEL + std::string(": ") + std::string(modelName) :
+                  std::string(modelName);
   new StaticText(window,
                   {PAGE_TITLE_LEFT, PAGE_TITLE_TOP + PAGE_LINE_HEIGHT,
                   LCD_W - PAGE_TITLE_LEFT, PAGE_LINE_HEIGHT},
