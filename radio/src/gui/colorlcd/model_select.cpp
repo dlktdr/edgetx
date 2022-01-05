@@ -62,6 +62,20 @@ constexpr coord_t MODEL_SELECT_CELL_WIDTH =
 
 constexpr coord_t MODEL_SELECT_CELL_HEIGHT = 92;
 
+
+class ButtonHolder : FormWindow
+{
+  public:
+    ButtonHolder(Window *parent, const rect_t &rect) :
+      FormWindow(parent, rect)
+    {
+      
+    }
+
+};
+
+//-----------------------------------------------------------------------------
+
 class ModelButton : public Button
 {
  public:
