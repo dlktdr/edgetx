@@ -46,43 +46,27 @@ class ModelsPageBody : public FormWindow
     void setLabel(std::string &lbl) {selectedLabel = lbl; update();}
     void update(int selected = -1);
 
+    inline void setRefresh() { refresh = true; }
+    inline void setSortOrder(ModelsSortBy sortOrder) { _sortOrder = sortOrder; setRefresh(); }
+
     void checkEvents() override;
 
-    #if defined(HARDWARE_KEYS)
-    void onEvent(event_t event) override;
-    #endif
+    void deleteLater(bool detach = true, bool trash = true) override
+    {
+      innerWindow.deleteLater(true, false);
 
-  void deleteLater(bool detach = true, bool trash = true) override
-  {
-    innerWindow.deleteLater(true, false);
+      Window::deleteLater(detach, trash);
+    }
 
-    Window::deleteLater(detach, trash);
-  }
-
-  void paint(BitmapBuffer *dc) override;
-
-  void addFirstModel() {
-    Menu *menu = new Menu(this);
-    menu->addLine(STR_CREATE_MODEL, getCreateModelAction());
-  }
+    void paint(BitmapBuffer *dc) override;
 
   protected:
+    ModelsSortBy _sortOrder;
     bool isDirty = false;
     bool refresh = false;
     FormWindow innerWindow;
     void initPressHandlers(ModelButton *button, ModelCell *model, int index);
     std::string selectedLabel;
-    std::function<void(void)> getCreateModelAction()
-    {
-      return [=]() {
-        /*storageCheck(true);
-        auto model = modelslist.addModel(category, createModel(), false);
-        model->setModelName(g_model.header.name);
-        modelslist.setCurrentModel(model);
-        modelslist.save();
-        update(category->size() - 1);*/
-      };
-    }
 };
 
 class ModelLabelsWindow : public Page {
@@ -94,6 +78,7 @@ class ModelLabelsWindow : public Page {
 #endif
 
   protected:
+    ModelsSortBy sort = NAME_ASC;
     char tmpLabel[MAX_LABEL_SIZE + 1];
     ListBox *lblselector;
     ModelsPageBody *mdlselector;

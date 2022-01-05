@@ -132,7 +132,7 @@ class ToolbarButton : public Button
 
 class ButtonHolder : public FormWindow
 {
-  private:
+  public:
     struct ButtonInfo
     {
       ToolbarButton *button;
@@ -140,28 +140,34 @@ class ButtonHolder : public FormWindow
       int sortState;
     };
 
-  public:
     ButtonHolder(Window *parent, const rect_t &rect) :
       FormWindow(parent, rect)
     {
       addButton(mask_sort_alpha_up, mask_sort_alpha_down);
       addButton(mask_sort_date_up, mask_sort_date_down);
 
-      buttons[0].button->setSelected(true);
+      _buttons[0].button->setSelected(true);
+    }
+
+    inline void setPressHandler(std::function<void (int index, ButtonInfo *button)> pressHandler)
+    {
+      _pressHandler = std::move(pressHandler);
     }
 
     void addButton(const uint8_t *state1Bm, const uint8_t *state2Bm)
     {
-      int buttonNumber = buttons.size();
+      int buttonNumber = _buttons.size();
       auto tb = new ToolbarButton(this, {buttonNumber * (height() + 4), 0, height(), height()}, state1Bm);
       tb->setPressHandler([=] () {
         bool isSelected = tb->getSelected();
         
         ButtonInfo *b = nullptr;
-        for (int i = 0; i < (int) buttons.size(); i++) {
-          buttons[i].button->setSelected(false);
-          if (tb == buttons[i].button) {
-            b = &buttons[i];
+        int buttonIndex = -1;
+        for (int i = 0; i < (int) _buttons.size(); i++) {
+          _buttons[i].button->setSelected(false);
+          if (tb == _buttons[i].button) {
+            b = &_buttons[i];
+            buttonIndex = i;
           }
         }
         tb->setSelected(true);
@@ -174,6 +180,10 @@ class ButtonHolder : public FormWindow
 
           tb->setBitmap(b->states[b->sortState]);
         }
+
+        if (_pressHandler != nullptr && b != nullptr)
+          _pressHandler(buttonIndex, b);
+
         return 0;
       });
 
@@ -184,11 +194,12 @@ class ButtonHolder : public FormWindow
         0
       };
 
-      buttons.push_back(bi);
+      _buttons.push_back(bi);
     }
 
   protected:
-    std::vector<ButtonInfo> buttons;
+    std::vector<ButtonInfo> _buttons;
+    std::function<void (int index, ButtonInfo *button)> _pressHandler;
 };
 
 //-----------------------------------------------------------------------------
@@ -410,17 +421,6 @@ ModelsPageBody::ModelsPageBody(Window *parent, const rect_t &rect) :
 
 }
 
-#if defined(HARDWARE_KEYS)
-void ModelsPageBody::onEvent(event_t event)
-{
-  if (event == EVT_KEY_BREAK(KEY_ENTER)) {
-    addFirstModel();
-  } else {
-    FormWindow::onEvent(event);
-  }
-}
-#endif
-
 void ModelsPageBody::checkEvents()
 {
   if (refresh) {
@@ -550,8 +550,8 @@ void ModelsPageBody::update(int selected)
 
   ModelButton* selectButton = nullptr;
   ModelsVector models = selectedLabel == STR_UNLABELEDMODEL ?
-    modelsLabels.getUnlabeledModels() :
-    modelsLabels.getModelsByLabel(selectedLabel);
+    modelsLabels.getUnlabeledModels(_sortOrder) :
+    modelsLabels.getModelsByLabel(selectedLabel, _sortOrder);
 
   for (auto &model : models) {
     auto button = new ModelButton(
@@ -752,10 +752,18 @@ void ModelLabelsWindow::buildHead(PageHeader *window)
 
 void ModelLabelsWindow::buildBody(FormWindow *window)
 {
-  new ButtonHolder(window, {LABELS_WIDTH + LABELS_LEFT + 3, window->height() - 33, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, 25 });
-
   // Models List and Filters - Right
   mdlselector = new ModelsPageBody(window, {LABELS_WIDTH + LABELS_LEFT + 3, 5, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, window->height() - 40});
+
+  auto buttonHolder = new ButtonHolder(window, {LABELS_WIDTH + LABELS_LEFT + 3, window->height() - 33, window->width() - LABELS_WIDTH - 3 - LABELS_LEFT, 25 });
+  buttonHolder->setPressHandler([=](int index, ButtonHolder::ButtonInfo *button) {
+    if (index == 0) {  // aphla
+      sort = button->sortState == 0 ? NAME_ASC : NAME_DES;
+    } else {
+      sort = button->sortState == 0 ? DATE_ASC : DATE_DES;
+    }
+    mdlselector->setSortOrder(sort); // Update the list asynchronously
+  });
 
   lblselector = new ListBox(window, {LABELS_LEFT, 5, LABELS_WIDTH, window->height() - 10 },
     getLabels(),
