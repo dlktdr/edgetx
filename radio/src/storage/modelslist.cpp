@@ -273,11 +273,12 @@ int ModelMap::addLabel(const std::string &lbl)
  *
  * @param lbl Label to be added
  * @param cell Model to add the label
+ * @param update If true will update the model file
  * @return true Couldn't add label, not enough memory available in labels string
  * @return false Success
  */
 
-bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell)
+bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell, bool update)
 {
   // First check that there aren't too many labels on this model
   LabelsVector lbs = getLabelsByModel(cell);
@@ -294,6 +295,10 @@ bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell)
   setDirty();
   int labelindex = addLabel(lbl);
   insert(std::pair<int, ModelCell *>(labelindex,cell));
+
+  if(update)
+    updateModelFile(cell); // Write labels into model
+
   return false;
 }
 
@@ -306,7 +311,7 @@ bool ModelMap::addLabelToModel(const std::string &lbl, ModelCell *cell)
  * @return false Success
  */
 
-bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
+bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell, bool update)
 {
   int lblind=getIndexByLabel(label);
   if(lblind < 0)
@@ -318,6 +323,10 @@ bool ModelMap::removeLabelFromModel(const std::string &label, ModelCell *cell)
     setDirty();
     rv = false;
   }
+
+  if(update)
+    updateModelFile(cell); // Write labels into model
+
   return rv;
 }
 
@@ -395,7 +404,6 @@ bool ModelMap::moveLabelTo(unsigned curind, unsigned newind)
 
 bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 {
-
   DEBUG_TIMER_START(debugTimerYamlScan);
 
   if(from == "")
@@ -406,6 +414,9 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
     TRACE("Labels: Out Of Memory");
     return true;
   }
+
+  // Force a write of any changes in memory
+  storageCheck(true);
 
   bool fault = false;
   ModelsVector mods = getModelsByLabel(from); // Find all models to be renamed
@@ -491,6 +502,29 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 }
 
 /**
+ * @brief Returns a comma separated list of the labels
+ *
+ * @param curmod Module
+ * @return std::string
+ */
+
+std::string ModelMap::getLabelString(ModelCell *curmod, const char *noresults)
+{
+  std::string allLabels;
+  int numModels = 0;
+  for (auto &label : getSelectedLabels(curmod)) {
+    if (label.second) {
+      allLabels = allLabels + (numModels != 0 ? "," : "") + label.first;
+      numModels++;
+    }
+  }
+  if (numModels == 0)
+    allLabels = noresults;
+
+  return allLabels;
+}
+
+/**
  * @brief Removes all models from the map
  *
  * @param cell Model to remove
@@ -515,10 +549,56 @@ bool ModelMap::removeModels(ModelCell *cell)
 }
 
 /**
+ * @brief Opens a model.yml File and writes labels data into it.
+ * @details If the cell is current model then write the labels data to g_model and
+ *          mark as dirty
+ *
+ * @param cell
+ * @return true
+ * @return false
+ */
+
+bool ModelMap::updateModelFile(ModelCell *cell)
+{
+  // Update memory copy if on current model
+  if(cell == modelslist.getCurrentModel()) {
+    strncpy(g_model.header.labels, getLabelString(cell).c_str(), LABELS_LENGTH-1);
+    g_model.header.labels[LABELS_LENGTH-1] = '\0';
+    storageDirty(EE_MODEL);
+    return false;
+  }
+
+  ModelData *modeldata = (ModelData*)malloc(sizeof(ModelData));
+  if(!modeldata) {
+    TRACE("Labels: Out Of Memory");
+    return true;
+  }
+
+  bool fault = false;
+  readModelYaml(cell->modelFilename, (uint8_t*)modeldata, sizeof(ModelData));
+
+  strncpy(modeldata->header.labels, getLabelString(cell).c_str(), LABELS_LENGTH-1);
+  modeldata->header.labels[LABELS_LENGTH-1] = '\0';
+
+  char path[256];
+  getModelPath(path, cell->modelFilename);
+  fault = (writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)modeldata) != NULL);
+
+  free(modeldata);
+
+#if defined(DEBUG_TIMERS)
+  DEBUG_TIMER_SAMPLE(debugTimerYamlScan);
+  TRACE("Labels: Time to add/remove labels %luus", debugTimers[debugTimerYamlScan].getLast());
+#endif
+
+  return fault;
+}
+
+/**
  * @brief Sorts a ModelsVector by sortby
  *
  * @param mv ModeslVector to sort
- * @param sortby NAME_ASC, NAME_DES, DATE_ASC, DATE_DES,
+ * @param sortby NO_SORT, NAME_ASC, NAME_DES, DATE_ASC, DATE_DES,
  */
 
 void ModelMap::sortModelsBy(ModelsVector &mv, ModelsSortBy sortby)

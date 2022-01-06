@@ -1298,22 +1298,6 @@ const char * STR_TIMER_MODES[] = {"OFF", "ON", "Start", "Throttle", "Throttle %"
 
 const char MODEL_NAME_EXTRA_CHARS[] = "_-.,:;<=>";
 
-std::string getLabelString(ModelCell *curmod)
-{
-  std::string allLabels;
-  int numModels = 0;
-  for (auto &label : modelsLabels.getSelectedLabels(curmod)) {
-    if (label.second) {
-      allLabels = allLabels + (numModels != 0 ? "," : "") + label.first;
-      numModels++;
-    }
-  }
-  if (numModels == 0)
-    allLabels = STR_UNLABELEDMODEL;
-
-  return allLabels;
-}
-
 void ModelSetupPage::build(FormWindow * window)
 {
   FormGridLayout grid;
@@ -1338,7 +1322,7 @@ void ModelSetupPage::build(FormWindow * window)
   // Model labels
   new StaticText(window, grid.getLabelSlot(), "Labels", 0, COLOR_THEME_PRIMARY1);
   labelTextButton =
-    new TextButton(window, grid.getFieldSlot(), getLabelString(curmod), [=] () {
+    new TextButton(window, grid.getFieldSlot(), modelsLabels.getLabelString(curmod,STR_UNLABELEDMODEL), [=] () {
       Menu *menu = new Menu(window, true);
       for (auto &label: modelsLabels.getLabels()) {
         menu->addLine(label,
@@ -1347,8 +1331,8 @@ void ModelSetupPage::build(FormWindow * window)
               modelsLabels.addLabelToModel(label, curmod);
             else
               modelsLabels.removeLabelFromModel(label, curmod);
-            labelTextButton->setText(getLabelString(curmod));
-            strcpy(g_model.header.labels, getLabelString(curmod).c_str());
+            labelTextButton->setText(modelsLabels.getLabelString(curmod,STR_UNLABELEDMODEL));
+            strcpy(g_model.header.labels, modelsLabels.getLabelString(curmod,STR_UNLABELEDMODEL).c_str());
             SET_DIRTY();
           }, [=] () {
             return modelsLabels.isLabelSelected(label, curmod);

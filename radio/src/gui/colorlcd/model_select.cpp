@@ -472,9 +472,9 @@ void ModelsPageBody::initPressHandlers(ModelButton *button, ModelCell *model, in
         menu->addLine(label,
           [=] () {
             if (!modelsLabels.isLabelSelected(label, model))
-              modelsLabels.addLabelToModel(label, model);
+              modelsLabels.addLabelToModel(label, model, true);
             else
-              modelsLabels.removeLabelFromModel(label, model);
+              modelsLabels.removeLabelFromModel(label, model, true);
 
             isDirty = true;
           }, [=] () {

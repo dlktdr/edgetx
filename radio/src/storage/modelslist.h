@@ -121,25 +121,29 @@ class ModelMap : protected std::multimap<uint16_t, ModelCell *>
     bool isLabelSelected(const std::string &, ModelCell *);
     LabelsVector getLabels();
     int addLabel(const std::string &);
-    bool addLabelToModel(const std::string &, ModelCell *);
-    bool removeLabelFromModel(const std::string &label, ModelCell *);
+    bool addLabelToModel(const std::string &, ModelCell *, bool update=false);
+    bool removeLabelFromModel(const std::string &label, ModelCell *, bool update=false);
     bool removeLabel(const std::string &);
     bool moveLabelTo(unsigned current, unsigned newind);
     bool renameLabel(const std::string &from, const std::string &to);
     std::string getCurrentLabel() {return currentlabel;};
     void setCurrentLabel(const std::string &lbl) {currentlabel = lbl; setDirty();}
+    std::string getLabelString(ModelCell *, const char *noresults="");
     void setDirty(bool save=false);
     bool isDirty() {return _isDirty;}
 
   protected:
     void updateModelCell(ModelCell *);
     bool removeModels(ModelCell *); // Should only be called from ModelsList remove model.
+    bool updateModelFile(ModelCell *);
+    void sortModelsBy(ModelsVector &mv, ModelsSortBy sortby);
+
     void clear() {
       _isDirty=true;
       labels.clear();
       std::multimap<uint16_t, ModelCell *>::clear();
     }
-    void sortModelsBy(ModelsVector &mv, ModelsSortBy sortby);
+
 
   private:
     bool _isDirty=true;
