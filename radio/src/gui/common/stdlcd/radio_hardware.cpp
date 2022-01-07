@@ -210,7 +210,8 @@ enum {
 #elif defined(RADIO_ZORRO)
   #define SWITCH_TYPE_MAX(sw)            ((MIXSRC_SB - MIXSRC_FIRST_SWITCH == sw || MIXSRC_SC - MIXSRC_FIRST_SWITCH == sw) ? SWITCH_3POS : SWITCH_2POS)
 #elif defined(RADIO_TX12) || defined(RADIO_T8)
-  #define SWITCH_TYPE_MAX(sw)            ((MIXSRC_SA - MIXSRC_FIRST_SWITCH == sw || MIXSRC_SD - MIXSRC_FIRST_SWITCH == sw) ? SWITCH_2POS : SWITCH_3POS)
+  #define SWITCH_TYPE_MAX(sw)             ((MIXSRC_SA - MIXSRC_FIRST_SWITCH == sw || MIXSRC_SD - MIXSRC_FIRST_SWITCH == sw || \
+                                            MIXSRC_SI - MIXSRC_FIRST_SWITCH == sw || MIXSRC_SJ - MIXSRC_FIRST_SWITCH) ? SWITCH_2POS : SWITCH_3POS)
 #elif defined(RADIO_T12)
   #define SWITCH_TYPE_MAX(sw)            ((MIXSRC_SG - MIXSRC_FIRST_SWITCH == sw || MIXSRC_SH - MIXSRC_FIRST_SWITCH == sw) ? SWITCH_2POS : SWITCH_3POS)
 #else
@@ -527,13 +528,19 @@ void menuRadioHardware(event_t event)
 #endif
 
 #if !defined(PCBX9D) && !defined(PCBX9DP) && !defined(PCBX9E)
-      case ITEM_RADIO_HARDWARE_INTERNAL_MODULE:
+      case ITEM_RADIO_HARDWARE_INTERNAL_MODULE: {
         g_eeGeneral.internalModule =
             editChoice(HW_SETTINGS_COLUMN2, y, STR_INTERNAL_MODULE,
                        STR_INTERNAL_MODULE_PROTOCOLS,
                        g_eeGeneral.internalModule, MODULE_TYPE_NONE,
                        MODULE_TYPE_MAX, attr, event, isInternalModuleSupported);
-        break;
+        if (g_model.moduleData[INTERNAL_MODULE].type !=
+            g_eeGeneral.internalModule) {
+          memclear(&g_model.moduleData[INTERNAL_MODULE], sizeof(ModuleData));
+          storageDirty(EE_MODEL);
+          storageDirty(EE_GENERAL);
+        }
+      } break;
 #endif
 
 #if (defined(CROSSFIRE) || defined(GHOST))

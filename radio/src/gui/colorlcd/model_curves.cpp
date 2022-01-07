@@ -361,7 +361,7 @@ void ModelCurvesPage::build(FormWindow * window, int8_t focusIndex)
               button->invalidate();
           });
           menu->addLine(STR_CLEAR, [=]() {
-              curveReset(index);
+              curveClear(index);
               storageDirty(EE_MODEL);
               rebuild(window, index);
           });
@@ -402,6 +402,11 @@ void ModelCurvesPage::build(FormWindow * window, int8_t focusIndex)
       grid.spacer(button->height() + 5);
     }
   }
+
+// extra bottom padding if touchscreen
+#if defined HARDWARE_TOUCH
+  grid.nextLine();
+#endif
 
   window->setInnerHeight(grid.getWindowHeight());
 }
