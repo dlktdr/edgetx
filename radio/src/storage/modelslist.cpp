@@ -420,7 +420,11 @@ bool ModelMap::renameLabel(const std::string &from, const std::string &to)
 
   bool fault = false;
   ModelsVector mods = getModelsByLabel(from); // Find all models to be renamed
+  int i=0;
   for (const auto &modcell: mods) {
+#if defined(COLORLCD)
+    drawProgressScreen(lcd, STR_RENAME_FILE, modcell->modelFilename, i++, mods.size());
+#endif
     readModelYaml(modcell->modelFilename, (uint8_t*)modeldata, sizeof(ModelData));
 
     // Make sure there is room to rename

@@ -30,29 +30,6 @@
 #endif
 
 #if defined(STORAGE_MODELSLIST)
-static void drawProgressScreen(const char* filename, int progress, int total)
-{
-#if defined(COLORLCD)
-  OpenTxTheme* l_theme = static_cast<OpenTxTheme*>(theme);
-
-  lcd->reset();
-  l_theme->drawBackground(lcd);
-  lcd->drawText(LCD_W/2, LCD_H/2 - 30, STR_CONVERTING, FONT(XL) | CENTERED | COLOR_THEME_WARNING);
-  lcd->drawText(LCD_W/2, LCD_H/2, filename, FONT(STD) | CENTERED | COLOR_THEME_SECONDARY1);
-
-  l_theme->drawProgressBar(lcd,
-                           LCD_W / 4,
-                           LCD_H / 2 + 40,
-                           LCD_W / 2,
-                           20,
-                           progress, total);
-
-  WDG_RESET();
-  lcdRefresh();
-#else
-  // TODO: BW progress screen
-#endif
-}
 
 void convertBinRadioData(const char * path, int version)
 {
@@ -76,7 +53,7 @@ void convertBinRadioData(const char * path, int version)
   unsigned converted = 0;
   auto to_convert = modelslist.getModelsCount() + 1;
 
-  drawProgressScreen(RADIO_FILENAME, converted, to_convert);
+  drawProgressScreen(lcd, STR_CONVERTING, RADIO_FILENAME, converted, to_convert);
   TRACE("converting '%s' (%d/%d)", RADIO_FILENAME, converted, to_convert);
 
 #if STORAGE_CONVERSIONS < 220
@@ -104,7 +81,7 @@ void convertBinRadioData(const char * path, int version)
     char* filename = model_ptr->modelFilename;
 
     TRACE("converting '%s' (%d/%d)", filename, converted, to_convert);
-    drawProgressScreen(filename, converted, to_convert);
+    drawProgressScreen(lcd, STR_CONVERTING, filename, converted, to_convert);
 
     // read only the version number (size=0)
     error = readModelBin(filename, nullptr, 0, &model_version);
