@@ -568,6 +568,11 @@ void checkBacklight()
       }
       if (backlightOn) {
         currentBacklightBright = requiredBacklightBright;
+#if defined(COLORLCD)
+        // force backlight on for color lcd radios
+        if(currentBacklightBright > BACKLIGHT_LEVEL_MAX - BACKLIGHT_LEVEL_MIN)
+          currentBacklightBright = BACKLIGHT_LEVEL_MAX - BACKLIGHT_LEVEL_MIN;
+#endif
         BACKLIGHT_ENABLE();
       }
       else {
@@ -579,7 +584,11 @@ void checkBacklight()
 
 void resetBacklightTimeout()
 {
-  lightOffCounter = ((uint16_t)g_eeGeneral.lightAutoOff*250) << 1;
+  uint16_t autoOff = g_eeGeneral.lightAutoOff;
+#if defined(COLORLCD)
+  autoOff = std::max<uint16_t>(1, autoOff); // prevent the timeout from being 0 seconds on color lcd radios
+#endif
+  lightOffCounter = (autoOff*250) << 1;
 }
 
 #if defined(SPLASH)
@@ -726,7 +735,35 @@ void checkAll()
 #endif
 
 #if defined(COLORLCD)
-  #warning "KEYSTUCK Message Not Yet Implemented"
+  if (!waitKeysReleased()) {
+    auto dlg = new FullScreenDialog(WARNING_TYPE_ALERT, STR_KEYSTUCK);
+    LED_ERROR_BEGIN();
+    AUDIO_ERROR_MESSAGE(AU_ERROR);
+    tmr10ms_t tgtime = get_tmr10ms() + 500;
+    uint32_t keys = readKeys();
+    std::string strKeys("");
+    const char STR_VKEYS[] = TR_VKEYS;
+    const int len = int(LEN_VKEYS[0]);
+    char s[6];
+    s[5] = 0;
+    for (int i = 0; i < (int)TRM_BASE; i++) {
+      if (keys & (1 << i)) {
+        strncpy(s, &STR_VKEYS[i * len], len);
+        strKeys += s;
+      }
+    }
+
+    dlg->setMessage(strKeys.c_str());
+    dlg->setCloseCondition([tgtime]() {
+      if (tgtime >= get_tmr10ms() && keyDown()) {
+        return false;
+      } else {
+        return true;
+      }
+    });
+    dlg->runForever();
+    LED_ERROR_END();
+  }
 #else
   if (!waitKeysReleased()) {
     showMessageBox(STR_KEYSTUCK);
@@ -783,12 +820,14 @@ bool isThrottleWarningAlertNeeded()
 void checkThrottleStick()
 {
   if (isThrottleWarningAlertNeeded()) {
+    LED_ERROR_BEGIN();
     AUDIO_ERROR_MESSAGE(AU_THROTTLE_ALERT);
-    auto dialog = new FullScreenDialog(WARNING_TYPE_ALERT, TR_THROTTLE_UPPERCASE, STR_THROTTLE_NOT_IDLE, STR_PRESS_ANY_KEY_TO_SKIP);
-    dialog->setCloseCondition([]() {
-        return !isThrottleWarningAlertNeeded();
-    });
+    auto dialog =
+        new FullScreenDialog(WARNING_TYPE_ALERT, TR_THROTTLE_UPPERCASE,
+                             STR_THROTTLE_NOT_IDLE, STR_PRESS_ANY_KEY_TO_SKIP);
+    dialog->setCloseCondition([]() { return !isThrottleWarningAlertNeeded(); });
     dialog->runForever();
+    LED_ERROR_END();
   }
 }
 #else
@@ -806,7 +845,7 @@ void checkThrottleStick()
   bool refresh = false;
 #endif
 
-  while (!getEvent()) {
+  while (!keyDown()) {
     if (!isThrottleWarningAlertNeeded()) {
       return;
     }
@@ -1748,8 +1787,14 @@ void opentxInit()
   menuHandlers[1] = menuModelSelect;
 #endif
 
-#if defined(EEPROM)
+#if defined(STARTUP_ANIMATION)
+  lcdRefreshWait();
+  lcdClear();
+  lcdRefresh();
+  lcdRefreshWait();
+
   bool radioSettingsValid = storageReadRadioSettings(false);
+  (void)radioSettingsValid;
 #endif
 
   BACKLIGHT_ENABLE(); // we start the backlight during the startup animation
@@ -1879,6 +1924,10 @@ void opentxInit()
     // no backlight mode off on color lcd radios
     g_eeGeneral.backlightMode = e_backlight_mode_keys;
   }
+  if (g_eeGeneral.backlightBright > BACKLIGHT_LEVEL_MAX - BACKLIGHT_LEVEL_MIN)
+    g_eeGeneral.backlightBright = BACKLIGHT_LEVEL_MAX - BACKLIGHT_LEVEL_MIN;
+  if (g_eeGeneral.lightAutoOff < 1)
+    g_eeGeneral.lightAutoOff = 1;
 #endif
 
   if (g_eeGeneral.backlightMode != e_backlight_mode_off) {
