@@ -158,7 +158,13 @@ void FullScreenDialog::runForever()
 {
   running = true;
 
+  MainWindow* mainWin = MainWindow::instance();
+#if defined(HARDWARE_TOUCH)
+  mainWin->setTouchEnabled(true);
+#endif
   while (running) {
+    resetBacklightTimeout();
+
     auto check = pwrCheck();
     if (check == e_power_off) {
       boardOff();
@@ -176,7 +182,7 @@ void FullScreenDialog::runForever()
     WDG_RESET();
 
     RTOS_WAIT_MS(1);
-    MainWindow::instance()->run(false);
+    mainWin->run(false);
   }
 
   deleteLater();
@@ -186,12 +192,18 @@ void FullScreenDialog::runForeverNoPwrCheck()
 {
   running = true;
 
+  MainWindow* mainWin = MainWindow::instance();
+#if defined(HARDWARE_TOUCH)
+  mainWin->setTouchEnabled(true);
+#endif
   while (running) {
+    resetBacklightTimeout();
+
     checkBacklight();
     WDG_RESET();
 
     RTOS_WAIT_MS(1);
-    MainWindow::instance()->run(false);
+    mainWin->run(false);
   }
 
   deleteLater();
@@ -201,9 +213,11 @@ void raiseAlert(const char * title, const char * msg, const char * action, uint8
 {
   TRACE("raiseAlert('%s')", msg);
   AUDIO_ERROR_MESSAGE(sound);
+  LED_ERROR_BEGIN();
   auto dialog = new FullScreenDialog(WARNING_TYPE_ALERT, title ? title : "",
                                      msg ? msg : "", action ? action : "");
   dialog->runForever();
+  LED_ERROR_END();
 }
 
 // POPUP_CONFIRMATION
