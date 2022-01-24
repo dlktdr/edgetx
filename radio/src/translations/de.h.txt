@@ -712,6 +712,8 @@
 #define TR_RENAME_CATEGORY              "Modelltyp umbenennen"
 #define TR_DELETE_CATEGORY              "Modelltyp löschen"
 #define TR_CREATE_MODEL                 TR("Neues Modell" , "Neues Modell erstellen")
+#define TR_NEW_MODEL                   "New Model"
+#define TR_EDIT_LABELS                 "Edit Labels"
 #define TR_DUPLICATE_MODEL              "Kopiere Modell"
 #define TR_COPY_MODEL                   "Kopiere Modell"
 #define TR_MOVE_MODEL                   "Verschiebe Modell"

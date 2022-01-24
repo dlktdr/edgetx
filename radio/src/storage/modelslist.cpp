@@ -164,6 +164,43 @@ ModelsVector ModelMap::getModelsByLabel(const std::string &lbl, ModelsSortBy sor
 }
 
 /**
+ * @brief Returns all models that are in multiple labels
+ *
+ * @param lbls Labels to search
+ * @return ModelsVector aka vector<ModelCell*> of all models belonging to a label
+ */
+
+ModelsVector ModelMap::getModelsByLabels(const LabelsVector &lbls, ModelsSortBy sortby)
+{
+  bool addunlabeled = false;
+  // Build a list of the requested indexes
+  std::vector<int> idxvect;
+  for(const auto &lbl: lbls) {
+    if(lbl == STR_UNLABELEDMODEL)
+      addunlabeled = true;
+    int index = getIndexByLabel(lbl);
+    if(index >= 0)
+      idxvect.push_back(index);
+  }
+
+  ModelsVector rv;
+  for (auto it = begin(); it != end(); ++it) {
+    for(auto idx : idxvect) {
+      if(it->first == idx)
+        rv.push_back(it->second);
+    }
+  }
+
+  if(addunlabeled) {
+    ModelsVector unlabeled = getUnlabeledModels();
+    rv.insert(rv.end(), unlabeled.begin(), unlabeled.end());
+  }
+
+  sortModelsBy(rv, sortby);
+  return rv;
+}
+
+/**
  * @brief Gets all labels that a model currently has selected
  *
  * @param mdl Model to search

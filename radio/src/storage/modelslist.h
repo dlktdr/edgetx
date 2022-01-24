@@ -116,6 +116,7 @@ class ModelMap : protected std::multimap<uint16_t, ModelCell *>
   public:
     ModelsVector getUnlabeledModels(ModelsSortBy sortby=DEFAULT_MODEL_SORT);
     ModelsVector getModelsByLabel(const std::string &, ModelsSortBy sortby=DEFAULT_MODEL_SORT);
+    ModelsVector getModelsByLabels(const LabelsVector &, ModelsSortBy sortby=DEFAULT_MODEL_SORT);
     LabelsVector getLabelsByModel(ModelCell *);
     std::map<std::string, bool> getSelectedLabels(ModelCell *);
     bool isLabelSelected(const std::string &, ModelCell *);
