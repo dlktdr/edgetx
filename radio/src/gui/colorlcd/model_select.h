@@ -23,11 +23,83 @@
 #define _MODEL_SELECT_H_
 
 #include "tabsgroup.h"
+#include "storage/modelslist.h"
+#include "libopenui.h"
+#include <algorithm>
+#include "listbox.h"
+
+constexpr int MAX_LABEL_SIZE = 30;
+
+class ModelButton;
 
 class ModelSelectMenu: public TabsGroup {
   public:
     ModelSelectMenu();
     void build(int index=-1);
 };
+
+class ModelsPageBody : public FormWindow
+{
+  public:
+    ModelsPageBody(Window *parent, const rect_t &rect);
+
+    void setLabels(LabelsVector labels) {selectedLabels = labels; update();}
+    void update(int selected = -1);
+
+    inline void setRefresh() { refresh = true; }
+    inline void setSortOrder(ModelsSortBy sortOrder) { _sortOrder = sortOrder; setRefresh(); }
+
+    void checkEvents() override;
+
+    void deleteLater(bool detach = true, bool trash = true) override
+    {
+      innerWindow.deleteLater(true, false);
+
+      Window::deleteLater(detach, trash);
+    }
+
+    void paint(BitmapBuffer *dc) override;
+    void setLblRefreshFunc(std::function<void()> fnc) {refreshLabels = std::move(fnc);}
+
+  protected:
+    ModelsSortBy _sortOrder;
+    bool isDirty = false;
+    bool refresh = false;
+    FormWindow innerWindow;
+    void initPressHandlers(ModelButton *button, ModelCell *model, int index);
+    std::string selectedLabel;
+    LabelsVector selectedLabels;
+    std::function<void()> refreshLabels = nullptr;
+};
+
+class ModelLabelsWindow : public Page {
+  public:
+    ModelLabelsWindow();
+
+#if defined (HARDWARE_KEYS)
+  void onEvent(event_t event) override;
+#endif
+
+  protected:
+    ModelsSortBy sort = NAME_ASC;
+    char tmpLabel[MAX_LABEL_SIZE + 1] = "\0";
+    ListBox *lblselector;
+    ModelsPageBody *mdlselector;
+    TextButton *newButton;
+    std::string currentLabel;
+
+    LabelsVector getLabels()
+    {
+      auto labels = modelsLabels.getLabels();
+      if(modelsLabels.getUnlabeledModels().size() > 0)
+        labels.emplace_back(STR_UNLABELEDMODEL);
+      return labels;
+    }
+
+    void buildHead(PageHeader *window);
+    void buildBody(FormWindow *window);
+    void labelRefreshRequest();
+};
+
 
 #endif // _MODEL_SELECT_H_

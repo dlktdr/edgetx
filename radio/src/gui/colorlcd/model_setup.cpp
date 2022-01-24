@@ -1308,19 +1308,43 @@ void ModelSetupPage::build(FormWindow * window)
   grid.spacer(PAGE_PADDING);
 
   // Model name
+  ModelCell *curmod = modelslist.getCurrentModel();
   new StaticText(window, grid.getLabelSlot(), STR_MODELNAME, 0, COLOR_THEME_PRIMARY1);
   auto text =
       new ModelTextEdit(window, grid.getFieldSlot(), g_model.header.name,
                         sizeof(g_model.header.name), 0, MODEL_NAME_EXTRA_CHARS);
   text->setChangeHandler([=] {
     modelslist.load();
-    auto model = modelslist.getCurrentModel();
-    if (model) {
-      model->setModelName(g_model.header.name);
+    if (curmod) {
+      curmod->setModelName(g_model.header.name);
       modelslist.save();
     }
     SET_DIRTY();
   });
+  grid.nextLine();
+
+  // Model labels
+  new StaticText(window, grid.getLabelSlot(), "Labels", 0, COLOR_THEME_PRIMARY1);
+  labelTextButton =
+    new TextButton(window, grid.getFieldSlot(), modelsLabels.getLabelString(curmod,STR_UNLABELEDMODEL), [=] () {
+      Menu *menu = new Menu(window, true);
+      for (auto &label: modelsLabels.getLabels()) {
+        menu->addLine(label,
+          [=] () {
+            if (!modelsLabels.isLabelSelected(label, curmod))
+              modelsLabels.addLabelToModel(label, curmod);
+            else
+              modelsLabels.removeLabelFromModel(label, curmod);
+            labelTextButton->setText(modelsLabels.getLabelString(curmod,STR_UNLABELEDMODEL));
+            strcpy(g_model.header.labels, modelsLabels.getLabelString(curmod,STR_UNLABELEDMODEL).c_str());
+            SET_DIRTY();
+          }, [=] () {
+            return modelsLabels.isLabelSelected(label, curmod);
+          });
+      }
+      return 0;
+    });
+
   grid.nextLine();
 
   // Bitmap

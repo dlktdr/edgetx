@@ -86,10 +86,30 @@ void storageCheck(bool immediately)
     }
   }
 
+#if defined(STORAGE_MODELSLIST)
+  if (storageDirtyMsk & EE_LABELS) {
+    TRACE("sdcard write labels");
+    storageDirtyMsk &= ~EE_LABELS;
+    const char * error = modelslist.save();
+    if (error) {
+      TRACE("writeLabels error=%s", error);
+    }
+  }
+#endif
+
   if (storageDirtyMsk & EE_MODEL) {
     TRACE("eeprom write model");
     storageDirtyMsk &= ~EE_MODEL;
     const char * error = writeModel();
+#if defined(STORAGE_MODELSLIST)
+    // If model was updated, also update the important modelcell info.
+    modelslist.getCurrentModel()->setModelName(g_model.header.name);
+    modelslist.getCurrentModel()->setRfData(&g_model);
+  #if LEN_BITMAP_NAME > 0
+    strncpy(modelslist.getCurrentModel()->modelBitmap,g_model.header.bitmap, LEN_BITMAP_NAME);
+    modelslist.getCurrentModel()->modelBitmap[LEN_BITMAP_NAME-1] = '\0';
+  #endif
+#endif
     if (error) {
       TRACE("writeModel error=%s", error);
     }
@@ -185,14 +205,14 @@ void storageReadAll()
     storageDirty(EE_GENERAL);
     storageCheck(true);
   }
-  
+
   if (loadModel(g_eeGeneral.currModelFilename, false) != nullptr) {
     TRACE("No current model or SD card error");
   }
 #else
   if (loadModel(g_eeGeneral.currModel, false) != nullptr) {
     TRACE("No current model or SD card error");
-  }  
+  }
 #endif
 }
 

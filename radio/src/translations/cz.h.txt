@@ -416,6 +416,7 @@
 #define TR_COPYINGMODEL                "Kopíruji model.."
 #define TR_MOVINGMODEL                 "Přesouvám model."
 #define TR_LOADINGMODEL                "Aktivuji model.."
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                        "Název"
 #define TR_MODELNAME                   TR("Model", "Název modelu")
 #define TR_PHASENAME                   "Název"
@@ -709,6 +710,8 @@
 #define TR_RENAME_CATEGORY             "Přejmenovat kategorii"
 #define TR_DELETE_CATEGORY             "Odstranit kategorii"
 #define TR_CREATE_MODEL                "Nový model"
+#define TR_NEW_MODEL                   "New Model"
+#define TR_EDIT_LABELS                 "Edit Labels"
 #define TR_DUPLICATE_MODEL             "Duplikovat model"
 #define TR_COPY_MODEL                  "Kopírovat"
 #define TR_MOVE_MODEL                  "Přesunout model"

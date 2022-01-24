@@ -441,6 +441,7 @@
 #define TR_COPYINGMODEL        "Copia in corso.."
 #define TR_MOVINGMODEL         "Spostamento..."
 #define TR_LOADINGMODEL        "Caricamento..."
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                "Nome"
 #define TR_MODELNAME            TR("Nome Mode.", "Nome Modello")
 #define TR_PHASENAME           "Nome fase"
@@ -733,6 +734,8 @@
 #define TR_RENAME_CATEGORY     "Rinomina Categoria"
 #define TR_DELETE_CATEGORY     "Cancella Categoria"
 #define TR_CREATE_MODEL        "Crea Modello"
+#define TR_NEW_MODEL                   "New Model"
+#define TR_EDIT_LABELS                 "Edit Labels"
 #define TR_DUPLICATE_MODEL     "Duplica Modello"
 #define TR_COPY_MODEL          "Copia Modello"
 #define TR_MOVE_MODEL          "Sposta Modello"

@@ -226,6 +226,7 @@ extern const char STR_DELETEMODEL[];
 extern const char STR_COPYINGMODEL[];
 extern const char STR_MOVINGMODEL[];
 extern const char STR_LOADINGMODEL[];
+extern const char STR_UNLABELEDMODEL[];
 extern const char STR_NAME[];
 extern const char STR_BITMAP[];
 extern const char STR_TIMER[];
@@ -524,6 +525,8 @@ extern const char STR_CREATE_CATEGORY[];
 extern const char STR_RENAME_CATEGORY[];
 extern const char STR_DELETE_CATEGORY[];
 extern const char STR_CREATE_MODEL[];
+extern const char STR_NEW_MODEL[];
+extern const char STR_EDIT_LABELS[];
 extern const char STR_DUPLICATE_MODEL[];
 extern const char STR_COPY_MODEL[];
 extern const char STR_MOVE_MODEL[];
@@ -1157,6 +1160,16 @@ extern const char STR_CANCEL[];
 extern const char STR_EDIT_THEME[];
 extern const char STR_DETAILS[];
 extern const char STR_THEME_EDITOR[];
+
+extern const char STR_ENTER_LABEL[];
+extern const char STR_LABEL[];
+extern const char STR_SELECT_MODEL[];
+extern const char STR_NONE[];
+extern const char STR_CURRENT_MODEL[];
+extern const char STR_NEW[];
+extern const char STR_NEW_LABEL[];
+extern const char STR_RENAME_LABEL[];
+extern const char STR_DELETE_LABEL[];
 
 #if defined(COLORLCD)
 

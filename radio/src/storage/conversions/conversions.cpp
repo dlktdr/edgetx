@@ -30,29 +30,6 @@
 #endif
 
 #if defined(STORAGE_MODELSLIST)
-static void drawProgressScreen(const char* filename, int progress, int total)
-{
-#if defined(COLORLCD)
-  OpenTxTheme* l_theme = static_cast<OpenTxTheme*>(theme);
-
-  lcd->reset();
-  l_theme->drawBackground(lcd);
-  lcd->drawText(LCD_W/2, LCD_H/2 - 30, STR_CONVERTING, FONT(XL) | CENTERED | COLOR_THEME_WARNING);
-  lcd->drawText(LCD_W/2, LCD_H/2, filename, FONT(STD) | CENTERED | COLOR_THEME_SECONDARY1);
-
-  l_theme->drawProgressBar(lcd,
-                           LCD_W / 4,
-                           LCD_H / 2 + 40,
-                           LCD_W / 2,
-                           20,
-                           progress, total);
-
-  WDG_RESET();
-  lcdRefresh();
-#else
-  // TODO: BW progress screen
-#endif
-}
 
 void convertBinRadioData(const char * path, int version)
 {
@@ -76,7 +53,7 @@ void convertBinRadioData(const char * path, int version)
   unsigned converted = 0;
   auto to_convert = modelslist.getModelsCount() + 1;
 
-  drawProgressScreen(RADIO_FILENAME, converted, to_convert);
+  drawProgressScreen(lcd, STR_CONVERTING, RADIO_FILENAME, converted, to_convert);
   TRACE("converting '%s' (%d/%d)", RADIO_FILENAME, converted, to_convert);
 
 #if STORAGE_CONVERSIONS < 220
@@ -98,56 +75,37 @@ void convertBinRadioData(const char * path, int version)
 #endif
 
   const char* error = nullptr;
-  for (auto category_ptr : modelslist.getCategories()) {
+  for(auto model_it = modelslist.begin(); model_it != modelslist.end(); ++model_it) {
+    uint8_t model_version = 0;
+    auto* model_ptr = *model_it;
+    char* filename = model_ptr->modelFilename;
 
-    auto model_it = category_ptr->begin();
+    TRACE("converting '%s' (%d/%d)", filename, converted, to_convert);
+    drawProgressScreen(lcd, STR_CONVERTING, filename, converted, to_convert);
 
-    while(model_it != category_ptr->end()) {
+    // read only the version number (size=0)
+    error = readModelBin(filename, nullptr, 0, &model_version);
+    if (!error) {
+      // TODO: error handling
+      error = convertBinModelData(filename, model_version);
 
-      uint8_t model_version = 0;
-      auto* model_ptr = *model_it;
-      char* filename = model_ptr->modelFilename;
-
-      TRACE("converting '%s' (%d/%d)", filename, converted, to_convert);
-      drawProgressScreen(filename, converted, to_convert);
-
-      // read only the version number (size=0)
-      error = readModelBin(filename, nullptr, 0, &model_version);
-      if (!error) {
-        // TODO: error handling
-        error = convertBinModelData(filename, model_version);
-        ++model_it;
-
-        if (error) {
-          TRACE("ERROR converting '%s': %s", filename, error);
-          category_ptr->removeModel(model_ptr);
-        } else {
-          PartialModel partial;
-          memclear(&partial, sizeof(PartialModel));
-          
-          readModelYaml(filename, reinterpret_cast<uint8_t*>(&partial), sizeof(partial));
-          model_ptr->setModelName(partial.header.name);
-        }
-      } else {
-        TRACE("ERROR reading '%s': %s", filename, error);
-
-        // remove that file from the models list
-        ++model_it;
-        category_ptr->removeModel(model_ptr);
+      if (error) {
+        TRACE("ERROR converting '%s': %s", filename, error);
       }
+    } else {
+      TRACE("ERROR reading '%s': %s", filename, error);
+    }
 
-      converted++;
+    converted++;
 
 #if defined(SIMU)
-      RTOS_WAIT_MS(200);
+    RTOS_WAIT_MS(200);
 #endif
-    }
   }
 
 #if defined(SDCARD_YAML) || defined(STORAGE_MODELSLIST)
-  modelslist.save();
-  // trigger models list reload
   modelslist.clear();
+  modelslist.load();
 #endif
 }
 
@@ -172,7 +130,7 @@ const char* convertBinModelData(char* filename, int version)
   memcpy(path, MODELS_PATH, sizeof(MODELS_PATH)-1);
   path[sizeof(MODELS_PATH)-1] = '/';
   strcpy(&path[sizeof(MODELS_PATH)], filename);
-  
+
 #if STORAGE_CONVERSIONS < 220
   if (version == 219) {
     const char* error = convertModelData_219_to_220(path);
@@ -199,7 +157,7 @@ const char* convertBinModelData(char* filename, int version)
 void eeConvertModel(int id, int version)
 {
   TRACE("eeConvertModel(%d,%d)", id, version);
-  
+
 #if STORAGE_CONVERSIONS < 220
   if (version == 219) {
     convertModelData_219_to_220(id);
@@ -267,7 +225,7 @@ bool eeConvert()
 #if defined(STORAGE_MODELSLIST)
   modelslist.clear();
 #endif
-  
+
 #if LCD_W >= 212
   lcdDrawRect(60, 6*FH+4, 132, 3);
 #else

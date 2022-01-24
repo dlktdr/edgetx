@@ -45,19 +45,43 @@ ListBase::ListBase(Window *parent, const rect_t &rect, std::vector<std::string> 
   setInnerHeight(names.size() * lineHeight);
   if (_getValue != nullptr)
     setSelected(_getValue());
-  else 
+  else
     setSelected(0);
 }
 
 void ListBase::setSelected(int selected)
 {
-  if (selected >= 0 && selected < (int)names.size()  && selected != this->selected) {
-    this->selected = selected;
-    setScrollPositionY(lineHeight * this->selected - lineHeight);
-    if (_setValue != nullptr) {
-      _setValue(this->selected);
+  int count = (int)names.size();
+  if(selected < 0 || selected >= count)
+    return;
+
+  if(selectionType == LISTBOX_SINGLE_SELECT) {
+    if (selected != this->selected) {
+      this->selected = selected;
+      setScrollPositionY(lineHeight * this->selected - lineHeight);
+      if (_setValue != nullptr) {
+        _setValue(this->selected);
+      }
+      invalidate();
     }
-    invalidate();
+  } else { // Multiselect
+    if(selectedIndexes.find(selected) != selectedIndexes.end()) { // Already selected -> Deselect it
+      selectedIndexes.erase(selected);
+      setScrollPositionY(lineHeight * this->selected - lineHeight);
+      if(_multiSelectHandler != nullptr)
+        _multiSelectHandler(selectedIndexes);
+      invalidate();
+    } else { // Not Selected -> Select it
+      selectedIndexes.insert(selected);
+      this->selected = selected;
+      setScrollPositionY(lineHeight * this->selected - lineHeight);
+      if (_setValue != nullptr) {
+        _setValue(this->selected);
+      }
+      if(_multiSelectHandler != nullptr)
+        _multiSelectHandler(selectedIndexes);
+      invalidate();
+    }
   }
 }
 
@@ -83,9 +107,17 @@ void ListBase::paint(BitmapBuffer *dc)
 
   int curY = 0;
   for (int n = 0; n < (int)names.size(); n++) {
-    dc->drawSolidFilledRect(1, curY, rect.w - 2, lineHeight, n == selected ? COLOR_THEME_FOCUS : COLOR_THEME_PRIMARY2);
+    LcdFlags bgcolor = COLOR_THEME_PRIMARY2;
+    LcdFlags textColor = COLOR_THEME_SECONDARY1;
 
-    LcdFlags textColor = n == selected ? COLOR_THEME_PRIMARY2 : COLOR_THEME_SECONDARY1;
+    // Color selected line(s)
+    if((LISTBOX_SINGLE_SELECT && n == selected) ||
+       (LISTBOX_MULTI_SELECT && (selectedIndexes.find(n) != selectedIndexes.end()))) {
+        bgcolor = COLOR_THEME_FOCUS;
+        textColor = COLOR_THEME_PRIMARY2;
+      }
+
+    dc->drawSolidFilledRect(1, curY, rect.w - 2, lineHeight, bgcolor);
 
     auto fontHeight = getFontHeight(FONT(STD));
     drawLine(dc, { 8, curY  + (lineHeight - fontHeight) / 2, rect.w, lineHeight}, n, textColor);
@@ -158,10 +190,10 @@ void ListBase::checkEvents(void)
 
 bool ListBase::onTouchSlide(coord_t x, coord_t y, coord_t startX, coord_t startY, coord_t slideX, coord_t slideY)
 {
-  if (touchState.event == TE_SLIDE_END) { 
+  if (touchState.event == TE_SLIDE_END) {
     duration10ms = 0;
   }
-  
+
   return FormField::onTouchSlide(x, y, startX, startY, slideX, slideY);
 }
 
@@ -180,7 +212,7 @@ bool ListBase::onTouchStart(coord_t x, coord_t y)
 bool ListBase::onTouchEnd(coord_t x, coord_t y)
 {
   if (!isEnabled()) return false;
-  if (slidingWindow) 
+  if (slidingWindow)
     return false;  // if we slide then this is not a selection
 
   auto selected = yDown / lineHeight;

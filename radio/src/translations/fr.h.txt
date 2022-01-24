@@ -436,6 +436,7 @@
 #define TR_COPYINGMODEL                "Copie..."
 #define TR_MOVINGMODEL                 "Déplacement..."
 #define TR_LOADINGMODEL                "Chargement..."
+#define TR_UNLABELEDMODEL              "Unlabeled"
 #define TR_NAME                        "Nom"
 #define TR_MODELNAME                   TR("Nom modèle", "Nom du modèle")
 #define TR_PHASENAME                   "Nom phase"
@@ -732,6 +733,8 @@
 #define TR_RENAME_CATEGORY             "Renommer la catégorie"
 #define TR_DELETE_CATEGORY             "Supprimer la catégorie"
 #define TR_CREATE_MODEL                "Créer modèle"
+#define TR_NEW_MODEL                   "New Model"
+#define TR_EDIT_LABELS                 "Edit Labels"
 #define TR_DUPLICATE_MODEL             "Dupliquer modèle"
 #define TR_COPY_MODEL                  "Copier modèle"
 #define TR_MOVE_MODEL                  "Déplacer modèle"
