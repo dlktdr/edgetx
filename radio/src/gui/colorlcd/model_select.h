@@ -43,7 +43,7 @@ class ModelsPageBody : public FormWindow
   public:
     ModelsPageBody(Window *parent, const rect_t &rect);
 
-    void setLabel(std::string &lbl) {selectedLabel = lbl; update();}
+    void setLabels(LabelsVector labels) {selectedLabels = labels; update();}
     void update(int selected = -1);
 
     inline void setRefresh() { refresh = true; }
@@ -59,6 +59,7 @@ class ModelsPageBody : public FormWindow
     }
 
     void paint(BitmapBuffer *dc) override;
+    void setLblRefreshFunc(std::function<void()> fnc) {refreshLabels = std::move(fnc);}
 
   protected:
     ModelsSortBy _sortOrder;
@@ -67,6 +68,8 @@ class ModelsPageBody : public FormWindow
     FormWindow innerWindow;
     void initPressHandlers(ModelButton *button, ModelCell *model, int index);
     std::string selectedLabel;
+    LabelsVector selectedLabels;
+    std::function<void()> refreshLabels = nullptr;
 };
 
 class ModelLabelsWindow : public Page {
@@ -79,22 +82,23 @@ class ModelLabelsWindow : public Page {
 
   protected:
     ModelsSortBy sort = NAME_ASC;
-    char tmpLabel[MAX_LABEL_SIZE + 1];
+    char tmpLabel[MAX_LABEL_SIZE + 1] = "\0";
     ListBox *lblselector;
     ModelsPageBody *mdlselector;
     TextButton *newButton;
-    TextButton *newLabelButton;
     std::string currentLabel;
 
     LabelsVector getLabels()
     {
       auto labels = modelsLabels.getLabels();
-      labels.emplace_back(STR_UNLABELEDMODEL);
+      if(modelsLabels.getUnlabeledModels().size() > 0)
+        labels.emplace_back(STR_UNLABELEDMODEL);
       return labels;
     }
 
     void buildHead(PageHeader *window);
     void buildBody(FormWindow *window);
+    void labelRefreshRequest();
 };
 
 
