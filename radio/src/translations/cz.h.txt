@@ -712,6 +712,7 @@
 #define TR_RENAME_CATEGORY             "Přejmenovat kategorii"
 #define TR_DELETE_CATEGORY             "Odstranit kategorii"
 #define TR_CREATE_MODEL                "Nový model"
+#define TR_FAVORITE_LABEL              "Favorites"
 #define TR_NEW_MODEL                   "New Model"
 #define TR_EDIT_LABELS                 "Edit Labels"
 #define TR_DUPLICATE_MODEL             "Duplikovat model"

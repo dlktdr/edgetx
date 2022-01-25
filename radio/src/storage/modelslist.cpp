@@ -903,6 +903,11 @@ bool ModelsList::loadYaml()
     TRACE_LABELS("LABELS.YML Is in Sync! No models were read");
   }
 
+  // If no labels found. Add a favorites label
+  if(modelsLabels.getLabels().size() == 0) {
+    modelsLabels.addLabel(STR_FAVORITE_LABEL);
+  }
+
   return true;
 }
 #endif

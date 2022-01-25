@@ -28,10 +28,10 @@
 
 #include <cstring>
 
-#ifdef DEBUG_LABELS
-#define TRACE_LABELS(...) TRACE(__VA_ARGS__)
+#ifdef DEBUG_LABELS_YAML
+#define TRACE_LABELS_YAML(...) TRACE(__VA_ARGS__)
 #else
-#define TRACE_LABELS(...)
+#define TRACE_LABELS_YAML(...)
 #endif
 
 using std::list;
@@ -65,7 +65,7 @@ void* get_labelslist_iter()
   __labelslist_iter_inst.curmodel = NULL;
   __labelslist_iter_inst.level = 0;
 
-  TRACE_LABELS("YAML Label Reader Start %u", 0);
+  TRACE_LABELS_YAML("YAML Label Reader Start %u", 0);
 
   return &__labelslist_iter_inst;
 }
@@ -78,13 +78,13 @@ static bool to_parent(void* ctx)
         return false;
 
     if(mi->level == labelslist_iter::LabelName) {
-      TRACE_LABELS("Forced Models Root");
+      TRACE_LABELS_YAML("Forced Models Root");
       mi->level = labelslist_iter::ModelsRoot;
     }
     else
       mi->level--;
 
-    TRACE_LABELS("YAML To Parent %u", mi->level);
+    TRACE_LABELS_YAML("YAML To Parent %u", mi->level);
 
     return true;
 }
@@ -95,8 +95,8 @@ static bool to_child(void* ctx)
 
     mi->level++;
 
-    TRACE_LABELS("YAML To Child");
-    TRACE_LABELS("YAML Level %u", mi->level);
+    TRACE_LABELS_YAML("YAML To Child");
+    TRACE_LABELS_YAML("YAML Level %u", mi->level);
     return true;
 }
 
@@ -107,8 +107,8 @@ static bool to_next_elmt(void* ctx)
         return false;
     }
 
-    TRACE_LABELS("YAML To Next Element");
-    TRACE_LABELS("YAML Current Level %u", mi->level);
+    TRACE_LABELS_YAML("YAML To Next Element");
+    TRACE_LABELS_YAML("YAML Current Level %u", mi->level);
     return true;
 }
 
@@ -119,20 +119,20 @@ static bool find_node(void* ctx, char* buf, uint8_t len)
     memcpy(mi->current_attr, buf, len);
     mi->current_attr[len] = '\0';
 
-    TRACE_LABELS("YAML On Node %s", mi->current_attr);
-    TRACE_LABELS("YAML Current Level %u", mi->level);
+    TRACE_LABELS_YAML("YAML On Node %s", mi->current_attr);
+    TRACE_LABELS_YAML("YAML Current Level %u", mi->level);
 
     // If in the labels node, force to labelsroot enum
     if(mi->level == labelslist_iter::ModelsRoot && strcasecmp(mi->current_attr,"labels") == 0) {
-      TRACE_LABELS("Forced root");
+      TRACE_LABELS_YAML("Forced root");
       mi->level = labelslist_iter::LabelsRoot;
-      TRACE_LABELS("YAML New Level %u", mi->level);
+      TRACE_LABELS_YAML("YAML New Level %u", mi->level);
     }
 
     if(mi->level == labelslist_iter::LabelsRoot && strcasecmp(mi->current_attr,"models") == 0) {
-      TRACE_LABELS("Forced root");
+      TRACE_LABELS_YAML("Forced root");
       mi->level = labelslist_iter::ModelsRoot;
-      TRACE_LABELS("YAML New Level %u", mi->level);
+      TRACE_LABELS_YAML("YAML New Level %u", mi->level);
     }
 
     // Model List
@@ -140,7 +140,7 @@ static bool find_node(void* ctx, char* buf, uint8_t len)
       bool found=false;
       for(auto &filehash : modelslist.fileHashInfo) {
         if(filehash.name == mi->current_attr) {
-          TRACE_LABELS("  Model %s has a real file, creating a modelcell");
+          TRACE_LABELS_YAML("  Model %s has a real file, creating a modelcell");
           ModelCell *model = new ModelCell(mi->current_attr);
           strcpy(model->modelFinfoHash, filehash.hash);
           modelslist.push_back(model);
@@ -156,13 +156,13 @@ static bool find_node(void* ctx, char* buf, uint8_t len)
       }
       if(!found) {
         mi->curmodel = NULL;
-        TRACE_LABELS("File does not exist in /MODELS");
+        TRACE_LABELS_YAML("File does not exist in /MODELS");
       }
     }
 
     // Labels List
     if(mi->level == labelslist_iter::LabelName)  {
-      TRACE_LABELS("Label Found -- %s", mi->current_attr);
+      TRACE_LABELS_YAML("Label Found -- %s", mi->current_attr);
       modelsLabels.addLabel(mi->current_attr);
     }
 
@@ -176,7 +176,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
   value[len] = '\0';
 
   labelslist_iter* mi = (labelslist_iter*)ctx;
-  TRACE_LABELS("YAML Attr Level %u, %s = %s", mi->level, mi->current_attr, value);
+  TRACE_LABELS_YAML("YAML Attr Level %u, %s = %s", mi->level, mi->current_attr, value);
 
   // Model Section
   if(mi->level == labelslist_iter::ModelData) {
@@ -185,11 +185,11 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
     if(!strcasecmp(mi->current_attr, "hash")) {
       if(mi->curmodel != NULL) {
           if(!strcmp(mi->curmodel->modelFinfoHash, value)) {
-            TRACE_LABELS("FILE HASH MATCHES, No need to scan this model, just load the settings");
+            TRACE_LABELS_YAML("FILE HASH MATCHES, No need to scan this model, just load the settings");
             mi->modeldatavalid = true;
             mi->curmodel->_isDirty = false;
           } else {
-            TRACE_LABELS("FILE HASH Does not Match, Open model and rebuild modelcell");
+            TRACE_LABELS_YAML("FILE HASH Does not Match, Open model and rebuild modelcell");
             mi->modeldatavalid = false;
             mi->curmodel->_isDirty = true;
           }
@@ -199,41 +199,41 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "name")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->setModelName(value);
-        TRACE_LABELS("Set the models name");
+        TRACE_LABELS_YAML("Set the models name");
       }
 
     // Last Opened
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "lastopen")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->lastOpened = (gtime_t)strtol(value, NULL, 0);
-        TRACE_LABELS("Last Opened %lu", value);
+        TRACE_LABELS_YAML("Last Opened %lu", value);
       }
 
     // Model ID0
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "modid0")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->setModelId(0, atoi(value));
-        TRACE_LABELS("Set the models id0 to %s", value);
+        TRACE_LABELS_YAML("Set the models id0 to %s", value);
       }
 #if NUM_MODULES == 2
     // Model ID0
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "modid1")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->setModelId(1, atoi(value));
-        TRACE_LABELS("Set the models id1 to %s", value);
+        TRACE_LABELS_YAML("Set the models id1 to %s", value);
       }
 #endif
 
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod0type")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->moduleData[0].type = atoi(value);
-        TRACE_LABELS("Set the models module type to %s", value);
+        TRACE_LABELS_YAML("Set the models module type to %s", value);
       }
 #if NUM_MODULES == 2
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod1type")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->moduleData[1].type = atoi(value);
-        TRACE_LABELS("Set the models module type to %s", value);
+        TRACE_LABELS_YAML("Set the models module type to %s", value);
       }
 #endif
 
@@ -241,13 +241,13 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod0protocol")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->moduleData[0].rfProtocol = atoi(value);
-        TRACE_LABELS("Set the models rfProtocol0 to %s", value);
+        TRACE_LABELS_YAML("Set the models rfProtocol0 to %s", value);
       }
 #if NUM_MODULES == 2
     } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod1protocol")) {
       if(mi->curmodel != NULL) {
         mi->curmodel->moduleData[1].rfProtocol = atoi(value);
-        TRACE_LABELS("Set the models rfProtocol1 to %s", value);
+        TRACE_LABELS_YAML("Set the models rfProtocol1 to %s", value);
       }
 #endif
 
@@ -258,7 +258,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
       if(mi->curmodel != NULL) {
         // TODO Check if it exists ?
         strcpy(mi->curmodel->modelBitmap, value);
-        TRACE_LABELS("Set the models bitmap");
+        TRACE_LABELS_YAML("Set the models bitmap");
       }
 #endif
 
@@ -270,7 +270,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         int numTokens = 0;
         while(cma != NULL) {
           modelsLabels.addLabelToModel(cma,mi->curmodel);
-          TRACE_LABELS(" Adding the label - %s", cma);
+          TRACE_LABELS_YAML(" Adding the label - %s", cma);
           cma = strtok(NULL, ",");
           numTokens++;
         }
@@ -280,7 +280,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
   // Label Section
   } else if(mi->level == labelslist_iter::LabelData) {
     if(!strcasecmp(mi->current_attr, "icon")) {
-      TRACE_LABELS("Label Icon - %s", value);
+      TRACE_LABELS_YAML("Label Icon - %s", value);
       // TODO - Check icon exists, or ignore it.
 
     }

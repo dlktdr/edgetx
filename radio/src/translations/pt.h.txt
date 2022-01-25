@@ -741,6 +741,7 @@
 #define TR_RENAME_CATEGORY     "Rename Category"
 #define TR_DELETE_CATEGORY     "Delete Category"
 #define TR_CREATE_MODEL        "Criar Modelo"
+#define TR_FAVORITE_LABEL              "Favorites"
 #define TR_NEW_MODEL                   "New Model"
 #define TR_EDIT_LABELS                 "Edit Labels"
 #define TR_DUPLICATE_MODEL     "Duplicate Model"

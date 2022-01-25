@@ -531,6 +531,7 @@ extern const char STR_CREATE_CATEGORY[];
 extern const char STR_RENAME_CATEGORY[];
 extern const char STR_DELETE_CATEGORY[];
 extern const char STR_CREATE_MODEL[];
+extern const char STR_FAVORITE_LABEL[];
 extern const char STR_NEW_MODEL[];
 extern const char STR_EDIT_LABELS[];
 extern const char STR_DUPLICATE_MODEL[];

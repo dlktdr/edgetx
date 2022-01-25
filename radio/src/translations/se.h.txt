@@ -740,6 +740,7 @@
 #define TR_RENAME_CATEGORY     "Byt Kat.namn"
 #define TR_DELETE_CATEGORY     "Ta Bort Kategori"
 #define TR_CREATE_MODEL        "Skapa Modell"
+#define TR_FAVORITE_LABEL              "Favorites"
 #define TR_NEW_MODEL                   "New Model"
 #define TR_EDIT_LABELS                 "Edit Labels"
 #define TR_DUPLICATE_MODEL     "Dupl. Modell"
