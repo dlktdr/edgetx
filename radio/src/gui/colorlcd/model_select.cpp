@@ -772,7 +772,7 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
     mdlselector->setLabels(sellabels); // Update the list
   });
   lblselector->setLongPressHandler([=] (event_t event) {
-    auto selected = lblselector->getSelected();
+    int selected = lblselector->getSelected();
     auto labels = getLabels();
 
     if (selected != (int)labels.size() - 1) {
@@ -811,6 +811,24 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
         }
         return 0;
       });
+      if(modelsLabels.getLabels().size() > 1) {
+        if(selected != 0) {
+          menu->addLine("Move Up", [=] () {
+            modelsLabels.moveLabelTo(selected, selected - 1);
+            auto labels = getLabels();
+            lblselector->setNames(labels);
+            return 0;
+          });
+        }
+        if(selected != (int)modelsLabels.getLabels().size() - 1) {
+          menu->addLine("Move Down", [=] () {
+            modelsLabels.moveLabelTo(selected, selected + 1);
+            auto labels = getLabels();
+            lblselector->setNames(labels);
+            return 0;
+          });
+        }
+      }
 
     }
   });
