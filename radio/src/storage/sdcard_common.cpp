@@ -88,7 +88,7 @@ void storageCheck(bool immediately)
 
 #if defined(STORAGE_MODELSLIST)
   if (storageDirtyMsk & EE_LABELS) {
-    TRACE("sdcard write labels");
+    TRACE("SD card write labels");
     storageDirtyMsk &= ~EE_LABELS;
     const char * error = modelslist.save();
     if (error) {
@@ -102,13 +102,7 @@ void storageCheck(bool immediately)
     storageDirtyMsk &= ~EE_MODEL;
     const char * error = writeModel();
 #if defined(STORAGE_MODELSLIST)
-    // If model was updated, also update the important modelcell info.
-    modelslist.getCurrentModel()->setModelName(g_model.header.name);
-    modelslist.getCurrentModel()->setRfData(&g_model);
-  #if LEN_BITMAP_NAME > 0
-    strncpy(modelslist.getCurrentModel()->modelBitmap,g_model.header.bitmap, LEN_BITMAP_NAME);
-    modelslist.getCurrentModel()->modelBitmap[LEN_BITMAP_NAME-1] = '\0';
-  #endif
+    modelslist.updateCurrentModelCell();
 #endif
     if (error) {
       TRACE("writeModel error=%s", error);

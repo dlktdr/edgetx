@@ -187,6 +187,7 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
           if(!strcmp(mi->curmodel->modelFinfoHash, value)) {
             TRACE_LABELS_YAML("FILE HASH MATCHES, No need to scan this model, just load the settings");
             mi->modeldatavalid = true;
+            mi->curmodel->valid_rfData = true;
             mi->curmodel->_isDirty = false;
           } else {
             TRACE_LABELS_YAML("FILE HASH Does not Match, Open model and rebuild modelcell");
@@ -208,49 +209,6 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
         mi->curmodel->lastOpened = (gtime_t)strtol(value, NULL, 0);
         TRACE_LABELS_YAML("Last Opened %lu", value);
       }
-
-    // Model ID0
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "modid0")) {
-      if(mi->curmodel != NULL) {
-        mi->curmodel->setModelId(0, atoi(value));
-        TRACE_LABELS_YAML("Set the models id0 to %s", value);
-      }
-#if NUM_MODULES == 2
-    // Model ID0
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "modid1")) {
-      if(mi->curmodel != NULL) {
-        mi->curmodel->setModelId(1, atoi(value));
-        TRACE_LABELS_YAML("Set the models id1 to %s", value);
-      }
-#endif
-
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod0type")) {
-      if(mi->curmodel != NULL) {
-        mi->curmodel->moduleData[0].type = atoi(value);
-        TRACE_LABELS_YAML("Set the models module type to %s", value);
-      }
-#if NUM_MODULES == 2
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod1type")) {
-      if(mi->curmodel != NULL) {
-        mi->curmodel->moduleData[1].type = atoi(value);
-        TRACE_LABELS_YAML("Set the models module type to %s", value);
-      }
-#endif
-
-
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod0protocol")) {
-      if(mi->curmodel != NULL) {
-        mi->curmodel->moduleData[0].rfProtocol = atoi(value);
-        TRACE_LABELS_YAML("Set the models rfProtocol0 to %s", value);
-      }
-#if NUM_MODULES == 2
-    } else if(mi->modeldatavalid && !strcasecmp(mi->current_attr, "mod1protocol")) {
-      if(mi->curmodel != NULL) {
-        mi->curmodel->moduleData[1].rfProtocol = atoi(value);
-        TRACE_LABELS_YAML("Set the models rfProtocol1 to %s", value);
-      }
-#endif
-
 
     // Model Bitmap
 #if LEN_BITMAP_NAME > 0
@@ -275,7 +233,33 @@ static void set_attr(void* ctx, char* buf, uint8_t len)
           numTokens++;
         }
       }
+
+    // RF Module Data
+    } else {
+      char cmp[15];
+      for(int i=0; i < NUM_MODULES; i++) {
+        snprintf(cmp, sizeof(cmp), MODULE_ID_STR, i);
+        cmp[sizeof(cmp)-1] = '\0';
+        if(mi->curmodel != NULL && mi->modeldatavalid && !strcasecmp(mi->current_attr, cmp)) {
+          mi->curmodel->modelId[i] = atoi(value);
+          TRACE_LABELS_YAML("Set the module %d rfId to %s", i, value);
+        }
+        snprintf(cmp, sizeof(cmp), MODULE_TYPE_STR, i);
+        cmp[sizeof(cmp)-1] = '\0';
+        if(mi->curmodel != NULL && mi->modeldatavalid && !strcasecmp(mi->current_attr, cmp)) {
+          mi->curmodel->moduleData[i].type = atoi(value);
+          TRACE_LABELS_YAML("Set the module %d rfType to %s", i, value);
+        }
+        snprintf(cmp, sizeof(cmp), MODULE_RFPROTOCOL_STR, i);
+        cmp[sizeof(cmp)-1] = '\0';
+        if(mi->curmodel != NULL && mi->modeldatavalid && !strcasecmp(mi->current_attr, cmp)) {
+          mi->curmodel->moduleData[i].rfProtocol = atoi(value);
+          TRACE_LABELS_YAML("Set the module %d rfProtocol to %s", i, value);
+        }
+
+      }
     }
+
 
   // Label Section
   } else if(mi->level == labelslist_iter::LabelData) {

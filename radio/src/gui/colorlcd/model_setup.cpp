@@ -1323,10 +1323,8 @@ void ModelSetupPage::build(FormWindow * window)
       new ModelTextEdit(window, grid.getFieldSlot(), g_model.header.name,
                         sizeof(g_model.header.name), 0, MODEL_NAME_EXTRA_CHARS);
   text->setChangeHandler([=] {
-    modelslist.load();
     if (curmod) {
       curmod->setModelName(g_model.header.name);
-      modelslist.save();
     }
     SET_DIRTY();
   });

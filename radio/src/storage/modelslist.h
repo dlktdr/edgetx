@@ -84,9 +84,6 @@ class ModelCell
     void setModelName(char * name);
     void setModelName(char* name, uint8_t len);
     void setRfData(ModelData * model);
-
-    void setModelId(uint8_t moduleIdx, uint8_t id);
-    void setRfModuleData(uint8_t moduleIdx, ModuleData* modData);
 };
 
 typedef struct {

@@ -94,33 +94,22 @@ void ModelCell::setModelName(char* name, uint8_t len)
   }
 }
 
-void ModelCell::setModelId(uint8_t moduleIdx, uint8_t id)
-{
-  modelId[moduleIdx] = id;
-}
-
 void ModelCell::setRfData(ModelData* model)
 {
   for (uint8_t i = 0; i < NUM_MODULES; i++) {
     modelId[i] = model->header.modelId[i];
-    setRfModuleData(i, &(model->moduleData[i]));
+    moduleData[i].type = model->moduleData[i].type;
+    if (model->moduleData[i].type != MODULE_TYPE_MULTIMODULE) {
+      moduleData[i].rfProtocol = (uint8_t)model->moduleData[i].rfProtocol;
+    } else {
+      // do we care here about MM_RF_CUSTOM_SELECTED? probably not...
+      moduleData[i].rfProtocol = model->moduleData[i].getMultiProtocol();
+    }
     TRACE("<%s/%i> : %X,%X,%X",
           strlen(modelName) ? modelName : modelFilename,
           i, moduleData[i].type, moduleData[i].rfProtocol, modelId[i]);
   }
   valid_rfData = true;
-}
-
-void ModelCell::setRfModuleData(uint8_t moduleIdx, ModuleData* modData)
-{
-  moduleData[moduleIdx].type = modData->type;
-  if (modData->type != MODULE_TYPE_MULTIMODULE) {
-    moduleData[moduleIdx].rfProtocol = (uint8_t)modData->rfProtocol;
-  }
-  else {
-    // do we care here about MM_RF_CUSTOM_SELECTED? probably not...
-    moduleData[moduleIdx].rfProtocol = modData->getMultiProtocol();
-  }
 }
 
 //-----------------------------------------------------------------------------
@@ -767,9 +756,6 @@ void ModelMap::updateModelCell(ModelCell *cell)
 
   // Save Module Data
   cell->setRfData(model);
-  for(int i=0; i < NUM_MODULES; i++) {
-    cell->setRfModuleData(i,model->moduleData);
-  }
 
   cell->_isDirty = false;
   free(model);
@@ -986,7 +972,7 @@ const char * ModelsList::save()
   }
 
   f_puts("  Models:\r\n", &file);
-  for (auto const& model : modelslist) {
+  for (auto & model : modelslist) {
     f_puts("  - ", &file);
     f_puts(model->modelFilename, &file);
     f_puts(":\r\n", &file);
@@ -1000,45 +986,35 @@ const char * ModelsList::save()
     f_puts("\"\r\n", &file);
 
     // TODO Maybe make sub-items instead.
-    if(model->modelId[0])
-      f_printf(&file, "      modid0: %u\r\n",(unsigned int)model->modelId[0]);
-#if NUM_MODULES == 2
-    if(model->modelId[1])
-      f_printf(&file, "      modid1: %u\r\n",(unsigned int)model->modelId[1]);
-#endif
-    if(model->moduleData[0].type)
-      f_printf(&file, "      mod0type: %u\r\n",(unsigned int)model->moduleData[0].type);
-#if NUM_MODULES == 2
-    if(model->moduleData[1].type)
-      f_printf(&file, "      mod1type: %u\r\n",(unsigned int)model->moduleData[1].type);
-#endif
-    if(model->moduleData[0].rfProtocol)
-      f_printf(&file, "      mod0protocol: %u\r\n",(unsigned int)model->moduleData[0].rfProtocol);
-#if NUM_MODULES == 2
-    if(model->moduleData[0].type)
-      f_printf(&file, "      mod1protocol: %u\r\n",(unsigned int)model->moduleData[1].rfProtocol);
-#endif
+    for(int i=0; i < NUM_MODULES; i++) {
+      if(model->modelId[i])
+        f_printf(&file, "      " MODULE_ID_STR ": %u\r\n",i,(unsigned int)model->modelId[i]);
+      if(model->moduleData[i].type)
+        f_printf(&file, "      " MODULE_TYPE_STR ": %u\r\n",i,(unsigned int)model->moduleData[i].type);
+      if(model->moduleData[i].rfProtocol)
+        f_printf(&file, "      " MODULE_RFPROTOCOL_STR ": %u\r\n",i,(unsigned int)model->moduleData[i].rfProtocol);
+    }
 
-      f_puts("      labels: \"", &file);
-      LabelsVector labels = modelsLabels.getLabelsByModel(model);
-      bool comma=false;
-      for(auto const& label: labels) {
-        if(comma) {
-          f_puts(",", &file);
-        }
-        f_puts(label.c_str(), &file);
-        comma = true;
+    f_puts("      labels: \"", &file);
+    LabelsVector labels = modelsLabels.getLabelsByModel(model);
+    bool comma=false;
+    for(auto const& label: labels) {
+      if(comma) {
+        f_puts(",", &file);
       }
-      f_puts("\"\r\n", &file);
+      f_puts(label.c_str(), &file);
+      comma = true;
+    }
+    f_puts("\"\r\n", &file);
 
 #if LEN_BITMAP_NAME > 0
-      f_puts("      bitmap: \"", &file);
-      f_puts(model->modelBitmap, &file);
-      f_puts("\"\r\n", &file);
+    f_puts("      bitmap: \"", &file);
+    f_puts(model->modelBitmap, &file);
+    f_puts("\"\r\n", &file);
 #endif
-      f_puts("      lastopen: ", &file);
-      f_puts(std::to_string(model->lastOpened).c_str(), &file);
-      f_puts("\r\n", &file);
+    f_puts("      lastopen: ", &file);
+    f_puts(std::to_string(model->lastOpened).c_str(), &file);
+    f_puts("\r\n", &file);
   }
 
   f_puts("\r\n", &file);
@@ -1225,7 +1201,7 @@ bool ModelsList::isModelIdUnique(uint8_t moduleIdx, char* warn_buf, size_t warn_
 
   bool hit_found = false;
 
-  for (auto it = begin(); it != end(); it++) {
+  for (auto it = begin(); it != end(); ++it) {
     if (modelCell == *it)
       continue;
 

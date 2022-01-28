@@ -22,6 +22,10 @@
 #ifndef _YAML_LABELSLIST_H_
 #define _YAML_LABELSLIST_H_
 
+#define MODULE_ID_STR "mod%did"
+#define MODULE_TYPE_STR "mod%dtype"
+#define MODULE_RFPROTOCOL_STR "mod%drf"
+
 struct YamlParserCalls;
 
 void* get_labelslist_iter();
