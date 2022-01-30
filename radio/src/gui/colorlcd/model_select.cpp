@@ -461,6 +461,23 @@ void ModelsPageBody::initPressHandlers(ModelButton *button, ModelCell *model, in
     menu->setTitle(model->modelName);
     if (model != modelslist.getCurrentModel()) {
       menu->addLine(STR_SELECT_MODEL, [=]() {
+        bool modelConnected = TELEMETRY_STREAMING() &&
+                                    !g_eeGeneral.disableRssiPoweroffAlarm;
+        if (modelConnected) {
+          AUDIO_ERROR_MESSAGE(AU_MODEL_STILL_POWERED);
+          if (!confirmationDialog(STR_MODEL_STILL_POWERED, nullptr, false, []() {
+                    tmr10ms_t startTime = getTicks();
+                    while (!TELEMETRY_STREAMING()) {
+                      if (getTicks() - startTime > TELEMETRY_CHECK_DELAY10ms)
+                        break;
+                    }
+                    return !TELEMETRY_STREAMING() ||
+                            g_eeGeneral.disableRssiPoweroffAlarm;
+            })) {
+          return;  // stop if connected but not confirmed
+          }
+        }
+
         // we store the latest changes if any
         storageFlushCurrentModel();
         storageCheck(true);
