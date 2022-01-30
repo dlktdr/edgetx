@@ -698,10 +698,9 @@ void ModelLabelsWindow::onEvent(event_t event)
   } else if (event == EVT_KEY_BREAK(KEY_PGDN)) {
     onKeyPress();
     FormField *focus = dynamic_cast<FormField *>(getFocus());
-    //if (isChildOfMdlSelector(focus))
-
-      //newLabelButton->setFocus(); TODO
-    //else
+    if (isChildOfMdlSelector(focus))
+      newButton->setFocus();
+    else
      if (focus != nullptr && focus->getNextField()) {
       focus->getNextField()->setFocus(SET_FOCUS_FORWARD, focus);
     }

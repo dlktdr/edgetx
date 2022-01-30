@@ -64,8 +64,8 @@ void ListBase::setSelected(int selected)
       }
       invalidate();
     }
-  } else { // Multiselect
-    if(selectedIndexes.find(selected) != selectedIndexes.end()) { // Already selected -> Deselect it
+  } else if(selectionType == LISTBOX_MULTI_SELECT) {
+    if(selectedIndexes.find(selected) != selectedIndexes.end()) {
       selectedIndexes.erase(selected);
       setScrollPositionY(lineHeight * this->selected - lineHeight);
       if(_multiSelectHandler != nullptr)
@@ -82,6 +82,18 @@ void ListBase::setSelected(int selected)
         _multiSelectHandler(selectedIndexes);
       invalidate();
     }
+  }
+}
+
+void ListBase::setFocusLine(int selected)
+{
+  if(selectionType == LISTBOX_MULTI_SELECT) {
+    int count = (int)names.size();
+    if(selected < 0 || selected >= count)
+      return;
+
+    this->selected = selected;
+    invalidate();
   }
 }
 
@@ -111,13 +123,19 @@ void ListBase::paint(BitmapBuffer *dc)
     LcdFlags textColor = COLOR_THEME_SECONDARY1;
 
     // Color selected line(s)
-    if((LISTBOX_SINGLE_SELECT && n == selected) ||
-       (LISTBOX_MULTI_SELECT && (selectedIndexes.find(n) != selectedIndexes.end()))) {
+    if((selectionType == LISTBOX_SINGLE_SELECT && n == selected) ||
+       (selectionType == LISTBOX_MULTI_SELECT && (selectedIndexes.find(n) != selectedIndexes.end()))) {
         bgcolor = COLOR_THEME_FOCUS;
         textColor = COLOR_THEME_PRIMARY2;
       }
 
     dc->drawSolidFilledRect(1, curY, rect.w - 2, lineHeight, bgcolor);
+
+    // Draw a dotted line around the current item
+    if(n == selected && selectionType == LISTBOX_MULTI_SELECT &&
+      hasFocus()) {
+      dc->drawRect(2, curY,  rect.w - 4, lineHeight, 2, DOTTED);
+    }
 
     auto fontHeight = getFontHeight(FONT(STD));
     drawLine(dc, { 8, curY  + (lineHeight - fontHeight) / 2, rect.w, lineHeight}, n, textColor);
@@ -137,13 +155,13 @@ void ListBase::paint(BitmapBuffer *dc)
     switch (event) {
       case EVT_ROTARY_RIGHT:
         oldSelected = (selected + 1) % names.size();
-        setSelected(oldSelected);
+        setFocusLine(oldSelected);
         onKeyPress();
         break;
       case EVT_ROTARY_LEFT:
         oldSelected--;
         if (oldSelected < 0) oldSelected = names.size() - 1;
-        setSelected(oldSelected);
+        setFocusLine(oldSelected);
         onKeyPress();
         break;
       case EVT_KEY_LONG(KEY_ENTER):
@@ -153,6 +171,8 @@ void ListBase::paint(BitmapBuffer *dc)
         }
         break;
       case EVT_KEY_BREAK(KEY_ENTER):
+        if(selectionType == LISTBOX_MULTI_SELECT)
+            setSelected(this->selected);
         if (pressHandler) {
           killEvents(event);
           pressHandler(event);

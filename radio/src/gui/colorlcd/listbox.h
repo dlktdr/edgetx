@@ -49,6 +49,7 @@ class ListBase : public FormField
     void paint (BitmapBuffer *dc) override;
 
     virtual void setSelected(int selected);
+    virtual void setFocusLine(int selected);
     void clearSelection() {selectedIndexes.clear(); invalidate();}
 
     void setMultiSelectHandler(std::function<void(std::set<uint32_t>)> handler)
