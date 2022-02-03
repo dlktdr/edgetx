@@ -791,8 +791,10 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
     int selected = lblselector->getSelected();
     auto labels = getLabels();
 
-    if (selected != (int)labels.size() - 1) {
+    if (selected < (int)labels.size()) {
       Menu * menu = new Menu(window);
+      std::string selecetedlabel = labels.at(selected);
+      menu->setTitle(selecetedlabel);
       menu->addLine(STR_NEW_LABEL, [=] () {
         new LabelDialog(window, tmpLabel,
           [=] (std::string label) {
@@ -803,46 +805,48 @@ void ModelLabelsWindow::buildBody(FormWindow *window)
           });
         return 0;
       });
-      menu->addLine(STR_RENAME_LABEL, [=] () {
-        auto oldLabel = labels[selected];
-        strncpy(tmpLabel, oldLabel.c_str(), MAX_LABEL_SIZE);
-        tmpLabel[MAX_LABEL_SIZE] = '\0';
+      if(selecetedlabel != STR_UNLABELEDMODEL) {
+        menu->addLine(STR_RENAME_LABEL, [=] () {
+          auto oldLabel = labels[selected];
+          strncpy(tmpLabel, oldLabel.c_str(), MAX_LABEL_SIZE);
+          tmpLabel[MAX_LABEL_SIZE] = '\0';
 
-        new LabelDialog(window, tmpLabel,
-          [=] (std::string newLabel) {
-            modelsLabels.renameLabel(oldLabel, newLabel);
+          new LabelDialog(window, tmpLabel,
+            [=] (std::string newLabel) {
+              modelsLabels.renameLabel(oldLabel, newLabel);
+              auto labels = getLabels();
+              lblselector->setNames(labels);
+              //mdlselector->setLabel(newLabel); // Update the list
+            });
+          return 0;
+        });
+        menu->addLine(STR_DELETE_LABEL, [=] () {
+          auto labelToDelete = labels[selected];
+          if (confirmationDialog(STR_DELETE_LABEL, labelToDelete.c_str())) {
+            modelsLabels.removeLabel(labelToDelete);
             auto labels = getLabels();
             lblselector->setNames(labels);
-            //mdlselector->setLabel(newLabel); // Update the list
-          });
-        return 0;
-      });
-      menu->addLine(STR_DELETE_LABEL, [=] () {
-        auto labelToDelete = labels[selected];
-        if (confirmationDialog(STR_DELETE_LABEL, labelToDelete.c_str())) {
-          modelsLabels.removeLabel(labelToDelete);
-          auto labels = getLabels();
-          lblselector->setNames(labels);
-          //mdlselector->setLabel(labels[lblselector->getSelected()]); TODO
-        }
-        return 0;
-      });
-      if(modelsLabels.getLabels().size() > 1) {
-        if(selected != 0) {
-          menu->addLine("Move Up", [=] () {
-            modelsLabels.moveLabelTo(selected, selected - 1);
-            auto labels = getLabels();
-            lblselector->setNames(labels);
-            return 0;
-          });
-        }
-        if(selected != (int)modelsLabels.getLabels().size() - 1) {
-          menu->addLine("Move Down", [=] () {
-            modelsLabels.moveLabelTo(selected, selected + 1);
-            auto labels = getLabels();
-            lblselector->setNames(labels);
-            return 0;
-          });
+            //mdlselector->setLabel(labels[lblselector->getSelected()]); TODO
+          }
+          return 0;
+        });
+        if(modelsLabels.getLabels().size() > 1) {
+          if(selected != 0) {
+            menu->addLine("Move Up", [=] () {
+              modelsLabels.moveLabelTo(selected, selected - 1);
+              auto labels = getLabels();
+              lblselector->setNames(labels);
+              return 0;
+            });
+          }
+          if(selected != (int)modelsLabels.getLabels().size() - 1) {
+            menu->addLine("Move Down", [=] () {
+              modelsLabels.moveLabelTo(selected, selected + 1);
+              auto labels = getLabels();
+              lblselector->setNames(labels);
+              return 0;
+            });
+          }
         }
       }
 
