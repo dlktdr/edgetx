@@ -29,12 +29,15 @@
 #include <QMessageBox>
 #include <QProxyStyle>
 #include <QWidget>
+#include <QStyledItemDelegate>
 
 class QToolBar;
 
 namespace Ui {
 class MdiChild;
 }
+
+class LabelsDelegate;
 
 class MdiChild : public QWidget
 {
@@ -48,10 +51,10 @@ class MdiChild : public QWidget
       ACT_GEN_SIM,
       ACT_ITM_EDT,  // edit model/rename category
       ACT_ITM_DEL,  // delete model or cat
-      ACT_CAT_ADD,  // category actions...
+      //ACT_CAT_ADD,  // category actions...
       //ACT_CAT_EDT,  // not sure these are needed...
       //ACT_CAT_DEL,  // the ACT_ITM_* actions do the same thing
-      ACT_CAT_SEP,  // convenience separator shown/hidden with category actions
+      //ACT_CAT_SEP,  // convenience separator shown/hidden with category actions
       ACT_MDL_ADD,  // model actions...
       ACT_MDL_CPY,
       ACT_MDL_CUT,
@@ -75,7 +78,7 @@ class MdiChild : public QWidget
     QVector<int> getSelectedCategories() const;
     QVector<int> getSelectedModels() const;
     QList<QAction *> getGeneralActions();
-    QList<QAction *> getEditActions(bool incCatNew = true);
+    QList<QAction *> getEditActions();
     QList<QAction *> getModelActions();
     //QList<QAction *> getCategoryActions();
     QAction * getAction(const Actions type);
@@ -129,12 +132,10 @@ class MdiChild : public QWidget
     void insert();
     void edit();
     void confirmDelete();
-    void categoryAdd();
     void modelAdd();
     void modelEdit();
     void wizardEdit();
     void modelDuplicate();
-    void onModelMoveToCategory();
 
     void openModelWizard(int row = -1);
     void openModelEditWindow(int row = -1);
@@ -155,12 +156,6 @@ class MdiChild : public QWidget
     int countSelectedModels() const;
     bool hasSelectedModel();
     bool setSelectedModel(const int modelIndex);
-    int getCurrentCategory() const;
-    int countSelectedCats() const;
-    bool hasSelectedCat();
-
-    bool deleteCategory(int categoryIndex = -1, QString * error = NULL);
-    void deleteSelectedCats();
 
     void checkAndInitModel(int row);
     void findNewDefaultModel(const unsigned startAt = 0);
@@ -170,8 +165,6 @@ class MdiChild : public QWidget
     unsigned deleteModels(const QVector<int> modelIndices);
     bool deleteModel(const int modelIndex);
     void deleteSelectedModels();
-    void moveModelsToCategory(const QVector<int> models, const int toCategoryId);
-    void moveSelectedModelsToCat(const int toCategoryId);
     unsigned countUsedModels(const int categoryId = -1);
 
     void clearCutList();
@@ -197,15 +190,16 @@ class MdiChild : public QWidget
     QVector<int> cutModels;
     QVector<QAction *> action;
     QToolBar * radioToolbar;
-    QToolBar * categoriesToolbar;
+    QToolBar * categoriesToolbar; // REMOVE / RENAME TODO ***
     QToolBar * modelsToolbar;
+    LabelsDelegate *labelsDelegate;
 
     Firmware * firmware;
     RadioData radioData;
 
     int lastSelectedModel;
     bool isUntitled;
-    bool showCatToolbar;
+    bool showLabelToolbar; // REMOVE / RENAME TODO ***
     bool forceCloseFlag;
     const quint16 stateDataVersion;
 };
@@ -237,6 +231,30 @@ class ItemViewProxyStyle: public QProxyStyle
         QProxyStyle::drawPrimitive(element, option, painter, widget);
       }
     }
+};
+
+class LabelsDelegate : public QStyledItemDelegate
+{
+    Q_OBJECT
+public:
+  LabelsDelegate(QObject *parent = nullptr)
+    : QStyledItemDelegate(parent)
+  {
+  }
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override;
+    QSize sizeHint(const QStyleOptionViewItem &option,
+                   const QModelIndex &index) const override;
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const override;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const override;
+
+private slots:
+    void commitAndCloseEditor();
 };
 
 #endif // _MDICHILD_H_
