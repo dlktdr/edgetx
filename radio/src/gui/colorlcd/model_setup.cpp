@@ -338,6 +338,11 @@ class TrainerModuleWindow : public FormGroup
                          COLOR_THEME_PRIMARY1);
 
         grid.nextLine();
+
+        new StaticText(this, grid.getLabelSlot(true), "HT Reset Switch");
+        new SwitchChoice(this, grid.getFieldSlot(1,0), SWSRC_FIRST, SWSRC_LAST, GET_SET_DEFAULT(g_model.btresetswtch));
+
+        grid.nextLine();
         btMasterButton =
             new TextButton(this, grid.getFieldSlot(), "", [=]() -> uint8_t {
               if (bluetooth.distantAddr[0]) {

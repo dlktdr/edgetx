@@ -451,13 +451,27 @@ void Bluetooth::wakeup()
   else if (state == BLUETOOTH_STATE_CONNECTED) {
     if (g_eeGeneral.bluetoothMode == BLUETOOTH_TRAINER && g_model.trainerData.mode == TRAINER_MODE_MASTER_BLUETOOTH) {
       receiveTrainer();
+      if(_boardType == BLUETOOTH_BOARD_HEADTRACKER && getSwitch(g_model.btresetswtch) && !resetsent) {
+          writeString("AT+HTRESET");
+          resetsent = true;
+      } else if (!getSwitch(g_model.btresetswtch)) {
+        resetsent = false;
+      }
     }
     else {
       if (g_eeGeneral.bluetoothMode == BLUETOOTH_TRAINER && g_model.trainerData.mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
         sendTrainer();
         wakeupTime = now + 2; /* 20ms */
       }
-      readline(); // to deal with "ERROR"
+    }
+    // After 
+    char * line = readline();
+    char boardtype[15];
+    if(!strncmp(line, "Board:",6)) {
+      strcpy(boardtype, &line[6]);
+      if(!strncmp(boardtype,"HeadTracker",11)) {
+        _boardType = BLUETOOTH_BOARD_HEADTRACKER;
+      }
     }
   }
   else {
@@ -527,6 +541,7 @@ void Bluetooth::wakeup()
       if (g_model.trainerData.mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
         wakeupTime += 500; // it seems a 5s delay is needed before sending the 1st frame
       }
+      
     }
     else if (state == BLUETOOTH_STATE_DISCONNECTED && !line) {
       char command[32];
