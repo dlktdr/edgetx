@@ -185,6 +185,12 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
     gpsSetSerialDriver(ctx, drv);
     break;
 #endif
+
+#if defined(BLUETOOTH)
+  case UART_MODE_BLUETOOTH:
+    bluetoothSetSerialDriver(ctx,drv);
+    break;
+#endif
 #endif
   }
 }
@@ -241,6 +247,13 @@ static void serialSetupPort(int mode, etx_serial_init& params, bool& power_requi
 #if defined(INTERNAL_GPS)
   case UART_MODE_GPS:
     params.baudrate = GPS_USART_BAUDRATE;
+    params.rx_enable = true;
+    power_required = true;
+    break;
+#endif
+#if defined(BLUETOOTH)
+  case UART_MODE_BLUETOOTH:
+    params.baudrate = BLUETOOTH_DEFAULT_BAUDRATE;
     params.rx_enable = true;
     power_required = true;
     break;

@@ -1013,4 +1013,5 @@
   #define BT_EN_GPIO_PIN                GPIO_Pin_10 // PG.10
 #endif
 
+
 #endif // _HAL_H_

@@ -490,6 +490,8 @@ QString GeneralSettings::serialModeToString(int value)
       return tr("CLI");
     case AUX_SERIAL_GPS:
       return tr("GPS");
+    case AUX_SERIAL_BLUETOOTH:
+      return tr("Bluetooth");
     case AUX_SERIAL_DEBUG:
       return tr("Debug");
     default:

@@ -80,6 +80,10 @@ enum BluetoothRemote {
 #endif
 #endif
 
+void bluetoothInit(unsigned int, bool);
+void bluetoothDisable();
+void bluetoothSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
+
 class Bluetooth
 {
   public:
@@ -94,6 +98,9 @@ class Bluetooth
     volatile uint8_t state;
     char localAddr[LEN_BLUETOOTH_ADDR+1];
     char distantAddr[LEN_BLUETOOTH_ADDR+1];
+
+
+  
 
   protected:
     void pushByte(uint8_t byte);
@@ -117,6 +124,7 @@ class Bluetooth
     const char * bootloaderStartWriteFlash(uint32_t start, uint32_t size);
     const char * bootloaderWriteFlash(const uint8_t * data, uint32_t size);
     const char * doFlashFirmware(const char * filename, ProgressHandler progressHandler);
+
 
     uint8_t buffer[BLUETOOTH_LINE_LENGTH+1];
     uint8_t bufferIndex = 0;
