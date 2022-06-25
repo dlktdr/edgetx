@@ -26,6 +26,8 @@
 int16_t ppmInput[MAX_TRAINER_CHANNELS];
 uint8_t ppmInputValidityTimer;
 uint8_t currentTrainerMode = 0xff;
+static uint32_t trainerFrames=0;
+static uint16_t ppminTimerHz=0;
 
 void checkTrainerSignalWarning()
 {
@@ -141,4 +143,36 @@ void checkTrainerSettings()
     }
 #endif
   }
+}
+
+void setTrainerData(uint16_t channel[MAX_TRAINER_CHANNELS], int chcount)
+{
+  for(int i=0; i < MAX_TRAINER_CHANNELS; i++) {
+    if(i < chcount)
+      ppmInput[i] = channel[i];
+    else
+      ppmInput[i] = PPM_CENTER;
+  }
+
+
+  static tmr10ms_t starttime = get_tmr10ms();
+  tmr10ms_t curtime = get_tmr10ms();
+  if(curtime - starttime > 100) {
+    ppminTimerHz = trainerFrames;
+    starttime = curtime;
+    trainerFrames = 0;
+  } else
+    trainerFrames++;
+
+  ppmInputValidityTimer = PPM_IN_VALID_TIMEOUT;
+}
+
+// Return the Current Trainer Input Rate in Hz
+uint16_t trainerRate()
+{
+  if(!ppmInputValidityTimer) {
+    trainerFrames = 0;
+    return 0;
+  }
+  return ppminTimerHz;
 }

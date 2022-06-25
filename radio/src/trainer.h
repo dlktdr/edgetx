@@ -38,6 +38,8 @@ void checkTrainerSignalWarning();
 void checkTrainerSettings();
 void stopTrainer();
 void forceResetTrainerSettings();
+void setTrainerData(uint16_t channel[MAX_TRAINER_CHANNELS], int chcount=MAX_TRAINER_CHANNELS);
+uint16_t trainerRate();
 
 // Needs to be inlined to avoid slow function calls in ISR routines
 inline void captureTrainerPulses(uint16_t capture)

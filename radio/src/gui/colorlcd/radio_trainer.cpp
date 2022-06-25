@@ -113,4 +113,9 @@ void RadioTrainerPage::build(FormWindow * form)
                                    GET_SET_DEFAULT(g_eeGeneral.PPM_Multiplier));
   multiplier->setDisplayHandler(
       [](int32_t value) { return formatNumberAsString(value + 10, PREC1); });
+
+  new StaticText(box, rect_t{}, "Rate", 0, COLOR_THEME_PRIMARY1);
+  new DynamicNumber<int16_t>(box, rect_t{},
+        [=]() { return (trainerRate()) ; },
+        LEFT | LEADING0 | COLOR_THEME_PRIMARY1, "", " Hz");
 }

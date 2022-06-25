@@ -35,6 +35,8 @@ enum BluetoothStates {
   BLUETOOTH_STATE_BAUDRATE_INIT,
   BLUETOOTH_STATE_NAME_SENT,
   BLUETOOTH_STATE_POWER_SENT,
+  BLUETOOTH_STATE_DISCMOD_REQUESTED,
+  BLUETOOTH_STATE_DISCMOD_COMPLETE,
   BLUETOOTH_STATE_ROLE_SENT,
   BLUETOOTH_STATE_IDLE,
   BLUETOOTH_STATE_DISCOVER_REQUESTED,
@@ -75,12 +77,21 @@ enum BluetoothStates {
 #endif
 #endif
 
+/* Handles all the interfacing with the module
+ *   picking modes, bauds, etc..
+ *   The various classes get the data from that mode
+ */
+
 class Bluetooth
 {
   public:
+    Bluetooth() {
+      for(int i=0; i < BLUETOOTH_MAX ; i++) {
+       modes[i] = nullptr;
+      }
+    }
+
     void writeString(const char * str);
-    char * readline(bool error_reset = true);
-    void write(const uint8_t * data, uint8_t length);
 
     void forwardTelemetry(const uint8_t * packet);
     void wakeup();
@@ -90,15 +101,34 @@ class Bluetooth
     char localAddr[LEN_BLUETOOTH_ADDR+1];
     char distantAddr[LEN_BLUETOOTH_ADDR+1];
 
+    void setMode(uint8_t mode;)
+    uint8_t mode() {return currentmode;}
+    bool hasMode(uint8_t mode)
+    {
+      if(modes[mode] != nullptr) // TODO: Implement Properly
+        return true;
+      return false;
+    }
+
   protected:
+    friend class BTMode;
+
+    // Store all available modes
+    BTMode *modes[BLUETOOTH_MAX];
+    uint8_t currentmode = 0;
+    void setMode(BTMode *md, uint8_t mode)
+    {
+      if(mode < BLUETOOTH_MAX)
+        modes[mode] = md;
+    }
+
+    // IO Operations
+    void write(const uint8_t * data, uint8_t length);
+    char * readline(bool error_reset = true);
     void pushByte(uint8_t byte);
     uint8_t read(uint8_t * data, uint8_t size, uint32_t timeout=1000/*ms*/);
-    void appendTrainerByte(uint8_t data);
-    void processTrainerFrame(const uint8_t * buffer);
-    void processTrainerByte(uint8_t data);
-    void sendTrainer();
-    void receiveTrainer();
 
+    // REMOVE ME...
     uint8_t bootloaderChecksum(uint8_t command, const uint8_t * data, uint8_t size);
     void bootloaderSendCommand(uint8_t command, const void *data = nullptr, uint8_t size = 0);
     void bootloaderSendCommandResponse(uint8_t response);
@@ -119,4 +149,75 @@ class Bluetooth
     uint8_t crc;
 };
 
+class BTMode
+{
+  public:
+    BTMode(Bluetooth &b) {
+      bt = &b;
+      b.setMode(this,id());
+      }
+    virtual uint8_t id()=0;
+    virtual void dataReceived(uint8_t *data, int len)=0;
+    virtual void wakeup();
+
+  protected:
+    Bluetooth *bt=nullptr;
+    void write(uint8_t *data, int len);
+    void write(const char *str);
+};
+
+class BTJoystick : public BTMode
+{
+  public:
+    BTJoystick(Bluetooth &b) : BTMode(b) {}
+    uint8_t id() {return BLUETOOTH_JOYSTICK;}
+    void dataReceived(uint8_t *data, int len) {}
+};
+
+class BTTelemetry : public BTMode
+{
+  public:
+    BTTelemetry(Bluetooth &b) : BTMode(b) {}
+    uint8_t id() {return BLUETOOTH_TELEMETRY;}
+    void dataReceived(uint8_t *data, int len) {}
+};
+
+class BTAudio : public BTMode
+{
+  public:
+    BTAudio(Bluetooth &b) : BTMode(b) {}
+    uint8_t id() {return BLUETOOTH_AUDIO;}
+    void dataReceived(uint8_t *data, int len) {}
+
+};
+
+class BTFtp : public BTMode // TODO
+{
+  public:
+    BTFtp(Bluetooth &b) : BTMode(b) {}
+    uint8_t id() {return BLUETOOTH_FTP;}
+    void dataReceived(uint8_t *data, int len) {}
+};
+
+class BTTrainer : public BTMode
+{
+  public:
+    BTTrainer(Bluetooth &b) : BTMode(b) {}
+    uint8_t id() {return BLUETOOTH_TRAINER;}
+    void dataReceived(uint8_t *data, int len);
+    void setTrainerModeMaster(bool m) {isMaster=m;}
+
+  protected:
+    bool isMaster=true;
+    void appendTrainerByte(uint8_t data);
+    void processTrainerFrame(const uint8_t * buffer);
+    void processTrainerByte(uint8_t data);
+    void sendTrainer();
+    void receiveTrainer();
+
+};
+
 extern Bluetooth bluetooth;
+extern BTAudio(bluetooth) btaudio;
+extern BTTrainer(bluetooth) bttrainer;
+

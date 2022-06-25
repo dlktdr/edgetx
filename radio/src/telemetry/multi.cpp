@@ -281,6 +281,7 @@ static void processMultiRxChannels(const uint8_t * data, uint8_t len)
   //uint8_t rssi = data[1];
   int ch    = max(data[2], (uint8_t)0);
   int maxCh = min(ch + data[3], MAX_TRAINER_CHANNELS);
+  uint16_t rxchans[MAX_TRAINER_CHANNELS];
 
   uint32_t bits = 0;
   uint8_t  bitsavailable = 0;
@@ -296,15 +297,16 @@ static void processMultiRxChannels(const uint8_t * data, uint8_t len)
     bitsavailable -= MULTI_CHAN_BITS;
     bits >>= MULTI_CHAN_BITS;
 
-    ppmInput[ch] = (value - 1024) * 500 / 800;
+    rxchans[ch] = (value - 1024) * 500 / 800;
     ch++;
 
     if (byteIdx >= len)
       break;
   }
 
-  if (ch == maxCh)
-    ppmInputValidityTimer = PPM_IN_VALID_TIMEOUT;
+  if (ch == maxCh) {
+    setTrainerData(rxchans, maxCh);
+  }
 }
 #endif
 

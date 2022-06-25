@@ -98,16 +98,21 @@ class BluetoothConfigWindow : public FormGroup
     new StaticText(line, rect_t{}, STR_MODE, 0, COLOR_THEME_PRIMARY1);
 
     modechoiceopen = false;
-    btMode = new ModeChoice(
-        line, rect_t{}, STR_BLUETOOTH_MODES, BLUETOOTH_OFF, BLUETOOTH_TRAINER,
+    btMode = new ModeChoice()
+        line, rect_t{}, 0, BLUETOOTH_OFF, BLUETOOTH_TRAINER,
         GET_DEFAULT(g_eeGeneral.bluetoothMode),
         [=](int32_t newValue) {
           g_eeGeneral.bluetoothMode = newValue;
+          bluetooth.setMode(g_eeGeneral.bluetoothMode);
           update();
           modechoiceopen = false;
           SET_DIRTY();
         },
         &modechoiceopen);
+    for(int i=0; i < BLUETOOTH_MAX; i ++) {
+      if(bluetooth.hasMode(i))
+        btMode->addValue(STR_BLUETOOTH_MODES[i]);
+    }
 
     if (g_eeGeneral.bluetoothMode != BLUETOOTH_OFF) {
       // Pin code (displayed for information only, not editable)
@@ -253,7 +258,7 @@ void RadioHardwarePage::build(FormWindow * window)
   lv_obj_set_style_flex_main_place(box->getLvObj(), LV_FLEX_ALIGN_SPACE_EVENLY, 0);
   box->padRow(lv_dpx(8));
   box->padAll(lv_dpx(8));
-  
+
   auto calib = new TextButton(box, rect_t{}, STR_CALIBRATION);
   calib->setPressHandler([=]() -> uint8_t {
       new RadioCalibrationPage();
@@ -278,7 +283,7 @@ void RadioHardwarePage::build(FormWindow * window)
   // Switches
   btn = makeHWInputButton<HWSwitches>(box, STR_SWITCHES);
   lv_obj_set_style_min_width(btn->getLvObj(), LV_DPI_DEF, 0);
-  
+
   // Debugs
   new Subtitle(window, rect_t{}, STR_DEBUG, 0, COLOR_THEME_PRIMARY1);
 

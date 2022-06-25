@@ -129,6 +129,9 @@ void audioConsumeCurrentBuffer()
 {
   if (!nextBuffer) {
     nextBuffer = audioQueue.buffersFifo.getNextFilledBuffer();
+#if defined(BLUETOOTH)
+
+#endif
     if (nextBuffer) {
 #if defined(AUDIO_MUTE_GPIO_PIN)
       audioUnmute();
