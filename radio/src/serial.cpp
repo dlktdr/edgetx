@@ -244,6 +244,12 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
     break;
 #endif
 
+#if defined(ESP)
+  case UART_MODE_ESP:
+    espSetSerialDriver(ctx,drv);
+    break;
+#endif
+
 #if defined(INTERNAL_GPS)
   case UART_MODE_GPS:
     gpsSetSerialDriver(ctx, drv);
@@ -342,6 +348,9 @@ static void serialSetupPort(int mode, etx_serial_init& params)
 #if defined(ESP)
   case UART_MODE_ESP:
     params.baudrate = ESP_BAUDRATE;
+    params.word_length = ETX_WordLength_8;
+    params.parity = ETX_Parity_None;
+    params.stop_bits = ETX_StopBits_One;
     params.rx_enable = true;
 #endif
 

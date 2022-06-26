@@ -77,12 +77,14 @@ typedef struct {
 
 typedef uint8_t espmode;
 
+void espSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
+
 class ESPModule
 {
   public:
     ESPModule() {
-      for(int i=0; i < BLUETOOTH_MAX ; i++) {
-       modes[i] = nullptr;
+      for(int i=0; i < ESP_MAX ; i++) {
+        modes[i] = nullptr;
       }
     }
 
@@ -102,15 +104,17 @@ class ESPModule
         modes[mode] = md;
     }
 
+    void dataRx(const uint8_t *data, uint32_t len);
+
   protected:
     friend class ESPMode;
 
     // Store all available modes
-    ESPMode *modes[BLUETOOTH_MAX];
+    ESPMode *modes[ESP_MAX];
     int32_t modesStarted=0;
 
     // IO Operations
-    void writeString(const char * str);
+    void writeString(const char * str) {write((uint8_t *)str,strlen(str));}
     void write(const uint8_t * data, uint8_t length);
     char * readline(bool error_reset = true);
     void pushByte(uint8_t byte);
@@ -189,12 +193,12 @@ class ESPMode
     virtual uint8_t id()=0;
     virtual void dataReceived(uint8_t *data, int len)=0;
     virtual void cmdReceived(uint8_t command, uint8_t *data, int len)=0;
-    virtual void wakeup();
+    virtual void wakeup() {};
 
   protected:
     ESPModule *esp=nullptr;
     void write(const uint8_t *dat, int len, bool iscmd=false);
-    void write(const char *str, bool iscmd=false) {write((uint8_t*)str,strlen(str),iscmd);}
+    void writeString(const char *str, bool iscmd=false) {write((uint8_t*)str,strlen(str),iscmd);}
 };
 
 // BLE Joystick
