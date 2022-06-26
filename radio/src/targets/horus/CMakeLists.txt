@@ -245,7 +245,15 @@ if(USB_CHARGER)
   add_definitions(-DUSB_CHARGER)
 endif()
 
-if(BLUETOOTH)
+if(ESP)
+  add_definitions(-DESP)
+  set(SRC
+    ${SRC}
+    esp.cpp
+    esptrainer.cpp
+    esptelemetry.cpp
+    espaudio.cpp)
+elseif(BLUETOOTH)
   add_definitions(-DBLUETOOTH)
   set(FIRMWARE_SRC
     ${FIRMWARE_SRC}

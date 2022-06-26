@@ -339,6 +339,12 @@ static void serialSetupPort(int mode, etx_serial_init& params)
     break;
 #endif
 
+#if defined(ESP)
+  case UART_MODE_ESP:
+    params.baudrate = ESP_BAUDRATE;
+    params.rx_enable = true;
+#endif
+
 #endif // BOOT
   }
 }
@@ -430,7 +436,7 @@ void serialInit(uint8_t port_nr, int mode)
       !port || params.baudrate == 0 ||
       !port->uart || !port->uart->init)
     return;
-  
+
   auto hw_def = port->hw_def;
   state->usart_ctx = port->uart->init(hw_def, &params);
 
@@ -439,7 +445,7 @@ void serialInit(uint8_t port_nr, int mode)
 
   state->mode = mode;
   state->port = port;
-        
+
   // Update callbacks once the port is setup
   serialSetCallBacks(mode, state->usart_ctx, state->port);
 

@@ -892,6 +892,10 @@ constexpr uint8_t SD_SCREEN_FILE_LENGTH = 64;
 #include "bluetooth.h"
 #endif
 
+#if defined(ESP)
+#include "esp.h"
+#endif
+
 constexpr uint8_t TEXT_FILENAME_MAXLEN = 40;
 
 #if defined(GHOST)

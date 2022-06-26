@@ -185,7 +185,7 @@ enum ModuleIndex {
   INTERNAL_MODULE,
   EXTERNAL_MODULE,
   // end of "normal" modules
-  
+
   MAX_MODULES,
 
   // only used for power control
@@ -249,6 +249,7 @@ enum UartModes {
   UART_MODE_DEBUG,
   UART_MODE_SPACEMOUSE,
   UART_MODE_EXT_MODULE,
+  UART_MODE_ESP,
   UART_MODE_COUNT SKIP,
   UART_MODE_MAX SKIP = UART_MODE_COUNT-1
 };
@@ -913,6 +914,17 @@ enum BluetoothModes {
 #else
   BLUETOOTH_MAX SKIP = BLUETOOTH_TRAINER
 #endif
+};
+
+enum ESPModes {
+  ESP_OFF,
+  ESP_TELEMETRY,
+  ESP_TRAINER,
+  ESP_JOYSTICK,
+  ESP_AUDIO,
+  ESP_FTP,
+  ESP_IMU,
+  ESP_MAX
 };
 
 enum UartSampleModes {

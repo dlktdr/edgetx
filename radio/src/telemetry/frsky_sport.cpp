@@ -262,6 +262,10 @@ void sportProcessTelemetryPacketWithoutCrc(uint8_t module, uint8_t origin, const
   }
 #endif
 
+#if defined(ESP)
+    esptelemetry.sendSportTelemetry(packet);
+#endif
+
   if (primId == DATA_FRAME) {
     uint8_t originMask = 0x01 << module;
     uint8_t instance = physicalId + (origin << 5);

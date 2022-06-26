@@ -185,6 +185,9 @@ void processGhostTelemetryFrame(uint8_t module, uint8_t* buffer, uint32_t length
 
     case GHST_DL_LINK_STAT:
     {
+#if defined(ESP)
+        esptelemetry.sendRawTelemetry(telemetryRxBuffer, telemetryRxBufferCount);
+#endif
 #if defined(BLUETOOTH)
       if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY &&
           bluetooth.state == BLUETOOTH_STATE_CONNECTED) {
@@ -224,6 +227,9 @@ void processGhostTelemetryFrame(uint8_t module, uint8_t* buffer, uint32_t length
 
     case GHST_DL_VTX_STAT:
     {
+#if defined(ESP)
+        esptelemetry.sendRawTelemetry(telemetryRxBuffer, telemetryRxBufferCount);
+#endif
 #if defined(BLUETOOTH)
       if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY &&
           bluetooth.state == BLUETOOTH_STATE_CONNECTED) {
@@ -265,6 +271,9 @@ void processGhostTelemetryFrame(uint8_t module, uint8_t* buffer, uint32_t length
     }
 
     case GHST_DL_PACK_STAT: {
+#if defined(ESP)
+        esptelemetry.sendRawTelemetry(telemetryRxBuffer, telemetryRxBufferCount);
+#endif
 #if defined(BLUETOOTH)
       if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY &&
           bluetooth.state == BLUETOOTH_STATE_CONNECTED) {
@@ -278,16 +287,19 @@ void processGhostTelemetryFrame(uint8_t module, uint8_t* buffer, uint32_t length
     }
 
     case GHST_DL_GPS_PRIMARY: {
+#if defined(ESP)
+        esptelemetry.sendRawTelemetry(telemetryRxBuffer, telemetryRxBufferCount);
+#endif
 #if defined(BLUETOOTH)
       if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY &&
           bluetooth.state == BLUETOOTH_STATE_CONNECTED) {
         bluetooth.write(buffer, length);
       }
 #endif
-      processGhostTelemetryValue(GHOST_ID_GPS_LAT, ((int32_t)_get_s32le(frame, 1)) / 10);  
+      processGhostTelemetryValue(GHOST_ID_GPS_LAT, ((int32_t)_get_s32le(frame, 1)) / 10);
       processGhostTelemetryValue(GHOST_ID_GPS_LONG, ((int32_t)_get_s32le(frame, 5)) / 10);
       processGhostTelemetryValue(GHOST_ID_GPS_ALT, (int16_t)_get_u16le(frame, 9));
-      break; 
+      break;
     }
 
     case GHST_DL_GPS_SECONDARY: {
@@ -297,12 +309,15 @@ void processGhostTelemetryFrame(uint8_t module, uint8_t* buffer, uint32_t length
         bluetooth.write(buffer, length);
       }
 #endif
-      processGhostTelemetryValue(GHOST_ID_GPS_HDG, _get_u16le(frame, 3) / 10);   
+#if defined(ESP)
+        esptelemetry.sendRawTelemetry(telemetryRxBuffer, telemetryRxBufferCount);
+#endif
+      processGhostTelemetryValue(GHOST_ID_GPS_HDG, _get_u16le(frame, 3) / 10);
 
       // ground speed is passed via GHST as cm/s, converted to km/h for OpenTx
       processGhostTelemetryValue(GHOST_ID_GPS_GSPD, (_get_u16le(frame, 1) * 36 + 50) / 100);
       processGhostTelemetryValue(GHOST_ID_GPS_SATS, frame[5]);
-      break; 
+      break;
     }
     case GHST_DL_MAGBARO: {
       // Not implemented yet

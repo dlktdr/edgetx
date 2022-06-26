@@ -157,6 +157,11 @@ void audioConsumeCurrentBuffer()
 {
   if (!nextBuffer) {
     nextBuffer = audioQueue.buffersFifo.getNextFilledBuffer();
+
+#if defined(ESP)
+    espaudio.sendAudio(nextBuffer);
+#endif
+
     if (nextBuffer) {
 #if defined(AUDIO_MUTE_GPIO_PIN)
       audioUnmute();

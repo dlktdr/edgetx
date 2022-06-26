@@ -33,7 +33,7 @@ RadioTrainerPage::RadioTrainerPage():
 #if LCD_W > LCD_H
 static const lv_coord_t col_dsc[] = {LV_GRID_FR(7), LV_GRID_FR(13), LV_GRID_FR(10), LV_GRID_FR(10), LV_GRID_FR(10),
                                      LV_GRID_TEMPLATE_LAST};
-                                     
+
 #define MULT_COL_CNT    3
 #else
 static const lv_coord_t col_dsc[] = {LV_GRID_FR(7), LV_GRID_FR(15), LV_GRID_FR(9), LV_GRID_FR(9),
@@ -110,4 +110,24 @@ void RadioTrainerPage::build(FormWindow * form)
     return 0;
   });
   lv_obj_set_grid_cell(btn->getLvObj(), LV_GRID_ALIGN_STRETCH, MULT_COL_CNT+1, 1, LV_GRID_ALIGN_CENTER, 0, 1);
+
+  lv_obj_set_style_min_width(btn->getLvObj(), 2*LV_DPI_DEF/3, 0);
+
+  // Trainer multiplier
+  auto box = new FormGroup(line, rect_t{});
+  box->setFlexLayout(LV_FLEX_FLOW_ROW, lv_dpx(4));
+  auto box_obj = box->getLvObj();
+  lv_obj_set_width(box_obj, LV_SIZE_CONTENT);
+  lv_obj_set_style_flex_cross_place(box_obj, LV_FLEX_ALIGN_CENTER, 0);
+
+  new StaticText(box, rect_t{}, STR_MULTIPLIER, 0, COLOR_THEME_PRIMARY1);
+  auto multiplier = new NumberEdit(box, rect_t{}, -10, 40,
+                                   GET_SET_DEFAULT(g_eeGeneral.PPM_Multiplier));
+  multiplier->setDisplayHandler(
+      [](int32_t value) { return formatNumberAsString(value + 10, PREC1); });
+
+  new StaticText(box, rect_t{}, "Rate", 0, COLOR_THEME_PRIMARY1);
+  new DynamicNumber<int16_t>(box, rect_t{},
+        [=]() { return (trainerRate()) ; },
+        LEFT | LEADING0 | COLOR_THEME_PRIMARY1, "", " Hz");
 }
