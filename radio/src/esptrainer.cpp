@@ -12,6 +12,11 @@ typedef struct  {
   uint32_t channelmask=0; // Valid Channels
 } channeldata;
 
+void ESPTrainer::wakeup()
+{
+  sendTrainer(); // TEST
+}
+
 void ESPTrainer::dataReceived(uint8_t *data, int len)
 {
   if(len != sizeof(channeldata))

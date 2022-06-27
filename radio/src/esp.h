@@ -3,6 +3,7 @@
 #include "opentx.h"
 #include "esp.h"
 #include "audio.h"
+#include "fifo.h"
 
 /*
  * Copyright (C) EdgeTX
@@ -49,11 +50,10 @@ class ESPMode;
 
 // Packet Format
 typedef struct {
-  const uint8_t packetheader='\0';
   uint8_t len;       // Data length. Max 255 per packet
   uint8_t type;
   uint16_t crc;      // CRC16:xxxx of the packet
-  uint8_t data[256]; // User Data
+  uint8_t data[257]; // User Data
 } packet_s;
 
 #define PACKET_OVERHEAD 4
@@ -82,14 +82,10 @@ void espSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
 class ESPModule
 {
   public:
-    ESPModule() {
-      for(int i=0; i < ESP_MAX ; i++) {
-        modes[i] = nullptr;
-      }
-    }
+    ESPModule();
 
     void wakeup();
-    void startMode(espmode mode);
+    void startMode(espmode mode) {modesStarted |= 1<<mode;}
     void stopMode(espmode mode) {modesStarted &= ~(1<<mode);}
     bool hasMode(espmode mode)
     {
@@ -97,10 +93,10 @@ class ESPModule
         return true;
       return false;
     }
-    bool isModeStarted(espmode mode) {return modesStarted & (1<<mode);}
+    bool isModeStarted(espmode mode) {return (modesStarted & (1<<mode));}
     void setModeClass(ESPMode *md, espmode mode)
     {
-      if(mode < BLUETOOTH_MAX)
+      if(mode < ESP_MAX)
         modes[mode] = md;
     }
 
@@ -274,6 +270,7 @@ class ESPTrainer : public ESPMode, public ESPConnectionHandler
   public:
     ESPTrainer(ESPModule &b) : ESPMode(b,id()) {}
     uint8_t id() {return ESP_TRAINER;}
+    void wakeup() override;
     void dataReceived(uint8_t *data, int len);
     void cmdReceived(uint8_t command, uint8_t *data, int len) {}
     void setTrainerMaster() {isMaster=true;}

@@ -52,7 +52,7 @@ class ChannelFailsafeBargraph : public Window
     if (failsafeValue == FAILSAFE_CHANNEL_HOLD ||
         failsafeValue == FAILSAFE_CHANNEL_NOPULSE)
       return;
-    
+
     const coord_t lenChannel = limit(
         (uint8_t)1, uint8_t((abs(channelValue) * width() / 2 + lim / 2) / lim),
         uint8_t(width() / 2));
@@ -94,7 +94,7 @@ class ChannelFailsafeEdit : public NumberEdit
       return formatNumberAsString(value, PREC1, 0, "", "%");
     }
   }
-  
+
 public:
   ChannelFailsafeEdit(Window* parent, uint8_t ch, int vmin, int vmax) :
     NumberEdit(parent, rect_t{}, vmin, vmax, nullptr), channel(ch)
@@ -104,7 +104,7 @@ public:
     update();
   }
 
-  void update() override
+  void update()
   {
     auto value = g_model.failsafeChannels[channel];
     if (value != FAILSAFE_CHANNEL_HOLD && value != FAILSAFE_CHANNEL_NOPULSE) {
@@ -156,8 +156,6 @@ public:
 
 class ChannelFSCombo : public FormGroup
 {
-  ChannelFailsafeEdit* edit = nullptr;
-  
 public:
   ChannelFSCombo(Window* parent, uint8_t ch, int vmin, int vmax) :
     FormGroup(parent, rect_t{})
@@ -168,7 +166,7 @@ public:
     lv_obj_set_style_pad_column(lvobj, lv_dpx(4), 0);
     lv_obj_set_style_flex_cross_place(lvobj, LV_FLEX_ALIGN_CENTER, 0);
 
-    edit = new ChannelFailsafeEdit(this, ch, vmin, vmax);
+    auto edit = new ChannelFailsafeEdit(this, ch, vmin, vmax);
     auto btn = new TextButton(this, rect_t{}, LV_SYMBOL_SETTINGS, [=]() {
       edit->toggle();
       return 0;
@@ -183,8 +181,6 @@ public:
     btn->padTop(lv_dpx(4));
     btn->padBottom(lv_dpx(4));
   }
-
-  void update() { edit->update(); }
 };
 
 
@@ -195,8 +191,8 @@ static const lv_coord_t line_row_dsc[] = {LV_GRID_CONTENT,
 
 static void set_failsafe(lv_event_t* e)
 {
-  auto combo = (ChannelFSCombo*)lv_event_get_user_data(e);
-  if (combo) combo->update();
+  auto edit = (NumberEdit*)lv_event_get_user_data(e);
+  if (edit) edit->update();
 }
 
 #if LCD_H > LCD_W
@@ -220,7 +216,7 @@ FailSafePage::FailSafePage(uint8_t moduleIdx) :
 
   auto btn = new TextButton(form, rect_t{}, STR_CHANNELS2FAILSAFE);
   lv_obj_set_width(btn->getLvObj(), lv_pct(100));
-  
+
   btn->setPressHandler([=]() {
     setCustomFailsafe(moduleIdx);
     AUDIO_WARNING1();
@@ -243,9 +239,9 @@ FailSafePage::FailSafePage(uint8_t moduleIdx) :
     new StaticText(line, rect_t{}, ch_label, 0, COLOR_THEME_PRIMARY1);
 
     // Channel value
-    auto combo = new ChannelFSCombo(line, ch, -lim, lim);
-    lv_obj_add_event_cb(btn->getLvObj(), set_failsafe, LV_EVENT_CLICKED, combo);
-    
+    auto edit = new ChannelFSCombo(line, ch, -lim, lim);
+    lv_obj_add_event_cb(btn->getLvObj(), set_failsafe, LV_EVENT_CLICKED, edit);
+
     // Channel bargraph
     auto bar = new ChannelFailsafeBargraph(line, rect_t{}, moduleIdx, ch);
     bar->setWidth(FS_BARGRAPH_WIDTH);

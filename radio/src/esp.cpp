@@ -43,6 +43,14 @@ void espSetSerialDriver(void* ctx, const etx_serial_driver_t* drv) {
 }
 
 //-----------------------------------------------------------------------------
+ESPModule::ESPModule()
+{
+  for(int i=0; i < ESP_MAX ; i++) {
+    modes[i] = nullptr;
+  }
+
+  startMode(ESP_TRAINER);
+}
 
 void ESPModule::wakeup()
 {
@@ -51,8 +59,6 @@ void ESPModule::wakeup()
       modes[i]->wakeup();
     }
   }
-
-  writeString("BLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\nBLASTING OUT A HUGE AMOUNT OF DATA\r\n");
 }
 
 void ESPModule::write(const uint8_t * data, uint8_t length)
@@ -78,26 +84,24 @@ void ESPModule::dataRx(const uint8_t *data, uint32_t len)
 
 void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 {
-  if(!esp->isModeStarted(id()) || !esp->hasMode(id())) {
-    ESP_TRACE("[%d]Cannot send data, not supported or started", id());
+  if(!esp->isModeStarted(id()) ||
+     !esp->hasMode(id()) ||
+     len > 255) {
     return;
   }
 
   uint8_t encodedbuffer[sizeof(packet_s) + 1];
-
-  if(len > 256) {
-    ESP_TRACE("Cannot send packet more than 256 bytes");
-    return;
-  }
 
   packet.type = id();
   packet.type |= (iscmd << ESP_PACKET_CMD_BIT);
   packet.len = len;
   packet.crc = 0xAABB;
   memcpy(packet.data, dat, len); // TODO, Remove me, extra copy for just the crc calc.
-  packet.crc = crc16(0,(uint8_t *)&packet+1,len + PACKET_OVERHEAD);
-  COBS::encode((uint8_t *)&packet+1, packet.len + PACKET_OVERHEAD, encodedbuffer);
+  packet.crc = crc16(0,(uint8_t *)&packet,len + PACKET_OVERHEAD);
+  int wl = COBS::encode((uint8_t *)&packet, packet.len + PACKET_OVERHEAD, encodedbuffer);
+
+  encodedbuffer[wl] = '\0'; // Null terminate packet, used for detection of packet end
 
   // Write the packet
-  esp->write((uint8_t *)&packet, len+5);
+  esp->write((uint8_t *)&packet, wl+1);
 }

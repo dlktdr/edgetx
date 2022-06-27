@@ -18,10 +18,10 @@ void ESPAudio::wakeup()
 void ESPAudio::sendAudio(const AudioBuffer *aud)
 {
   // Send Buffer in 256 byte increments
-  int offset=0;
+  /*int offset=0;
   while(offset <= aud->size) {
     int minsz = min((int)aud->size,(int)256);
     write((uint8_t *)aud->data + offset, minsz);
     offset += minsz;
-  }
+  }*/
 }
