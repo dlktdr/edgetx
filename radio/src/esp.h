@@ -104,6 +104,8 @@ class ESPModule
 
   protected:
     friend class ESPMode;
+    
+    Fifo<uint8_t, sizeof(packet_s) * 2> rxFifo;
 
     // Store all available modes
     ESPMode *modes[ESP_MAX];

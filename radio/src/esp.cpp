@@ -2,6 +2,7 @@
 #include "esp.h"
 #include "string.h"
 
+
 ESPModule espmodule;
 ESPAudio espaudio(espmodule);
 ESPTrainer esptrainer(espmodule);
@@ -64,7 +65,6 @@ void ESPModule::wakeup()
 void ESPModule::write(const uint8_t * data, uint8_t length)
 {
   if (!espSendCb) return;
-
   for(int i=0;i < length; i++) {
     espSendCb(espSendCtx, data[i]);
   }
@@ -75,7 +75,9 @@ void ESPModule::dataRx(const uint8_t *data, uint32_t len)
   // Receive data function, Called from ISR
   TRACE("Got Data %d",len);
 
-  // Write everything into a FIFO.. look for null while doing it.
+  // Write everything into a FIFO.. look for null while doing it. 
+  // If a null is found, set a flag that it's okay to start popping 
+  // off the buffer
 
 
 }
