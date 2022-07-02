@@ -39,6 +39,17 @@
   #define ESP_TRACE(...)
 #endif
 
+enum ESPModes {
+  ESP_ROOT,
+  ESP_TELEMETRY,
+  ESP_TRAINER,
+  ESP_JOYSTICK,
+  ESP_AUDIO,
+  ESP_FTP,
+  ESP_IMU,
+  ESP_MAX
+};
+
 /* Handles all the interfacing with the module
  *   picking modes, bauds, etc..
  *   The various classes get the data from that mode. A module
@@ -50,13 +61,13 @@ class ESPMode;
 
 // Packet Format
 typedef struct {
-  uint8_t len;       // Data length. Max 255 per packet
   uint8_t type;
   uint16_t crc;      // CRC16:xxxx of the packet
   uint8_t data[257]; // User Data
+  uint8_t len;       // Data length, not transmitted
 } packet_s;
 
-#define PACKET_OVERHEAD 4
+#define PACKET_OVERHEAD 3
 
 /* Packet Type Format
  * Bits 0:4 - Type(32 Possible ESPModes, Mode 0=Base Module)
@@ -116,7 +127,6 @@ class ESPModule
     int32_t modesStarted=1; // ROOT is always started
 
     // IO Operations
-    void writeString(const char * str) {write((uint8_t *)str,strlen(str));}
     void write(const uint8_t * data, uint8_t length);
     char * readline(bool error_reset = true);
     void pushByte(uint8_t byte);
@@ -167,8 +177,9 @@ enum ESPConnectionCommands {
 };
 
 // Types of connection handlers, every mode will need it's own specific one
-//   BLE
-//   ESP/EDR
+//   BLE Central
+//   BLE Periferial
+//   ESP/EDR Pairing
 //   WIFI AP
 //   WIFI STA
 
@@ -208,7 +219,6 @@ class ESPMode
   protected:
     ESPModule *esp=nullptr;
     void write(const uint8_t *dat, int len, bool iscmd=false);
-    void writeString(const char *str, bool iscmd=false) {write((uint8_t*)str,strlen(str),iscmd);}
     void writeCommand(uint8_t command, const uint8_t *dat=nullptr, int len=0);
 };
 
@@ -345,7 +355,7 @@ public:
                     uint8_t* encodedBuffer)
   {
     int read_index  = 0;
-    int write_index = 1;
+    int write_index = 0;
     int code_index  = 0;
     uint8_t code    = 1;
 

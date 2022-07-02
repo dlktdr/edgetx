@@ -3,6 +3,7 @@
 #include "string.h"
 
 ESPModule espmodule;
+ESPRoot esproot(espmodule);
 ESPAudio espaudio(espmodule);
 ESPTrainer esptrainer(espmodule);
 ESPJoystick espjoystick(espmodule);
@@ -94,7 +95,10 @@ void ESPModule::dataRx(const uint8_t *data, uint32_t len)
 void ESPModule::startMode(espmode mode)
 {
   // TEMP
-  modesStarted |= 1<<mode; // Root always on
+  modesStarted |= 1<<mode;
+
+  if(modes[ESP_ROOT] == nullptr)
+    return;
 
   modes[ESP_ROOT]->writeCommand(ESP_ROOTCMD_START_MODE, (uint8_t *)&mode, 1);
 }
@@ -102,6 +106,8 @@ void ESPModule::startMode(espmode mode)
 // Full module reboot
 void ESPModule::reset()
 {
+  if(modes[ESP_ROOT] == nullptr)
+    return;
   modes[ESP_ROOT]->writeCommand(ESP_ROOTCMD_RESTART);
 }
 
@@ -113,12 +119,14 @@ void ESPMode::writeCommand(uint8_t command, const uint8_t *dat, int len)
     return;
   uint8_t buffer[255];
   buffer[0] = command; // First byte of a command is the command, data follows
-  memcpy(buffer, dat, len);
+  memcpy(buffer+1, dat, len);
   write(buffer, len+1, true);
 }
 
 void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 {
+  TRACE("%d", id());
+
   if(!esp->isModeStarted(id()) ||
      !esp->hasMode(id()) ||
      len > 255) {
@@ -129,14 +137,11 @@ void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 
   packet.type = id();
   packet.type |= (iscmd << ESP_PACKET_CMD_BIT);
-  packet.len = len;
   packet.crc = 0xAABB;
-  memcpy(packet.data, dat, len); // TODO, Remove me, extra copy for just the crc calc.
+  memcpy(packet.data, dat, len);
   packet.crc = crc16(0,(uint8_t *)&packet,len + PACKET_OVERHEAD);
   int wl = COBS::encode((uint8_t *)&packet, packet.len + PACKET_OVERHEAD, encodedbuffer);
-
-  encodedbuffer[wl] = '\0'; // Null terminate packet, used for detection of packet end
-
+  encodedbuffer[wl] = '\0';
   // Write the packet
   esp->write((uint8_t *)&packet, wl+1);
 }
@@ -147,7 +152,6 @@ void ESPRoot::cmdReceived(uint8_t command, uint8_t *data, int len)
 {
   switch(command) {
     case ESP_ROOTCMD_START_MODE: // On Receive this means the mode has started
-
       break;
     case ESP_ROOTCMD_STOP_MODE:
       break;

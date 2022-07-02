@@ -916,17 +916,6 @@ enum BluetoothModes {
 #endif
 };
 
-enum ESPModes {
-  ESP_ROOT,
-  ESP_TELEMETRY,
-  ESP_TRAINER,
-  ESP_JOYSTICK,
-  ESP_AUDIO,
-  ESP_FTP,
-  ESP_IMU,
-  ESP_MAX
-};
-
 enum UartSampleModes {
   UART_SAMPLE_MODE_NORMAL = 0,
   UART_SAMPLE_MODE_ONEBIT,

@@ -38,6 +38,7 @@ void ESPTrainer::sendTrainer()
   for (int channel=firstCh; channel<lastCh; channel++) {
     chdat.ch[channel] = PPM_CH_CENTER(channel) + limit((int16_t)-PPM_range, channelOutputs[channel], (int16_t)PPM_range) / 2;
     chdat.channelmask |= 1<<channel;
+    chdat.ch[channel] = 5; // REMOBE MT
   }
   write((uint8_t *)&chdat, (int)sizeof(channeldata));
 }
