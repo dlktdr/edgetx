@@ -70,6 +70,7 @@ typedef struct {
  *   data[0:255] = DataStream
  */
 
+#define ESP_BASE 0
 #define ESP_PACKET_CMD_BIT 6
 #define ESP_PACKET_ACK_BIT 7
 #define ESP_PACKET_ISCMD(t) (t&(1<<ESP_PACKET_CMD_BIT))
@@ -81,11 +82,14 @@ void espSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
 
 class ESPModule
 {
+  friend class ESPMode;
+
   public:
     ESPModule();
 
     void wakeup();
-    void startMode(espmode mode) {modesStarted |= 1<<mode;}
+    void reset();
+    void startMode(espmode mode);
     void stopMode(espmode mode) {modesStarted &= ~(1<<mode);}
     bool hasMode(espmode mode)
     {
@@ -103,13 +107,13 @@ class ESPModule
     void dataRx(const uint8_t *data, uint32_t len);
 
   protected:
-    friend class ESPMode;
-    
-    Fifo<uint8_t, sizeof(packet_s) * 2> rxFifo;
+    volatile bool packetFound=false;
+
+    Fifo<uint8_t, 1024> rxFifo;
 
     // Store all available modes
     ESPMode *modes[ESP_MAX];
-    int32_t modesStarted=0;
+    int32_t modesStarted=1; // ROOT is always started
 
     // IO Operations
     void writeString(const char * str) {write((uint8_t *)str,strlen(str));}
@@ -135,6 +139,12 @@ typedef struct {
   uint8_t event; // Event ID
   uint8_t data[50];
 } ESPEvent;
+
+enum ESPRootCmds {
+  ESP_ROOTCMD_START_MODE,
+  ESP_ROOTCMD_STOP_MODE,
+  ESP_ROOTCMD_RESTART,
+};
 
 enum ESPEvents {
   ESP_EVT_DISCOVER_STARTED,
@@ -186,6 +196,8 @@ class ESPConnectionHandler {
 
 class ESPMode
 {
+  friend class ESPModule;
+
   public:
     ESPMode(ESPModule &b, uint8_t id) {esp = &b;esp->setModeClass(this,id);}
     virtual uint8_t id()=0;
@@ -197,6 +209,20 @@ class ESPMode
     ESPModule *esp=nullptr;
     void write(const uint8_t *dat, int len, bool iscmd=false);
     void writeString(const char *str, bool iscmd=false) {write((uint8_t*)str,strlen(str),iscmd);}
+    void writeCommand(uint8_t command, const uint8_t *dat=nullptr, int len=0);
+};
+
+// ESP Root Commands
+class ESPRoot : public ESPMode
+{
+  public:
+    ESPRoot(ESPModule &b) : ESPMode(b,id()) {}
+    uint8_t id() {return ESP_ROOT;}
+    void dataReceived(uint8_t *data, int len) {}
+    void cmdReceived(uint8_t command, uint8_t *data, int len);
+
+    // Send the radios channels
+    void send(uint16_t chans[16]) {}
 };
 
 // BLE Joystick
@@ -370,3 +396,8 @@ public:
   }
 };
 
+// Channel Format
+typedef struct  {
+  int16_t ch[32];
+  uint32_t channelmask=0; // Valid Channels
+} channeldata;

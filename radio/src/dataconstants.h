@@ -917,7 +917,7 @@ enum BluetoothModes {
 };
 
 enum ESPModes {
-  ESP_OFF,
+  ESP_ROOT,
   ESP_TELEMETRY,
   ESP_TRAINER,
   ESP_JOYSTICK,

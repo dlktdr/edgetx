@@ -7,11 +7,6 @@
 
 #define BLUETOOTH_TRAINER_CHANNELS
 
-typedef struct  {
-  int16_t ch[32];
-  uint32_t channelmask=0; // Valid Channels
-} channeldata;
-
 void ESPTrainer::wakeup()
 {
   sendTrainer(); // TEST
