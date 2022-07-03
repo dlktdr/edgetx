@@ -111,10 +111,11 @@ void TrainerModuleWindow::update()
   auto td = &g_model.trainerData;
   if (td->mode == TRAINER_MODE_OFF) return;
 
-#if defined(BLUETOOTH)
+#if defined(BLUETOOTH) || defined(ESPMODULE)
+  espmodule.
   if (td->mode == TRAINER_MODE_MASTER_BLUETOOTH ||
       td->mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
-    
+
     auto bt = new BluetoothTrainerWindow(this);
     if (td->mode == TRAINER_MODE_SLAVE_BLUETOOTH)
       bt->setMaster(false);

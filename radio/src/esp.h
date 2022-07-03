@@ -59,10 +59,13 @@ enum ESPModes {
  */
 class ESPMode;
 
+#include "definitions.h"
+
 // Packet Format
-typedef struct {
+typedef struct PACKED {
   uint8_t type;
-  uint16_t crc;      // CRC16:xxxx of the packet
+  uint8_t crcl;      // CRC16:low byte
+  uint8_t crch;      // CRC16:high byte
   uint8_t data[257]; // User Data
   uint8_t len;       // Data length, not transmitted
 } packet_s;
@@ -82,6 +85,7 @@ typedef struct {
  */
 
 #define ESP_BASE 0
+#define ESP_PACKET_TYPE_MSK 0x0F
 #define ESP_PACKET_CMD_BIT 6
 #define ESP_PACKET_ACK_BIT 7
 #define ESP_PACKET_ISCMD(t) (t&(1<<ESP_PACKET_CMD_BIT))
@@ -154,6 +158,7 @@ enum ESPRootCmds {
   ESP_ROOTCMD_START_MODE,
   ESP_ROOTCMD_STOP_MODE,
   ESP_ROOTCMD_RESTART,
+  ESP_ROOTCMD_COUNT,
 };
 
 enum ESPEvents {
@@ -218,6 +223,7 @@ class ESPMode
 
   protected:
     ESPModule *esp=nullptr;
+    packet_s packet;
     void write(const uint8_t *dat, int len, bool iscmd=false);
     void writeCommand(uint8_t command, const uint8_t *dat=nullptr, int len=0);
 };
@@ -355,7 +361,7 @@ public:
                     uint8_t* encodedBuffer)
   {
     int read_index  = 0;
-    int write_index = 0;
+    int write_index = 1;
     int code_index  = 0;
     uint8_t code    = 1;
 

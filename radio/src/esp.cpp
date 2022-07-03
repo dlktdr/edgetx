@@ -9,7 +9,7 @@ ESPTrainer esptrainer(espmodule);
 ESPJoystick espjoystick(espmodule);
 ESPTelemetry esptelemetry(espmodule);
 
-packet_s packet;
+
 
 //-----------------------------------------------------------------------------
 // AUX Serial Implementation
@@ -59,7 +59,12 @@ ESPModule::ESPModule()
 void ESPModule::wakeup()
 {
   // Parse RX Data
-
+ /* if (!espSendCb) return;
+  const char *data = "Hello\n\0";
+  int length = 6;
+  for(int i=0;i < length; i++) {
+    espSendCb(espSendCtx, data[i]);
+  }*/
 
   // Call all modules wakeup
   for(int i=0; i < ESP_MAX; i++) {
@@ -79,9 +84,6 @@ void ESPModule::write(const uint8_t * data, uint8_t length)
 
 void ESPModule::dataRx(const uint8_t *data, uint32_t len)
 {
-  // Receive data function, Called from ISR
-  TRACE("Got Data %d",len);
-
   // Write everything into a FIFO.. look for null while doing it.
   // If a null is found, set a flag that it's okay to start popping
   // data out of the buffer on wakeup()
@@ -107,7 +109,7 @@ void ESPModule::startMode(espmode mode)
 void ESPModule::reset()
 {
   if(modes[ESP_ROOT] == nullptr)
-    return;
+    return ;
   modes[ESP_ROOT]->writeCommand(ESP_ROOTCMD_RESTART);
 }
 
@@ -125,8 +127,6 @@ void ESPMode::writeCommand(uint8_t command, const uint8_t *dat, int len)
 
 void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 {
-  TRACE("%d", id());
-
   if(!esp->isModeStarted(id()) ||
      !esp->hasMode(id()) ||
      len > 255) {
@@ -137,13 +137,16 @@ void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 
   packet.type = id();
   packet.type |= (iscmd << ESP_PACKET_CMD_BIT);
-  packet.crc = 0xAABB;
+  packet.crcl = 0xBB;
+  packet.crch = 0xAA;
   memcpy(packet.data, dat, len);
-  packet.crc = crc16(0,(uint8_t *)&packet,len + PACKET_OVERHEAD);
-  int wl = COBS::encode((uint8_t *)&packet, packet.len + PACKET_OVERHEAD, encodedbuffer);
+  uint16_t crc = crc16(0,(uint8_t *)&packet,len + PACKET_OVERHEAD);
+  packet.crcl = crc & 0xFF;
+  packet.crch = (crc & 0xFF00) >> 8;
+  int wl = COBS::encode((uint8_t *)&packet, len + PACKET_OVERHEAD, encodedbuffer);
   encodedbuffer[wl] = '\0';
   // Write the packet
-  esp->write((uint8_t *)&packet, wl+1);
+  esp->write(encodedbuffer, wl+1);
 }
 
 //-----------------------------------------------------------------------------
