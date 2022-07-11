@@ -918,6 +918,7 @@ PACK(struct RadioData {
   NOBACKUP(uint32_t globalTimer);
   NOBACKUP(uint8_t  bluetoothBaudrate:4);
   NOBACKUP(uint8_t  bluetoothMode:4 ENUM(BluetoothModes));
+  NOBACKUP(uint8_t  espMode ENUM(ESPModes));
 
   NOBACKUP(uint8_t  countryCode:2);
   NOBACKUP(int8_t   pwrOnSpeed:3);

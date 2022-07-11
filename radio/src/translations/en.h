@@ -787,6 +787,8 @@
 #define TR_BLUETOOTH_MODES             "---","Telemetry","Trainer"
 #endif
 
+#define TR_ESP_MODES                   "Telemetry", "Trainer", "Joystick", "Audio", "FTP", "IMU"
+
 #define TR_SD_INFO_TITLE               "SD INFO"
 #define TR_SD_TYPE                     "Type:"
 #define TR_SD_SPEED                    "Speed:"

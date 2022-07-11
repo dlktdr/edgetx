@@ -79,27 +79,6 @@ TrainerModuleWindow::TrainerModuleWindow(FormGroup* parent) :
 
 void TrainerModuleWindow::checkEvents()
 {
-// #if defined(BLUETOOTH)
-//   if (popupopen) {
-//     if (bluetooth.state == BLUETOOTH_STATE_DISCOVER_START ||
-//         bluetooth.state == BLUETOOTH_STATE_DISCOVER_END) {
-//       int cnt = min<uint8_t>(reusableBuffer.moduleSetup.bt.devicesCount,
-//                              MAX_BLUETOOTH_DISTANT_ADDR);
-//       if (devicecount < cnt) {
-//         for (int i = 0; i < cnt - devicecount; i++) {
-//           int index = devicecount + i;
-//           btDiscoverMenuAddItem(reusableBuffer.moduleSetup.bt.devices[index]);
-//         }
-//         devicecount = cnt;
-//       }
-//     }
-//   }
-//   if (bluetooth.state != lastbluetoothstate) {
-//     // TODO:
-//     // if (!popupopen && !trChoiceOpen) update();
-//     lastbluetoothstate = bluetooth.state;
-//   }
-// #endif
   FormGroup::checkEvents();
 }
 

@@ -58,6 +58,17 @@ const struct YamlIdStr enum_BluetoothModes[] = {
   {  BLUETOOTH_TRAINER, "TRAINER"  },
   {  0, NULL  }
 };
+const struct YamlIdStr enum_ESPModes[] = {
+  {  ESP_ROOT, "ROOT"  },
+  {  ESP_TELEMETRY, "TELEMETRY"  },
+  {  ESP_TRAINER, "TRAINER"  },
+  {  ESP_JOYSTICK, "JOYSTICK"  },
+  {  ESP_AUDIO, "AUDIO"  },
+  {  ESP_FTP, "FTP"  },
+  {  ESP_IMU, "IMU"  },
+  {  ESP_MAX, "MAX"  },
+  {  0, NULL  }
+};
 const struct YamlIdStr enum_Functions[] = {
   {  FUNC_OVERRIDE_CHANNEL, "OVERRIDE_CHANNEL"  },
   {  FUNC_TRAINER, "TRAINER"  },
@@ -447,6 +458,7 @@ static const struct YamlNode struct_RadioData[] = {
   YAML_UNSIGNED( "globalTimer", 32 ),
   YAML_UNSIGNED( "bluetoothBaudrate", 4 ),
   YAML_ENUM("bluetoothMode", 4, enum_BluetoothModes),
+  YAML_ENUM("espMode", 8, enum_ESPModes),
   YAML_UNSIGNED( "countryCode", 2 ),
   YAML_SIGNED( "pwrOnSpeed", 3 ),
   YAML_SIGNED( "pwrOffSpeed", 3 ),

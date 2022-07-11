@@ -170,6 +170,11 @@ if(BLUETOOTH)
   add_gui_src(hw_bluetooth.cpp)
 endif()
 
+if(ESP)
+  add_gui_src(hw_esp.cpp)
+endif()
+
+
 set(SRC ${SRC} storage/modelslist.cpp)
 
 option(WINDOWS_INSPECT_BORDERS "Draw bounding boxes around windows" OFF)

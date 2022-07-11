@@ -244,6 +244,8 @@ extern const char STR_BLUETOOTH_NODEVICES[];
 extern const char STR_BLUETOOTH_SCANNING[];
 extern const char* const STR_BLUETOOTH_MODES[];
 
+extern const char* STR_ESP_MODES[];
+
 #define NO_INDENT(x) (x) + LEN_INDENT
 
 extern const char STR_POPUPS_ENTER_EXIT[];

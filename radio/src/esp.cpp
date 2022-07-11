@@ -9,8 +9,6 @@ ESPTrainer esptrainer(espmodule);
 ESPJoystick espjoystick(espmodule);
 ESPTelemetry esptelemetry(espmodule);
 
-
-
 //-----------------------------------------------------------------------------
 // AUX Serial Implementation
 
@@ -58,20 +56,49 @@ ESPModule::ESPModule()
 
 void ESPModule::wakeup()
 {
-  // Parse RX Data
- /* if (!espSendCb) return;
-  const char *data = "Hello\n\0";
-  int length = 6;
-  for(int i=0;i < length; i++) {
-    espSendCb(espSendCtx, data[i]);
-  }*/
+  // TODO Rework this and GUI to allow multiple modes active if compatible.
+  if(currentmode != g_eeGeneral.espMode) {
+    if(currentmode != 0) {
+      stopMode(currentmode);
+      currentmode = 0;
+    }
+    
+    switch(g_eeGeneral.espMode) {
+    case ESP_ROOT:
+      break;
+    case ESP_TELEMETRY:
+      break;
+    case ESP_TRAINER:
+      startMode(ESP_TRAINER);
+      currentmode = ESP_TRAINER;
+      break;
+    case ESP_JOYSTICK:
+      startMode(ESP_JOYSTICK);
+      currentmode = ESP_JOYSTICK;
+      break;
+    case ESP_AUDIO:
+      break;
+    case ESP_FTP:
+      break;
+    case ESP_IMU:
+      break;
+    }
+
+    g_eeGeneral.espMode = currentmode;
+  }
 
   // Call all modules wakeup
   for(int i=0; i < ESP_MAX; i++) {
     if(modes[i] != nullptr) {
-      modes[i]->wakeup();
+      if(isModeStarted(i))
+        modes[i]->wakeup();
     }
   }
+
+  // Parse RX Data
+  
+
+  //TODO
 }
 
 void ESPModule::write(const uint8_t * data, uint8_t length)
@@ -103,6 +130,17 @@ void ESPModule::startMode(espmode mode)
     return;
 
   modes[ESP_ROOT]->writeCommand(ESP_ROOTCMD_START_MODE, (uint8_t *)&mode, 1);
+}
+
+void ESPModule::stopMode(espmode mode)
+{
+  // TEMP
+  modesStarted &= ~(1<<mode);
+
+  if(modes[ESP_ROOT] == nullptr)
+    return;
+
+  modes[ESP_ROOT]->writeCommand(ESP_ROOTCMD_STOP_MODE, (uint8_t *)&mode, 1);
 }
 
 // Full module reboot

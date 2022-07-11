@@ -36,6 +36,10 @@
 #include "hw_bluetooth.h"
 #endif
 
+#if defined(ESP)
+#include "hw_esp.h"
+#endif
+
 #define SET_DIRTY() storageDirty(EE_GENERAL)
 
 static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(2),
@@ -142,6 +146,13 @@ void RadioHardwarePage::build(FormWindow * window)
   new Subtitle(window, rect_t{}, STR_AUX_SERIAL_MODE, 0, COLOR_THEME_PRIMARY1);
   auto serial = new SerialConfigWindow(window, rect_t{});
   serial->padLeft(lv_dpx(8));
+
+#if defined(ESP)
+  new Subtitle(window, rect_t{}, "ESP Module", 0, COLOR_THEME_PRIMARY1);
+  auto bt = new ESPConfigWindow(window);
+  bt->padLeft(lv_dpx(8));
+#endif
+
 
   // Calibration
   new Subtitle(window, rect_t{}, STR_INPUTS, 0, COLOR_THEME_PRIMARY1);

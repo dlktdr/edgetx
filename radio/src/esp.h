@@ -1,10 +1,3 @@
-#pragma once
-
-#include "opentx.h"
-#include "esp.h"
-#include "audio.h"
-#include "fifo.h"
-
 /*
  * Copyright (C) EdgeTX
  *
@@ -28,8 +21,11 @@
 
 #pragma once
 
-#include "dataconstants.h"
 #include <string.h>
+#include "opentx.h"
+#include "espdefs.h"
+#include "audio.h"
+#include "fifo.h"
 
 #define ESP_BAUDRATE                   576000
 
@@ -39,17 +35,6 @@
   #define ESP_TRACE(...)
 #endif
 
-enum ESPModes {
-  ESP_ROOT,
-  ESP_TELEMETRY,
-  ESP_TRAINER,
-  ESP_JOYSTICK,
-  ESP_AUDIO,
-  ESP_FTP,
-  ESP_IMU,
-  ESP_MAX
-};
-
 /* Handles all the interfacing with the module
  *   picking modes, bauds, etc..
  *   The various classes get the data from that mode. A module
@@ -58,8 +43,6 @@ enum ESPModes {
  *   e.g. IMU + Trainer - Ok
  */
 class ESPMode;
-
-#include "definitions.h"
 
 // Packet Format
 typedef struct PACKED {
@@ -84,13 +67,6 @@ typedef struct PACKED {
  *   data[0:255] = DataStream
  */
 
-#define ESP_BASE 0
-#define ESP_PACKET_TYPE_MSK 0x0F
-#define ESP_PACKET_CMD_BIT 6
-#define ESP_PACKET_ACK_BIT 7
-#define ESP_PACKET_ISCMD(t) (t&(1<<ESP_PACKET_CMD_BIT))
-#define ESP_PACKET_ISACKREQ(t) (t&(1<<ESP_PACKET_ACK_BIT))
-
 typedef uint8_t espmode;
 
 void espSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
@@ -105,7 +81,7 @@ class ESPModule
     void wakeup();
     void reset();
     void startMode(espmode mode);
-    void stopMode(espmode mode) {modesStarted &= ~(1<<mode);}
+    void stopMode(espmode mode);
     bool hasMode(espmode mode)
     {
     if(modes[mode] != nullptr) // TODO: Implement Properly
@@ -122,6 +98,8 @@ class ESPModule
     void dataRx(const uint8_t *data, uint32_t len);
 
   protected:
+    uint8_t currentmode=0;
+
     volatile bool packetFound=false;
 
     Fifo<uint8_t, 1024> rxFifo;
@@ -153,33 +131,6 @@ typedef struct {
   uint8_t event; // Event ID
   uint8_t data[50];
 } ESPEvent;
-
-enum ESPRootCmds {
-  ESP_ROOTCMD_START_MODE,
-  ESP_ROOTCMD_STOP_MODE,
-  ESP_ROOTCMD_RESTART,
-  ESP_ROOTCMD_COUNT,
-};
-
-enum ESPEvents {
-  ESP_EVT_DISCOVER_STARTED,
-  ESP_EVT_DISCOVER_COMPLETE,
-  ESP_EVT_DEVICE_FOUND,
-  ESP_EVT_CONNECTED,
-  ESP_EVT_DISCONNECTED,
-  ESP_EVT_PIN_REQUEST,
-  ESP_EVT_IP_OBTAINED
-};
-
-enum ESPCommands {
-  ESP_CMD_RESTART
-};
-
-enum ESPConnectionCommands {
-  ESP_EVT_DISCOVER,
-  ESP_EVT_CONNECT,
-  ESP_EVT_DISCONNECT
-};
 
 // Types of connection handlers, every mode will need it's own specific one
 //   BLE Central
@@ -215,8 +166,10 @@ class ESPMode
   friend class ESPModule;
 
   public:
-    ESPMode(ESPModule &b, uint8_t id) {esp = &b;esp->setModeClass(this,id);}
+    ESPMode(ESPModule &b, uint8_t id) {esp = &b;esp->setModeClass(this,id);}    
     virtual uint8_t id()=0;
+    virtual void start() {esp->startMode(id());}
+    virtual void stop() {esp->stopMode(id());}
     virtual void dataReceived(uint8_t *data, int len)=0;
     virtual void cmdReceived(uint8_t command, uint8_t *data, int len)=0;
     virtual void wakeup() {};
@@ -247,7 +200,8 @@ class ESPJoystick : public ESPMode, public ESPConnectionHandler
   public:
     ESPJoystick(ESPModule &b) : ESPMode(b,id()) {}
     uint8_t id() {return ESP_JOYSTICK;}
-    void dataReceived(uint8_t *data, int len) {}
+    void wakeup() override;
+    void dataReceived(uint8_t *data, int len);
     void cmdReceived(uint8_t command, uint8_t *data, int len) {}
 
     // Send the radios channels

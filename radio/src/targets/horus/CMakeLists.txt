@@ -252,6 +252,7 @@ if(ESP)
     esp.cpp
     esptrainer.cpp
     esptelemetry.cpp
+    espjoystick.cpp
     espaudio.cpp)
 elseif(BLUETOOTH)
   add_definitions(-DBLUETOOTH)

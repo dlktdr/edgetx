@@ -916,6 +916,9 @@ enum BluetoothModes {
 #endif
 };
 
+// ESP Modes
+#include "espdefs.h"
+
 enum UartSampleModes {
   UART_SAMPLE_MODE_NORMAL = 0,
   UART_SAMPLE_MODE_ONEBIT,

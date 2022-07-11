@@ -1,5 +1,6 @@
 #include "opentx.h"
 #include "esp.h"
+#include "espdefs.h"
 
 void ESPTelemetry::dataReceived(uint8_t *data, int len)
 {
