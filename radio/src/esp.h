@@ -95,7 +95,7 @@ class ESPModule
         modes[mode] = md;
     }
 
-    void dataRx(const uint8_t *data, uint32_t len);
+    inline void dataRx(const uint8_t *data, uint32_t len);
 
   protected:
     uint8_t currentmode=0;
@@ -113,6 +113,11 @@ class ESPModule
     char * readline(bool error_reset = true);
     void pushByte(uint8_t byte);
     uint8_t read(uint8_t * data, uint8_t size, uint32_t timeout=1000/*ms*/);
+    void processPacket(const packet_s &packet);
+
+    packet_s packet;
+    uint8_t buffer[sizeof(packet_s)+1];
+    int bufferpos =0;
 };
 
 // Class that can be used with a mode class to enable discovery and connecting
@@ -142,23 +147,13 @@ typedef struct {
 class ESPConnectionHandler {
   public:
     void startScan() {};
-    void stopScan() {};
+    void setEventCB(void(*c)(ESPEvent cb)) {
+      if(c != nullptr)
+        ESPevent = c;
+    };
 
-    void setDeviceFoundCB(void(*c)(ESPDevice cb)) {
-      if(c != nullptr)
-        deviceDiscoveredCB = c;
-    };
-    void setConnectedCB(void(*c)(ESPDevice cb)) {
-      if(c != nullptr)
-        deviceDiscoveredCB = c;
-    };
   protected:
     void (*ESPevent)(ESPEvent evt) = nullptr;
-    void (*connectedCB)(ESPDevice dev) = nullptr;
-    void (*disconnectedCB)() = nullptr;
-    void (*deviceDiscoveredCB)(ESPDevice dev) = nullptr;
-    void (*discoverCompleteCB)() = nullptr;
-    void (*messageCB)(ESPMessage message) = nullptr;
 };
 
 class ESPMode
@@ -170,8 +165,8 @@ class ESPMode
     virtual uint8_t id()=0;
     virtual void start() {esp->startMode(id());}
     virtual void stop() {esp->stopMode(id());}
-    virtual void dataReceived(uint8_t *data, int len)=0;
-    virtual void cmdReceived(uint8_t command, uint8_t *data, int len)=0;
+    virtual void dataReceived(const uint8_t *data, int len)=0;
+    virtual void cmdReceived(uint8_t command, const uint8_t *data, int len)=0;
     virtual void wakeup() {};
 
   protected:
@@ -187,8 +182,10 @@ class ESPRoot : public ESPMode
   public:
     ESPRoot(ESPModule &b) : ESPMode(b,id()) {}
     uint8_t id() {return ESP_ROOT;}
-    void dataReceived(uint8_t *data, int len) {}
-    void cmdReceived(uint8_t command, uint8_t *data, int len);
+    void dataReceived(const uint8_t *data, int len) {
+      TRACE("ESP: Root Data RECEIVED");
+    }
+    void cmdReceived(uint8_t command, const uint8_t *data, int len);
 
     // Send the radios channels
     void send(uint16_t chans[16]) {}
@@ -201,15 +198,15 @@ class ESPJoystick : public ESPMode, public ESPConnectionHandler
     ESPJoystick(ESPModule &b) : ESPMode(b,id()) {}
     uint8_t id() {return ESP_JOYSTICK;}
     void wakeup() override;
-    void dataReceived(uint8_t *data, int len);
-    void cmdReceived(uint8_t command, uint8_t *data, int len) {}
+    void dataReceived(const uint8_t *data, int len);
+    void cmdReceived(uint8_t command, const uint8_t *data, int len) {}
 
     // Send the radios channels
     void send(uint16_t chans[16]) {}
 };
 
 // Telemetry Output
-#define BLUETOOTH_LINE_LENGTH           32
+#define BLUETOOTH_LINE_LENGTH 32
 
 class ESPTelemetry : public ESPMode, public ESPConnectionHandler
 {
@@ -219,8 +216,8 @@ class ESPTelemetry : public ESPMode, public ESPConnectionHandler
     void sendSportTelemetry(const uint8_t * packet);
     void sendRawTelemetry(const uint8_t * dat, int len);
     void wakeup() override;
-    void dataReceived(uint8_t *data, int len);
-    void cmdReceived(uint8_t command, uint8_t *data, int len) {}
+    void dataReceived(const uint8_t *data, int len);
+    void cmdReceived(uint8_t command, const uint8_t *data, int len) {}
 
   protected:
     void pushByte(uint8_t byte);
@@ -236,8 +233,8 @@ class ESPAudio : public ESPMode, public ESPConnectionHandler
     ESPAudio(ESPModule &b) : ESPMode(b,id()) {}
     uint8_t id() {return ESP_AUDIO;}
     void wakeup() override;
-    void dataReceived(uint8_t *data, int len) {}
-    void cmdReceived(uint8_t command, uint8_t *data, int len) {}
+    void dataReceived(const uint8_t *data, int len) {}
+    void cmdReceived(uint8_t command, const uint8_t *data, int len) {}
     void sendAudio(const AudioBuffer *aud);
 };
 
@@ -247,8 +244,8 @@ class ESPFtp : public ESPMode, public ESPConnectionHandler
   public:
     ESPFtp(ESPModule &b) : ESPMode(b,id()) {}
     uint8_t id() {return ESP_FTP;}
-    void dataReceived(uint8_t *data, int len) {}
-    void cmdReceived(uint8_t command, uint8_t *data, int len) {}
+    void dataReceived(const uint8_t *data, int len) {}
+    void cmdReceived(uint8_t command, const uint8_t *data, int len) {}
 };
 
 // Reads IMU data from a imu sensor, not a connectable mode
@@ -256,8 +253,8 @@ class ESPImu : public ESPMode
 {
   public:
     ESPImu(ESPModule &b) : ESPMode(b,id()) {}
-    void dataReceived(uint8_t *data, int len) {}
-    void cmdReceived(uint8_t command, uint8_t *data, int len) {}
+    void dataReceived(const uint8_t *data, int len) {}
+    void cmdReceived(uint8_t command, const uint8_t *data, int len) {}
 
     uint8_t id() {return ESP_IMU;}
 };
@@ -269,8 +266,8 @@ class ESPTrainer : public ESPMode, public ESPConnectionHandler
     ESPTrainer(ESPModule &b) : ESPMode(b,id()) {}
     uint8_t id() {return ESP_TRAINER;}
     void wakeup() override;
-    void dataReceived(uint8_t *data, int len);
-    void cmdReceived(uint8_t command, uint8_t *data, int len) {}
+    void dataReceived(const uint8_t *data, int len);
+    void cmdReceived(uint8_t command, const uint8_t *data, int len) {}
     void setTrainerMaster() {isMaster=true;}
     void setTrainerSlave() {isMaster=false;}
 
@@ -365,9 +362,3 @@ public:
     return write_index;
   }
 };
-
-// Channel Format
-typedef struct  {
-  int16_t ch[32];
-  uint32_t channelmask=0; // Valid Channels
-} channeldata;

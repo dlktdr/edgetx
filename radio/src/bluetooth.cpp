@@ -139,13 +139,14 @@ char * Bluetooth::readline(bool error_reset)
 
 void Bluetooth::processTrainerFrame(const uint8_t * buffer)
 {
+  uint16_t chs[BLUETOOTH_TRAINER_CHANNELS];
   for (uint8_t channel=0, i=1; channel<BLUETOOTH_TRAINER_CHANNELS; channel+=2, i+=3) {
     // +-500 != 512, but close enough.
-    ppmInput[channel] = buffer[i] + ((buffer[i+1] & 0xf0) << 4) - 1500;
-    ppmInput[channel+1] = ((buffer[i+1] & 0x0f) << 4) + ((buffer[i+2] & 0xf0) >> 4) + ((buffer[i+2] & 0x0f) << 8) - 1500;
+    chs[channel] = buffer[i] + ((buffer[i+1] & 0xf0) << 4) - 1500;
+    chs[channel+1] = ((buffer[i+1] & 0x0f) << 4) + ((buffer[i+2] & 0xf0) >> 4) + ((buffer[i+2] & 0x0f) << 8) - 1500;
   }
 
-  ppmInputValidityTimer = PPM_IN_VALID_TIMEOUT;
+  setTrainerData(chs, BLUETOOTH_TRAINER_CHANNELS);
 }
 
 void Bluetooth::appendTrainerByte(uint8_t data)

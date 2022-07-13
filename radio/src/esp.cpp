@@ -25,9 +25,9 @@ void espSetSendCb(void* ctx, void (*cb)(void*, uint8_t))
   espSendCb = cb;
 }
 
-void espReceiveData(uint8_t* buf, uint32_t len)
+inline void espReceiveData(uint8_t* buf, uint32_t len)
 {
-  espmodule.dataRx(buf, len); // TODO: Quick and dirty.. No using two ESP's right now
+  espmodule.dataRx(buf, len);
 }
 
 void espSetSerialDriver(void* ctx, const etx_serial_driver_t* drv) {
@@ -50,8 +50,6 @@ ESPModule::ESPModule()
   for(int i=0; i < ESP_MAX ; i++) {
     modes[i] = nullptr;
   }
-
-  startMode(ESP_TRAINER);
 }
 
 void ESPModule::wakeup()
@@ -63,6 +61,7 @@ void ESPModule::wakeup()
       currentmode = 0;
     }
     
+    // User switched modes
     switch(g_eeGeneral.espMode) {
     case ESP_ROOT:
       break;
@@ -77,6 +76,8 @@ void ESPModule::wakeup()
       currentmode = ESP_JOYSTICK;
       break;
     case ESP_AUDIO:
+      startMode(ESP_JOYSTICK);
+      currentmode = ESP_JOYSTICK;
       break;
     case ESP_FTP:
       break;
@@ -96,9 +97,30 @@ void ESPModule::wakeup()
   }
 
   // Parse RX Data
-  
-
-  //TODO
+  uint8_t inb;
+  while(rxFifo.pop(inb)) {
+    if(inb == 0 && bufferpos != 0) {               
+      int lenout = COBS::decode(buffer,bufferpos,(uint8_t *)&packet);
+      //ESP_LOG_BUFFER_HEX("P", (uint8_t *)&packet, lenout);
+      uint16_t packetcrc = packet.crcl | (packet.crch << 8);
+      packet.crcl = 0xBB;
+      packet.crch = 0xAA;
+      uint16_t calccrc = crc16(0,(uint8_t *)&packet,lenout, 0);
+      packet.len = lenout - PACKET_OVERHEAD;
+      if(packetcrc == calccrc) {
+        processPacket(packet);
+      } else {
+        TRACE("CRC Fault");
+      }
+      bufferpos = 0;
+    } else {
+      buffer[bufferpos++] = inb;
+      if(bufferpos == sizeof(buffer)) {
+        printf("Buffer Overflow\r\n");
+        bufferpos = 0;
+      }
+    }
+  }
 }
 
 void ESPModule::write(const uint8_t * data, uint8_t length)
@@ -109,6 +131,8 @@ void ESPModule::write(const uint8_t * data, uint8_t length)
   }
 }
 
+
+// TODO -- DMA d
 void ESPModule::dataRx(const uint8_t *data, uint32_t len)
 {
   // Write everything into a FIFO.. look for null while doing it.
@@ -116,8 +140,20 @@ void ESPModule::dataRx(const uint8_t *data, uint32_t len)
   // data out of the buffer on wakeup()
   for(uint32_t i = 0; i < len; i++) {
     rxFifo.push(data[i]);
-    if(data[i] == 0)
-      packetFound = true;
+  }
+}
+
+
+void ESPModule::processPacket(const packet_s &packet)
+{
+  int mode = packet.type & ESP_PACKET_TYPE_MSK;
+
+  if(mode < ESP_MAX && modes[mode] != nullptr) {
+    if(ESP_PACKET_ISCMD(packet.type)) {
+      modes[mode]->cmdReceived(packet.data[0],packet.data+1,packet.len-1);
+    } else {
+      modes[mode]->dataReceived(packet.data, packet.len);
+    }
   }
 }
 
@@ -189,16 +225,22 @@ void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 
 //-----------------------------------------------------------------------------
 
-void ESPRoot::cmdReceived(uint8_t command, uint8_t *data, int len)
+void ESPRoot::cmdReceived(uint8_t command, const uint8_t *data, int len)
 {
-  switch(command) {
-    case ESP_ROOTCMD_START_MODE: // On Receive this means the mode has started
+  TRACE("ROOT CMD RECEIVED");
+  switch(command) {    
+    // On Receive this means the mode has started
+    case ESP_ROOTCMD_START_MODE: 
+      TRACE("ESP: Unknown root command");
       break;
-    case ESP_ROOTCMD_STOP_MODE:
+    
+    // On Receive this means the mode has stopped
+    case ESP_ROOTCMD_STOP_MODE: 
+      TRACE("ESP: Unknown root command");
       break;
+
     default:
-      //TRACE("ESP - Unknown root command");
+      TRACE("ESP: Unknown root command");
       break;
   }
-
 }

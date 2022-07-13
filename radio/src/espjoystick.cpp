@@ -18,10 +18,8 @@ void ESPJoystick::wakeup()
   write((uint8_t *)&chdat, (int)sizeof(channeldata));
 }
 
-void ESPJoystick::dataReceived(uint8_t *data, int len)
+void ESPJoystick::dataReceived(const uint8_t *data, int len)
 {
   
   // No incoming data as a joystick device
 }
-
-

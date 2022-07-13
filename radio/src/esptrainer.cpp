@@ -10,19 +10,24 @@ void ESPTrainer::wakeup()
   //sendTrainer(); // TEST
 }
 
-void ESPTrainer::dataReceived(uint8_t *data, int len)
+void ESPTrainer::dataReceived(const uint8_t *data, int len)
 {
   if(len != sizeof(channeldata))
     return;
 
   channeldata *chnldata = (channeldata*)data;
-  // Trainer Data Received - 32 Channels  
-  for(int i=0; i < MAX_OUTPUT_CHANNELS; i++) {
-    if(chnldata->channelmask & 1<<i) // Channel Valid?
-      ppmInput[i] = chnldata->ch[i] - 1500; // TODO - Is this correct offset?
-  }  
+  uint16_t trch[MAX_TRAINER_CHANNELS];
 
-  // TODO REPLACE ME WITH setTrainerData(
+  // Trainer Data Received - 32 Channels  
+  for(int i=0; i < MAX_TRAINER_CHANNELS; i++) {
+    if(chnldata->channelmask & 1<<i) {
+      trch[i] = chnldata->ch[i];
+    } else {
+      trch[i] = PPM_CH_CENTER(i);
+    }
+  }
+
+  setTrainerData(trch, MAX_TRAINER_CHANNELS);
 }
 
 void ESPTrainer::sendTrainer()

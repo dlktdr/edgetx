@@ -2,9 +2,10 @@
 #include "esp.h"
 #include "espdefs.h"
 
-void ESPTelemetry::dataReceived(uint8_t *data, int len)
+void ESPTelemetry::dataReceived(const uint8_t *data, int len)
 {
-  // Ignore incoming telemetry, for now.
+  // Ignore incoming telemetry, for now
+
 }
 
 void ESPTelemetry::wakeup()
