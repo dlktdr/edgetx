@@ -3,36 +3,37 @@
 #define ESP_PACKET_TYPE_MSK 0x0F
 #define ESP_PACKET_CMD_BIT 6
 #define ESP_PACKET_ACK_BIT 7
-#define ESP_PACKET_ISCMD(t) (t&(1<<ESP_PACKET_CMD_BIT))
-#define ESP_PACKET_ISACKREQ(t) (t&(1<<ESP_PACKET_ACK_BIT))
+#define ESP_PACKET_ISCMD(t) (t & (1 << ESP_PACKET_CMD_BIT))
+#define ESP_PACKET_ISACK(t) (t & (1 << ESP_PACKET_ACK_BIT))
 
 enum ESPModes {
-  ESP_ROOT,  
+  ESP_ROOT,
   ESP_TELEMETRY,
   ESP_TRAINER,
   ESP_JOYSTICK,
   ESP_AUDIO,
   ESP_FTP,
-  ESP_IMU, 
+  ESP_IMU,
   ESP_MAX
 };
 
 enum ESPRootCmds {
-  ESP_ROOTCMD_ACKNAK=0,
   ESP_ROOTCMD_START_MODE,
   ESP_ROOTCMD_STOP_MODE,
-  ESP_ROOTCMD_RESTART,
-  ESP_ROOTCMD_VERSION,
-  ESP_ROOTCMD_CON_EVENT,
-  ESP_ROOTCMD_CON_MGMNT,
+  ESP_ROOTCMD_ACTIVE_MODES, // Request & return mask of running modes
+  ESP_ROOTCMD_RESTART,      // Reboot ESP
+  ESP_ROOTCMD_VERSION,      // Request Version
+  ESP_ROOTCMD_CON_EVENT,    // ESP Connection event
+  ESP_ROOTCMD_CON_MGMNT,    // Set ESP Connection Parameters
 };
 
 enum ESPConnectionEvents {
+  ESP_EVT_MESSAGE,           // String value of status
   ESP_EVT_DISCOVER_STARTED,
   ESP_EVT_DISCOVER_COMPLETE,
-  ESP_EVT_DEVICE_FOUND,
+  ESP_EVT_DEVICE_FOUND,      // A connectable device was found
   ESP_EVT_CONNECTED,
-  ESP_EVT_DISCONNECTED,  
+  ESP_EVT_DISCONNECTED,
   ESP_EVT_PIN_REQUEST,
   ESP_EVT_IP_OBTAINED
 };
@@ -53,10 +54,15 @@ enum ESPConnectionManagment {
   ESP_CON_SET_WIFI_AP,
 };
 
+enum ESPTrainerCmds {
+  ESP_TRAINERCMD_SET_MASTER,
+  ESP_TRAINERCMD_SET_SLAVE,
+};
+
 // Channel Format
-typedef struct  {
+typedef struct {
   int16_t ch[MAX_OUTPUT_CHANNELS];
-  uint32_t channelmask; // Valid Channels
+  uint32_t channelmask;  // Valid Channels
 } channeldata;
 
 typedef struct {
@@ -65,9 +71,14 @@ typedef struct {
   char name[30];
 } scanresult;
 
-typedef struct  {
+typedef struct {
   uint8_t maj;
   uint8_t min;
   uint8_t rev;
-  uint8_t sha[10]; 
+  uint8_t sha[10];
 } espversion;
+
+typedef struct {
+  uint8_t event;  // Event ID
+  uint8_t data[50];
+} espevent;

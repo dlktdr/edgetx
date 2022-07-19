@@ -20,7 +20,7 @@
  */
 
 #include "hw_esp.h"
-#include "esp.h"
+
 #include "opentx.h"
 
 #define SET_DIRTY() storageDirty(EE_GENERAL)
@@ -43,35 +43,31 @@ class BTDetailsDialog : public Dialog
       label->setText(addr);
     }
   }
-  
-public:
-  BTDetailsDialog(Window *parent) :
-    Dialog(parent, "ESSPP", rect_t{})
+
+ public:
+  BTDetailsDialog(Window* parent) : Dialog(parent, "ESSPP", rect_t{})
   {
     setCloseWhenClickOutside(true);
 
     auto form = &content->form;
     form->setFlexLayout();
-    
+
     FlexGridLayout grid(col_dsc, row_dsc);
 
     if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY) {
       auto line = form->newLine(&grid);
-      new StaticText(line, rect_t{}, "PIN", 0,
-                     COLOR_THEME_PRIMARY1);
+      new StaticText(line, rect_t{}, "PIN", 0, COLOR_THEME_PRIMARY1);
       new StaticText(line, rect_t{}, "000000", 0, COLOR_THEME_PRIMARY1);
     }
 
     // Local MAC
     auto line = form->newLine(&grid);
-    new StaticText(line, rect_t{}, "BASDF", 0,
-                   COLOR_THEME_PRIMARY1);
+    new StaticText(line, rect_t{}, "BASDF", 0, COLOR_THEME_PRIMARY1);
     l_addr = new StaticText(line, rect_t{}, "", 0, COLOR_THEME_PRIMARY1);
 
     // Remote MAC
     line = form->newLine(&grid);
-    new StaticText(line, rect_t{}, "ASDF", 0,
-                   COLOR_THEME_PRIMARY1);
+    new StaticText(line, rect_t{}, "ASDF", 0, COLOR_THEME_PRIMARY1);
     r_addr = new StaticText(line, rect_t{}, "", 0, COLOR_THEME_PRIMARY1);
 
     content->setWidth(LCD_W * 0.8);
@@ -80,8 +76,8 @@ public:
 
   void checkEvents() override
   {
-    //setAddr(l_addr, bluetooth.localAddr);
-    //setAddr(r_addr, bluetooth.distantAddr);
+    // setAddr(l_addr, bluetooth.localAddr);
+    // setAddr(r_addr, bluetooth.distantAddr);
   }
 };
 
@@ -99,8 +95,72 @@ static void esp_mode_changed(lv_event_t* e)
   }
 }
 
-ESPConfigWindow::ESPConfigWindow(Window *parent) :
+// Connection Events. TODO make me safer
+static void esp_event(const espevent* evt, void* user)
+{
+  auto connWind = (ESPConnectionWindow*)user;
+  connWind->EspEventCB(evt);
+}
+
+ESPConnectionWindow::ESPConnectionWindow(Window* parent) :
     FormGroup(parent, rect_t{})
+{
+  esproot.setEventCB(esp_event, this);
+
+  setFlexLayout();
+  FlexGridLayout grid(col_dsc, row_dsc, 2);
+
+  // ESP BLE - Client (Discover -> Scan for addresses, Connect and Disconnect)
+
+  // ESP BLE - Server (Show if a client is connected, Show PHY, RSSI)
+
+  // ESP BTEDR - Device (Pair -> Scan for names, Connect, Disconnect, Passcodes)
+
+  // ESP WIFI AP - Scan for SSID's, Enter Passkey
+
+  // ESP WIFI STA - Textbox SSID, Textbox Password, Connected Devices + IP List
+
+  if (espaudio.isStarted()) {
+  } else if (espmodule.isModeStarted(ESP_TRAINER)) {
+  } else if (espmodule.isModeStarted(ESP_JOYSTICK)) {
+  } else if (espmodule.isModeStarted(ESP_AUDIO)) {
+  } else if (espmodule.isModeStarted(ESP_FTP)) {
+  } else {
+  }
+
+  auto line = newLine(&grid);
+  new StaticText(line, rect_t{}, STR_MODE, 0, COLOR_THEME_PRIMARY1);
+}
+
+ESPConnectionWindow::~ESPConnectionWindow()
+{
+  esproot.setEventCB(nullptr, nullptr);
+}
+
+void ESPConnectionWindow::EspEventCB(const espevent* evt)
+{
+  switch (evt->event) {
+    case ESP_EVT_MESSAGE:
+      new MessageDialog(this, "Message", (char*)evt->data);
+      break;
+    case ESP_EVT_DISCOVER_STARTED:
+      break;
+    case ESP_EVT_DISCOVER_COMPLETE:
+      break;
+    case ESP_EVT_DEVICE_FOUND:
+      break;
+    case ESP_EVT_CONNECTED:
+      break;
+    case ESP_EVT_DISCONNECTED:
+      break;
+    case ESP_EVT_PIN_REQUEST:
+      break;
+    case ESP_EVT_IP_OBTAINED:
+      break;
+  }
+}
+
+ESPConfigWindow::ESPConfigWindow(Window* parent) : FormGroup(parent, rect_t{})
 {
   setFlexLayout();
   FlexGridLayout grid(col_dsc, row_dsc, 2);
@@ -114,8 +174,8 @@ ESPConfigWindow::ESPConfigWindow(Window *parent) :
   lv_obj_set_style_flex_cross_place(box->getLvObj(), LV_FLEX_ALIGN_CENTER, 0);
 
   // ESP Mode
-  auto mode = new Choice(box, rect_t{}, STR_ESP_MODES, 1,
-                         ESP_IMU, GET_SET_DEFAULT(g_eeGeneral.espMode));
+  auto mode = new Choice(box, rect_t{}, STR_ESP_MODES, 1, ESP_IMU,
+                         GET_SET_DEFAULT(g_eeGeneral.espMode));
 
   auto btn =
       new TextButton(box, rect_t{}, LV_SYMBOL_SETTINGS, [=]() -> uint8_t {
@@ -128,25 +188,34 @@ ESPConfigWindow::ESPConfigWindow(Window *parent) :
   lv_obj_add_event_cb(mode->getLvObj(), esp_mode_changed,
                       LV_EVENT_VALUE_CHANGED, btn->getLvObj());
 
-  switch(g_eeGeneral.espMode) {
-  case ESP_TELEMETRY:
-    break;
-  case ESP_TRAINER:
-    // ESP Radio Name
-    line = newLine(&grid);
-    new StaticText(line, rect_t{}, STR_NAME, 0, COLOR_THEME_PRIMARY1);
-    new RadioTextEdit(line, rect_t{}, g_eeGeneral.bluetoothName, LEN_BLUETOOTH_NAME);
-    break;
-  case ESP_JOYSTICK:    
-    break;
-  case ESP_AUDIO:
-    break;
-  case ESP_FTP:
-    break;
-  case ESP_IMU:
-    break;
-  default:
-    break;
+  // Show a connection window here if in a globally active ESPmode
+  // Audio, FTP
+
+  line = newLine(&grid);
+  new TextButton(line, rect_t{}, "Connection", [=]() -> uint8_t {
+    new ESPConnectionWindow(this);
+    return 0;
+  });
+
+  switch (g_eeGeneral.espMode) {
+    case ESP_TELEMETRY:
+      break;
+    case ESP_TRAINER:
+      // ESP Radio Name
+      line = newLine(&grid);
+      new StaticText(line, rect_t{}, STR_NAME, 0, COLOR_THEME_PRIMARY1);
+      new RadioTextEdit(line, rect_t{}, g_eeGeneral.bluetoothName,
+                        LEN_BLUETOOTH_NAME);
+      break;
+    case ESP_JOYSTICK:
+      break;
+    case ESP_AUDIO:
+      break;
+    case ESP_FTP:
+      break;
+    case ESP_IMU:
+      break;
+    default:
+      break;
   }
- 
 }

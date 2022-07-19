@@ -21,10 +21,19 @@
 
 #pragma once
 
+#include "esp.h"
 #include "form.h"
 
 class ESPConfigWindow : public FormGroup
 {
  public:
   ESPConfigWindow(Window* parent);
+};
+
+class ESPConnectionWindow : public FormGroup
+{
+ public:
+  ESPConnectionWindow(Window* parent);
+  ~ESPConnectionWindow();
+  void EspEventCB(const espevent* event);
 };

@@ -148,9 +148,15 @@ void RadioHardwarePage::build(FormWindow * window)
   serial->padLeft(lv_dpx(8));
 
 #if defined(ESP)
-  new Subtitle(window, rect_t{}, "ESP Module", 0, COLOR_THEME_PRIMARY1);
-  auto bt = new ESPConfigWindow(window);
-  bt->padLeft(lv_dpx(8));
+  bool showESP =false;
+  for (uint8_t port_nr = 0; port_nr < MAX_SERIAL_PORTS; port_nr++) {
+    if(serialGetMode(port_nr) == UART_MODE_ESP) showESP = true;
+  }
+  if(showESP) {
+    new Subtitle(window, rect_t{}, "ESP Module", 0, COLOR_THEME_PRIMARY1);
+    auto bt = new ESPConfigWindow(window);
+    bt->padLeft(lv_dpx(8));
+  }
 #endif
 
 
@@ -162,7 +168,7 @@ void RadioHardwarePage::build(FormWindow * window)
   lv_obj_set_style_flex_main_place(box->getLvObj(), LV_FLEX_ALIGN_SPACE_EVENLY, 0);
   box->padRow(lv_dpx(8));
   box->padAll(lv_dpx(8));
-  
+
   auto calib = new TextButton(box, rect_t{}, STR_CALIBRATION);
   calib->setPressHandler([=]() -> uint8_t {
       new RadioCalibrationPage();
@@ -187,7 +193,7 @@ void RadioHardwarePage::build(FormWindow * window)
   // Switches
   btn = makeHWInputButton<HWSwitches>(box, STR_SWITCHES);
   lv_obj_set_style_min_width(btn->getLvObj(), LV_DPI_DEF, 0);
-  
+
   // Debugs
   new Subtitle(window, rect_t{}, STR_DEBUG, 0, COLOR_THEME_PRIMARY1);
 
