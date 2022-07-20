@@ -30,7 +30,7 @@ static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(3),
 
 static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
-class BTDetailsDialog : public Dialog
+class ESPDetailsDialog : public Dialog
 {
   StaticText* l_addr;
   StaticText* r_addr;
@@ -45,30 +45,65 @@ class BTDetailsDialog : public Dialog
   }
 
  public:
-  BTDetailsDialog(Window* parent) : Dialog(parent, "ESSPP", rect_t{})
+  ESPDetailsDialog(Window* parent) : Dialog(parent, "", rect_t{})
   {
+    char title[40];
+    snprintf(title, sizeof(title),"%s %s",STR_ESP_MODES[g_eeGeneral.espMode-1],"Settings");
+
+    content->setTitle(title);
     setCloseWhenClickOutside(true);
 
     auto form = &content->form;
     form->setFlexLayout();
-
     FlexGridLayout grid(col_dsc, row_dsc);
 
-    if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY) {
+switch (g_eeGeneral.espMode) {
+    case ESP_TELEMETRY:
+      break;
+    case ESP_TRAINER: {
       auto line = form->newLine(&grid);
-      new StaticText(line, rect_t{}, "PIN", 0, COLOR_THEME_PRIMARY1);
-      new StaticText(line, rect_t{}, "000000", 0, COLOR_THEME_PRIMARY1);
+      new StaticText(line, rect_t{}, STR_NAME, 0, COLOR_THEME_PRIMARY1);
+      new TextEdit(line, rect_t{}, espSettings.name,
+                        sizeof(espsettings::name));
+
+      line = form->newLine(&grid);
+      new StaticText(line, rect_t{}, "Bluetooth Address", 0, COLOR_THEME_PRIMARY1);
+      new StaticText(line, rect_t{}, espSettings.blemac,0, COLOR_THEME_PRIMARY1);
+
+      line = form->newLine(&grid);
+      new TextButton(line, rect_t{}, "Send Settings",[=]() -> uint8_t {
+        esproot.sendSettings();
+        return 0;
+      });
+      line = form->newLine(&grid);
+      new TextButton(line, rect_t{}, "Get Settings",[=]() -> uint8_t {
+        esproot.getSettings();
+        return 0;
+      });
+
+      break;
     }
+    case ESP_JOYSTICK:
 
-    // Local MAC
-    auto line = form->newLine(&grid);
-    new StaticText(line, rect_t{}, "BASDF", 0, COLOR_THEME_PRIMARY1);
-    l_addr = new StaticText(line, rect_t{}, "", 0, COLOR_THEME_PRIMARY1);
+      break;
+    case ESP_AUDIO:
 
-    // Remote MAC
-    line = form->newLine(&grid);
-    new StaticText(line, rect_t{}, "ASDF", 0, COLOR_THEME_PRIMARY1);
-    r_addr = new StaticText(line, rect_t{}, "", 0, COLOR_THEME_PRIMARY1);
+      break;
+    case ESP_FTP: {
+      // ESP Radio Name
+      auto line = form->newLine(&grid);
+      new StaticText(line, rect_t{}, STR_NAME, 0, COLOR_THEME_PRIMARY1);
+      new RadioTextEdit(line, rect_t{}, g_eeGeneral.bluetoothName,
+                        LEN_BLUETOOTH_NAME);
+
+      break;
+    }
+    case ESP_IMU:
+      break;
+    default:
+      break;
+  }
+
 
     content->setWidth(LCD_W * 0.8);
     content->updateSize();
@@ -176,10 +211,9 @@ ESPConfigWindow::ESPConfigWindow(Window* parent) : FormGroup(parent, rect_t{})
   // ESP Mode
   auto mode = new Choice(box, rect_t{}, STR_ESP_MODES, 1, ESP_IMU,
                          GET_SET_DEFAULT(g_eeGeneral.espMode));
-
   auto btn =
       new TextButton(box, rect_t{}, LV_SYMBOL_SETTINGS, [=]() -> uint8_t {
-        new BTDetailsDialog(Layer::back());
+        new ESPDetailsDialog(Layer::back());
         return 0;
       });
   btn->padAll(lv_dpx(4));
@@ -188,34 +222,4 @@ ESPConfigWindow::ESPConfigWindow(Window* parent) : FormGroup(parent, rect_t{})
   lv_obj_add_event_cb(mode->getLvObj(), esp_mode_changed,
                       LV_EVENT_VALUE_CHANGED, btn->getLvObj());
 
-  // Show a connection window here if in a globally active ESPmode
-  // Audio, FTP
-
-  line = newLine(&grid);
-  new TextButton(line, rect_t{}, "Connection", [=]() -> uint8_t {
-    new ESPConnectionWindow(this);
-    return 0;
-  });
-
-  switch (g_eeGeneral.espMode) {
-    case ESP_TELEMETRY:
-      break;
-    case ESP_TRAINER:
-      // ESP Radio Name
-      line = newLine(&grid);
-      new StaticText(line, rect_t{}, STR_NAME, 0, COLOR_THEME_PRIMARY1);
-      new RadioTextEdit(line, rect_t{}, g_eeGeneral.bluetoothName,
-                        LEN_BLUETOOTH_NAME);
-      break;
-    case ESP_JOYSTICK:
-      break;
-    case ESP_AUDIO:
-      break;
-    case ESP_FTP:
-      break;
-    case ESP_IMU:
-      break;
-    default:
-      break;
-  }
 }

@@ -11,6 +11,19 @@ ESPTrainer esptrainer(espmodule);
 ESPJoystick espjoystick(espmodule);
 ESPTelemetry esptelemetry(espmodule);
 
+// Global ESP Settings
+espsettings espSettings;
+const espsettingslink espSettingsIndex[] = {
+  SETTING_LINK_ARR("name",espSettings.name), // Settings must be 4 characters!
+  SETTING_LINK_ARR("wmac",espSettings.wifimac),
+  SETTING_LINK_ARR("btma",espSettings.blemac),
+  SETTING_LINK_ARR("ssid",espSettings.ssid),
+  SETTING_LINK_ARR("ip  ",espSettings.ip),
+  SETTING_LINK_ARR("subn",espSettings.subnet),
+  SETTING_LINK_ARR("stip",espSettings.staticip),
+  SETTING_LINK_VAR("dhcp",espSettings.dhcpMode),
+  SETTING_LINK_VAR("wimd",espSettings.wifiStationMode)};
+
 //-----------------------------------------------------------------------------
 // AUX Serial Implementation
 
@@ -133,7 +146,7 @@ void ESPModule::write(const uint8_t *data, uint8_t length)
   }
 }
 
-// TODO -- DMA me This is called in ISR context
+// TODO -- DMA me.. This is called in ISR context
 void ESPModule::dataRx(const uint8_t *data, uint32_t len)
 {
   // Write everything into a FIFO.. look for null while doing it.
@@ -197,7 +210,7 @@ void ESPModule::reset()
 
 void ESPMode::writeCommand(uint8_t command, const uint8_t *dat, int len)
 {
-  if (len > 254) {
+  if (len > 253) {
     TRACE("PACKET TOO LONG!");
     return;
   }
@@ -247,6 +260,7 @@ void ESPRoot::cmdReceived(uint8_t command, const uint8_t *data, int len)
       TRACE("ESP: Unknown root command");
       break;
 
+    // An Event Was Received
     case ESP_ROOTCMD_CON_EVENT:
       espevent evt;
       evt.event = data[0];
@@ -256,8 +270,37 @@ void ESPRoot::cmdReceived(uint8_t command, const uint8_t *data, int len)
       }
       break;
 
+    // A Connection Managment item was received
     case ESP_ROOTCMD_CON_MGMNT:
+      /*if(len == sizeof(espsettings)) {
+        memcpy(&espSettings, data, sizeof(espsettings));
+      } else {
+        TRACE("ESP: Settings struct size does not match");
+      }*/
+      break;
 
+    // A setting was returned
+    case ESP_ROOTCMD_SET_VALUE: {
+      // First 4 Characters are the Variable, Remainder is the Data
+      if(len > 5) {
+        char variable[5];
+        memcpy(variable, data, 4);
+        variable[4] = '\0';
+        for(unsigned int i=0; i < SETTINGS_COUNT; i++) {
+          if(!strcmp(variable,espSettingsIndex[i].variable)) {
+            // Found the variable, make sure it's the same size
+            if(len - SETTING_LEN == espSettingsIndex[i].len) {
+              memcpy(espSettingsIndex[i].ptr, data+4,len-4);
+            }
+            break;
+          }
+        }
+      }
+      break;
+    }
+
+    // Does nothing, all values stored on the ESP
+    case ESP_ROOTCMD_GET_VALUE:
       break;
 
     default:
@@ -274,4 +317,23 @@ void ESPRoot::setConnMgrValue(uint8_t value, char *data, int len)
   memcpy(buffer + 1, data, len);
   writeCommand(ESP_ROOTCMD_CON_MGMNT, buffer, len + 1);
   free(buffer);
+}
+
+// Request all Settings
+void ESPRoot::getSettings()
+{
+  for(unsigned int i=0; i < SETTINGS_COUNT; i++) {
+    writeCommand(ESP_ROOTCMD_GET_VALUE, (uint8_t*)espSettingsIndex[i].variable, SETTING_LEN);
+  }
+}
+
+// Send all settings
+void ESPRoot::sendSettings()
+{
+  uint8_t buffer[50];
+  for(unsigned int i=0; i < SETTINGS_COUNT; i++) {
+    memcpy(buffer, espSettingsIndex[i].variable, SETTING_LEN);
+    memcpy(buffer+4, espSettingsIndex[i].ptr, espSettingsIndex[i].len);
+    writeCommand(ESP_ROOTCMD_SET_VALUE, buffer, espSettingsIndex[i].len+SETTING_LEN);
+  }
 }

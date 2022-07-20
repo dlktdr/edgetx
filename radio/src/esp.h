@@ -169,7 +169,8 @@ class ESPMode
 class ESPRoot : public ESPMode
 {
  public:
-  ESPRoot(ESPModule &b) : ESPMode(b, id()) {}
+  ESPRoot(ESPModule &b) : ESPMode(b, id()) {
+  }
   uint8_t id() { return ESP_ROOT; }
   virtual void start() override {}
   virtual void stop() override {}
@@ -186,6 +187,13 @@ class ESPRoot : public ESPMode
   // Connection Management
   void setConnMgrValue(uint8_t value, char *data, int len);
   void startScan(){};
+  void getLocalAddress();
+  void getRemoteAddress();
+
+  // Settings
+  void getSettings();
+  void sendSettings();
+
   void setEventCB(void (*c)(const espevent *evt, void *user),
                   void *userdata = nullptr)
   {
@@ -194,6 +202,7 @@ class ESPRoot : public ESPMode
   };
 
  protected:
+  int settingsReceived=0;
   void *userdata = nullptr;
   void (*ESPevent)(const espevent *evt, void *user) = nullptr;
 };
@@ -289,6 +298,7 @@ extern ESPAudio espaudio;
 extern ESPTrainer esptrainer;
 extern ESPJoystick espjoystick;
 extern ESPTelemetry esptelemetry;
+extern espsettings espSettings;
 
 // Copyright (c) 2011 Christopher Baker <https://christopherbaker.net>
 // Copyright (c) 2011 Jacques Fortier
