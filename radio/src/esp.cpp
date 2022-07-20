@@ -1,4 +1,11 @@
 
+
+#include <stddef.h>
+
+#include "FreeRTOS/include/FreeRTOS.h"
+#include "FreeRTOS/include/stream_buffer.h"
+#include "FreeRTOS/include/message_buffer.h"
+#include "FreeRTOS/include/task.h"
 #include "esp.h"
 
 #include <stdlib.h>
@@ -27,6 +34,15 @@ const espsettingslink espSettingsIndex[] = {
 //-----------------------------------------------------------------------------
 // AUX Serial Implementation
 
+MessageBufferHandle_t packetBuffer = nullptr;
+constexpr int xMessageBufferSizeBytes = sizeof(packet_s) * 10; // 20 Packets of max length
+static uint8_t ucStorageBuffer[ xMessageBufferSizeBytes + 1];
+StaticMessageBuffer_t xMessageBufferStruct;
+uint8_t buffer[sizeof(packet_s) + 1];
+int bufferpos = 0;
+Fifo<uint8_t, 512> rxFifo;
+packet_s packet;
+
 void (*espReceiveCallBack)(uint8_t *buf, uint32_t len) = nullptr;
 void (*espSendCb)(void *, uint8_t) = nullptr;
 void *espSendCtx = nullptr;
@@ -40,9 +56,48 @@ void espSetSendCb(void *ctx, void (*cb)(void *, uint8_t))
   espSendCb = cb;
 }
 
+// Called from ISR context (I think?)
 inline void espReceiveData(uint8_t *buf, uint32_t len)
 {
-  espmodule.dataRx(buf, len);
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE; /* Initialised to pdFALSE. */
+  if(!packetBuffer) return;
+
+  // TODO Rework this better, waste of mem + cpu with the FIFO
+  for (uint32_t i = 0; i < len; i++) {
+    rxFifo.push(buf[i]);
+  }
+
+  // Parse RX Data, find null, cobs decode, crc check, write packet into msg buffer
+  uint8_t inb;
+  while (rxFifo.pop(inb)) {
+    if (inb == 0 && bufferpos != 0) { // Find the null
+      int lenout = COBS::decode(buffer, bufferpos, (uint8_t *)&packet);
+      uint16_t packetcrc = packet.crcl | (packet.crch << 8);
+      packet.crcl = 0xBB;
+      packet.crch = 0xAA;
+      uint16_t calccrc = crc16(0, (uint8_t *)&packet, lenout, 0);
+      packet.len = lenout - PACKET_OVERHEAD;
+      if (packetcrc == calccrc) {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        int rl =
+            xMessageBufferSendFromISR(packetBuffer, (const void *)buf, len,
+                                      &xHigherPriorityTaskWoken);
+        if (rl != packet.len) {
+          // FAULT
+        }
+      } else {
+        //TRACE("CRC Fault");
+      }
+      bufferpos = 0;
+    } else {
+      buffer[bufferpos++] = inb;
+      if (bufferpos == sizeof(buffer)) {
+        //printf("Buffer Overflow\r\n");
+        bufferpos = 0;
+      }
+    }
+  }
+  portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 
 void espSetSerialDriver(void *ctx, const etx_serial_driver_t *drv)
@@ -59,6 +114,14 @@ void espSetSerialDriver(void *ctx, const etx_serial_driver_t *drv)
   }
 }
 
+void InitalizeMessageBuffer()
+{
+  if(!packetBuffer)
+    packetBuffer = xMessageBufferCreateStatic( sizeof( ucStorageBuffer ),
+                                                 ucStorageBuffer,
+                                                 &xMessageBufferStruct );
+}
+
 //-----------------------------------------------------------------------------
 
 ESPModule::ESPModule()
@@ -66,6 +129,7 @@ ESPModule::ESPModule()
   for (int i = 0; i < ESP_MAX; i++) {
     modes[i] = nullptr;
   }
+  InitalizeMessageBuffer();
 }
 
 void ESPModule::wakeup()
@@ -111,30 +175,14 @@ void ESPModule::wakeup()
     }
   }
 
-  // Parse RX Data
-  uint8_t inb;
-  while (rxFifo.pop(inb)) {
-    if (inb == 0 && bufferpos != 0) {
-      int lenout = COBS::decode(buffer, bufferpos, (uint8_t *)&packet);
-      // ESP_LOG_BUFFER_HEX("P", (uint8_t *)&packet, lenout);
-      uint16_t packetcrc = packet.crcl | (packet.crch << 8);
-      packet.crcl = 0xBB;
-      packet.crch = 0xAA;
-      uint16_t calccrc = crc16(0, (uint8_t *)&packet, lenout, 0);
-      packet.len = lenout - PACKET_OVERHEAD;
-      if (packetcrc == calccrc) {
-        processPacket(packet);
-      } else {
-        TRACE("CRC Fault");
-      }
-      bufferpos = 0;
-    } else {
-      buffer[bufferpos++] = inb;
-      if (bufferpos == sizeof(buffer)) {
-        printf("Buffer Overflow\r\n");
-        bufferpos = 0;
-      }
-    }
+  // Parse Packets from Buffer
+  packet_s inpacket;
+  int bytesrec = xMessageBufferReceive( packetBuffer,
+                                        ( void * )&inpacket,
+                                        sizeof( packet_s ),
+                                        0 );
+  if(bytesrec) {
+    processPacket(inpacket);
   }
 }
 
@@ -143,17 +191,6 @@ void ESPModule::write(const uint8_t *data, uint8_t length)
   if (!espSendCb) return;
   for (int i = 0; i < length; i++) {
     espSendCb(espSendCtx, data[i]);
-  }
-}
-
-// TODO -- DMA me.. This is called in ISR context
-void ESPModule::dataRx(const uint8_t *data, uint32_t len)
-{
-  // Write everything into a FIFO.. look for null while doing it.
-  // If a null is found, set a flag that it's okay to start popping
-  // data out of the buffer on wakeup()
-  for (uint32_t i = 0; i < len; i++) {
-    rxFifo.push(data[i]);
   }
 }
 

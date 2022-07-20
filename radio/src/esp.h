@@ -96,14 +96,12 @@ class ESPModule
     if (mode < ESP_MAX) modes[mode] = md;
   }
 
-  inline void dataRx(const uint8_t *data, uint32_t len);
-
  protected:
   uint8_t currentmode = 0;
 
   volatile bool packetFound = false;
 
-  Fifo<uint8_t, 1024> rxFifo;
+
 
   // Store all available modes
   ESPMode *modes[ESP_MAX];
@@ -116,9 +114,9 @@ class ESPModule
   uint8_t read(uint8_t *data, uint8_t size, uint32_t timeout = 1000 /*ms*/);
   void processPacket(const packet_s &packet);
 
-  packet_s packet;
-  uint8_t buffer[sizeof(packet_s) + 1];
-  int bufferpos = 0;
+
+
+
 };
 
 // Class that can be used with a mode class to enable discovery and connecting
