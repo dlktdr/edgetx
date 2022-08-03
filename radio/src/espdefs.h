@@ -6,6 +6,7 @@
 #define ESP_PACKET_ISCMD(t) (t & (1 << ESP_PACKET_CMD_BIT))
 #define ESP_PACKET_ISACK(t) (t & (1 << ESP_PACKET_ACK_BIT))
 
+
 enum ESPModes {
   ESP_ROOT,
   ESP_TELEMETRY,

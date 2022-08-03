@@ -792,12 +792,18 @@ void AudioQueue::wakeup()
           int32_t tmpSample = (int32_t) ((uint32_t) (buffer->data[i]) - AUDIO_DATA_SILENCE);  // conversion from uint16_t
           buffer->data[i] = (int16_t) (((tmpSample * currentSpeakerVolume) / VOLUME_LEVEL_MAX) + AUDIO_DATA_SILENCE);
         }
+#if defined(ESP)
+      espaudio.sendAudio(buffer);
+#endif
         buffersFifo.audioPushBuffer();
       }
       else {
         break;
       }
 #else
+#if defined(ESP)
+      espaudio.sendAudio(buffer);
+#endif
       buffersFifo.audioPushBuffer();
 #endif
     }

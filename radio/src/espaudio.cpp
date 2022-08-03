@@ -6,7 +6,7 @@
 // 12Bits Per Sample * 32Khz = 385,00kbps = 48,000Kb/s
 // (48,000 / 256(Bytes per packet)) = 187.5 packets / sec
 //
-// Packet overhead = 4 bytes + PacketHeader('\0') + COBS encode = 6bytes
+// Packet overhead = 3 bytes + PacketHeader('\0') + COBS encode = 6bytes
 // 48,000 + 187.5*6 = 49,125 bytes p/second
 //
 // UART 8N1 @ 576000 baud = 57,600 bytes/second
@@ -22,11 +22,11 @@ void ESPAudio::wakeup()
 
 void ESPAudio::sendAudio(const AudioBuffer *aud)
 {
-  // Send Buffer in 256 byte increments
-  /*int offset=0;
-  while(offset <= aud->size) {
-    int minsz = min((int)aud->size,(int)256);
+  // Send buffer in max packet length increments
+  int offset=0;
+  while(offset < aud->size) {
+    int minsz = min((int)aud->size - offset, ESP_MAX_PACKET_DATA);
     write((uint8_t *)aud->data + offset, minsz);
     offset += minsz;
-  }*/
+  }
 }

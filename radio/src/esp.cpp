@@ -260,7 +260,7 @@ void ESPMode::writeCommand(uint8_t command, const uint8_t *dat, int len)
 
 void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 {
-  if (!esp->isModeStarted(id()) || !esp->hasMode(id()) || len > 255) {
+  if (!esp->isModeStarted(id()) || !esp->hasMode(id()) || len > ESP_MAX_PACKET_DATA) {
     return;
   }
 

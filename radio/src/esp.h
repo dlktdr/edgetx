@@ -45,15 +45,20 @@
  */
 
 // Packet Format
+
+#define PACKET_OVERHEAD 3
+#define ESP_MAX_PACKET_LEN  250
+#define ESP_MAX_PACKET_DATA (ESP_MAX_PACKET_LEN - PACKET_OVERHEAD)
+
 typedef struct PACKED {
   uint8_t type;
   uint8_t crcl;       // CRC16:low byte
   uint8_t crch;       // CRC16:high byte
-  uint8_t data[257];  // User Data
+  uint8_t data[ESP_MAX_PACKET_DATA];  // User Data
   uint8_t len;        // Data length, not transmitted
 } packet_s;
 
-#define PACKET_OVERHEAD 3
+
 
 /* Packet Type Format
  * Bits 0:4 - Type(32 Possible ESPModes, Mode 0=Base Module)
@@ -113,10 +118,6 @@ class ESPModule
   void pushByte(uint8_t byte);
   uint8_t read(uint8_t *data, uint8_t size, uint32_t timeout = 1000 /*ms*/);
   void processPacket(const packet_s &packet);
-
-
-
-
 };
 
 // Class that can be used with a mode class to enable discovery and connecting
