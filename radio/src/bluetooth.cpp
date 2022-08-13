@@ -40,7 +40,7 @@ extern FIL g_bluetoothFile;
 #else
 #define BLUETOOTH_COMMAND_NAME         "AT+NAME"
 #define BLUETOOTH_ANSWER_NAME          "OK+"
-#define BLUETOOTH_COMMAND_BAUD_115200  "AT+BAUD115200"
+#define BLUETOOTH_COMMAND_BAUD_115200  "AT+BAUD" #BLUETOOTH_DEFAULT_BAUDRATE
 #endif
 
 #if defined(_MSC_VER)
@@ -49,45 +49,66 @@ extern FIL g_bluetoothFile;
   #define SWAP32(val)      (__builtin_bswap32(val))
 #endif
 
-extern Fifo<uint8_t, BT_TX_FIFO_SIZE> btTxFifo;
-extern Fifo<uint8_t, BT_RX_FIFO_SIZE> btRxFifo;
-
 Bluetooth bluetooth;
+const etx_serial_driver_t* btSerialDrv = nullptr;
+void* btSerialCtx = nullptr;
+
+void bluetoothSetSerialDriver(void* ctx, const etx_serial_driver_t* drv)
+{
+  btSerialCtx = ctx;
+  btSerialDrv = drv;
+}
+
+void bluetoothInit(unsigned int baud, bool bt_io)
+{
+/*  if (!btSerialDrv) return;
+  btSerialCtx->
+  auto _sendByte = btSerialDrv->sendByte;
+  if (!_sendByte) return;*/
+}
+
+void bluetoothDisable()
+{
+
+}
 
 void Bluetooth::write(const uint8_t * data, uint8_t length)
 {
-  if (btTxFifo.hasSpace(length)) {
-    BLUETOOTH_TRACE_VERBOSE("BT>");
-    for (int i = 0; i < length; i++) {
-      BLUETOOTH_TRACE_VERBOSE(" %02X", data[i]);
-      btTxFifo.push(data[i]);
-    }
-    BLUETOOTH_TRACE_VERBOSE(CRLF);
-  }
-  else {
-    BLUETOOTH_TRACE("[BT] TX fifo full!" CRLF);
-  }
+  if (!btSerialDrv) return;
+  auto _sendByte = btSerialDrv->sendByte;
+  if (!_sendByte) return;
 
-  bluetoothWriteWakeup();
+  for (int i = 0; i < length; i++) {
+      BLUETOOTH_TRACE_VERBOSE(" %02X", data[i]);
+      _sendByte(btSerialCtx, data[i]);
+  }
 }
 
 void Bluetooth::writeString(const char * str)
 {
+  if (!btSerialDrv) return;
+  auto _sendByte = btSerialDrv->sendByte;
+  if (!_sendByte) return;
+
   BLUETOOTH_TRACE("BT> %s" CRLF, str);
   while (*str != 0) {
-    btTxFifo.push(*str++);
+    _sendByte(btSerialCtx, *str++);
   }
-  btTxFifo.push('\r');
-  btTxFifo.push('\n');
-  bluetoothWriteWakeup();
+  _sendByte(btSerialCtx, '\r');
+  _sendByte(btSerialCtx, '\n');
 }
 
 char * Bluetooth::readline(bool error_reset)
 {
+  if (!btSerialDrv) return nullptr;
+  
+  auto _getByte = btSerialDrv->getByte;
+  if (!_getByte) return nullptr;
+  
   uint8_t byte;
 
   while (true) {
-    if (!btRxFifo.pop(byte)) {
+    if (!_getByte(btSerialCtx, &byte)) {
 #if defined(PCBX9E)
       // X9E BT module can get unresponsive
       BLUETOOTH_TRACE("NO RESPONSE FROM BT MODULE" CRLF);
@@ -324,10 +345,14 @@ void Bluetooth::forwardTelemetry(const uint8_t * packet)
 
 void Bluetooth::receiveTrainer()
 {
+  if (!btSerialDrv) return;
+  auto _getByte = btSerialDrv->getByte;
+  if (!_getByte) return;
+
   uint8_t byte;
 
   while (true) {
-    if (!btRxFifo.pop(byte)) {
+    if (!_getByte(btSerialCtx, &byte)) {
       return;
     }
 
@@ -408,10 +433,10 @@ void Bluetooth::wakeup(void)
 void Bluetooth::wakeup()
 {
   if (state != BLUETOOTH_STATE_OFF) {
-    bluetoothWriteWakeup();
-    if (bluetoothIsWriting()) {
-      return;
-    }
+    //bluetoothWriteWakeup();
+    //if (bluetoothIsWriting()) {
+    //  return;
+   // }
   }
 
   tmr10ms_t now = get_tmr10ms();
@@ -451,13 +476,27 @@ void Bluetooth::wakeup()
   else if (state == BLUETOOTH_STATE_CONNECTED) {
     if (g_eeGeneral.bluetoothMode == BLUETOOTH_TRAINER && g_model.trainerData.mode == TRAINER_MODE_MASTER_BLUETOOTH) {
       receiveTrainer();
+      if(_boardType == BLUETOOTH_BOARD_HEADTRACKER && getSwitch(g_model.btresetswtch) && !resetsent) {
+          writeString("AT+HTRESET");
+          resetsent = true;
+      } else if (!getSwitch(g_model.btresetswtch)) {
+        resetsent = false;
+      }
     }
     else {
       if (g_eeGeneral.bluetoothMode == BLUETOOTH_TRAINER && g_model.trainerData.mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
         sendTrainer();
         wakeupTime = now + 2; /* 20ms */
       }
-      readline(); // to deal with "ERROR"
+    }
+
+    char * line = readline();
+    char boardtype[15];
+    if(!strncmp(line, "Board:",6)) {
+      strcpy(boardtype, &line[6]);
+      if(!strncmp(boardtype,"HeadTracker",11)) {
+        _boardType = BLUETOOTH_BOARD_HEADTRACKER;
+      }
     }
   }
   else {
@@ -527,6 +566,7 @@ void Bluetooth::wakeup()
       if (g_model.trainerData.mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
         wakeupTime += 500; // it seems a 5s delay is needed before sending the 1st frame
       }
+      
     }
     else if (state == BLUETOOTH_STATE_DISCONNECTED && !line) {
       char command[32];
@@ -549,13 +589,17 @@ uint8_t Bluetooth::bootloaderChecksum(uint8_t command, const uint8_t * data, uin
 
 uint8_t Bluetooth::read(uint8_t * data, uint8_t size, uint32_t timeout)
 {
+  if (!btSerialDrv) return 0;
+  auto _getByte = btSerialDrv->getByte;
+  if (!_getByte) return 0;
+
   watchdogSuspend(timeout / 10);
 
   uint8_t len = 0;
   while (len < size) {
     uint32_t elapsed = 0;
     uint8_t byte;
-    while (!btRxFifo.pop(byte)) {
+    while (!_getByte(btSerialCtx, &byte)) {
       if (elapsed++ >= timeout) {
         return len;
       }

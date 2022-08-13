@@ -139,6 +139,7 @@ class GeneralSettings {
       AUX_SERIAL_LUA,
       AUX_SERIAL_CLI,
       AUX_SERIAL_GPS,
+      AUX_SERIAL_BLUETOOTH,
       AUX_SERIAL_DEBUG,
       AUX_SERIAL_COUNT
     };

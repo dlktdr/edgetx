@@ -649,6 +649,7 @@ PACK(struct ModelData {
   MixData   mixData[MAX_MIXERS] NO_IDX;
   LimitData limitData[MAX_OUTPUT_CHANNELS];
   ExpoData  expoData[MAX_EXPOS] NO_IDX;
+  int16_t   btresetswtch CUST(r_swtchSrc,w_swtchSrc);
 
   CurveHeader curves[MAX_CURVES];
   int8_t    points[MAX_CURVE_POINTS];

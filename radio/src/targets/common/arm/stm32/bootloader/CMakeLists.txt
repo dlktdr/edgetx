@@ -95,13 +95,6 @@ if(ROTARY_ENCODER)
     )
 endif()
 
-if(BLUETOOTH)
-  set(BOOTLOADER_SRC
-    ${BOOTLOADER_SRC}
-    ../../../../../targets/common/arm/stm32/bluetooth_driver.cpp
-    )
-endif()
-
 if(NOT (PCB STREQUAL X10 OR PCB STREQUAL X12S OR PCB STREQUAL NV14))
   set(BOOTLOADER_SRC
     ${BOOTLOADER_SRC}

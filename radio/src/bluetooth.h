@@ -45,6 +45,15 @@ enum BluetoothStates {
   BLUETOOTH_STATE_FLASH_FIRMWARE
 };
 
+enum BluetoothRemote {
+   BLUETOOTH_BOARD_UNKNOWN,
+   BLUETOOTH_BOARD_FRSKY_CC2540,
+   BLUETOOTH_BOARD_FRSKY_PARA,
+   BLUETOOTH_BOARD_HEADTRACKER,
+   BLUETOOTH_BOARD_FLYSKY,
+   BLUETOOTH_BOARD_COUNT
+};
+
 #define LEN_BLUETOOTH_ADDR              16
 #define MAX_BLUETOOTH_DISTANT_ADDR      6
 #define BLUETOOTH_PACKET_SIZE           14
@@ -71,13 +80,17 @@ enum BluetoothStates {
 #endif
 #endif
 
+void bluetoothInit(unsigned int, bool);
+void bluetoothDisable();
+void bluetoothSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
+
 class Bluetooth
 {
   public:
     void writeString(const char * str);
     char * readline(bool error_reset = true);
     void write(const uint8_t * data, uint8_t length);
-
+    uint8_t boardType() {return _boardType;}
     void forwardTelemetry(const uint8_t * packet);
     void wakeup();
     const char * flashFirmware(const char * filename, ProgressHandler progressHandler);
@@ -85,6 +98,9 @@ class Bluetooth
     volatile uint8_t state;
     char localAddr[LEN_BLUETOOTH_ADDR+1];
     char distantAddr[LEN_BLUETOOTH_ADDR+1];
+
+
+  
 
   protected:
     void pushByte(uint8_t byte);
@@ -109,9 +125,12 @@ class Bluetooth
     const char * bootloaderWriteFlash(const uint8_t * data, uint32_t size);
     const char * doFlashFirmware(const char * filename, ProgressHandler progressHandler);
 
+
     uint8_t buffer[BLUETOOTH_LINE_LENGTH+1];
     uint8_t bufferIndex = 0;
+    uint8_t _boardType = BLUETOOTH_BOARD_HEADTRACKER;
     tmr10ms_t wakeupTime = 0;
+    bool resetsent=false;
     uint8_t crc;
 };
 

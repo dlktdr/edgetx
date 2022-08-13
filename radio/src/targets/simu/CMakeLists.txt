@@ -20,7 +20,6 @@ set(SIMU_SRC
   led_driver.cpp
   backlight_driver.cpp
   gyro_driver.cpp
-  bt_driver.cpp
   )
 
 if(SIMU_DISKIO)

@@ -231,6 +231,8 @@ class SerialConfigWindow : public FormGroup
             serialSetMode(port_nr, value);
             serialInit(port_nr, value);
             SET_DIRTY();
+            if(serialoptionchanged != nullptr)
+              serialoptionchanged();
           });
       aux->setAvailableHandler(
           [=](int value) { return isSerialModeAvailable(port_nr, value); });
@@ -245,6 +247,13 @@ class SerialConfigWindow : public FormGroup
 
     getParent()->moveWindowsTop(top() + 1, adjustHeight());
   }
+  
+  void serialOptionChanged(std::function<void()> handler)
+  {
+    serialoptionchanged = std::move(handler);
+  }
+
+  std::function<void()> serialoptionchanged;
 };
 
 class InternalModuleWindow : public FormGroup {
@@ -315,9 +324,24 @@ class InternalModuleWindow : public FormGroup {
   uint8_t lastModule = 0;
 };
 
+// Cause a rebuild
+void RadioHardwarePage::redraw()
+{
+  if(curformwindow == nullptr) return;
+  coord_t cypos = curformwindow->getScrollPositionY();  
+  Window * cfocus = curformwindow->getFocus();
+  uint8_t curindex = curformwindow->getPageIndex();
+  TRACE("CUR Index %d", curindex );
+  curformwindow->clear();
+  build(curformwindow);
+  curformwindow->setScrollPositionY(cypos);
+  cfocus->setFocus();
+}
+
 void RadioHardwarePage::build(FormWindow * window)
 {
   FormGridLayout grid;
+  curformwindow = window;
 #if LCD_W > LCD_H
   grid.setLabelWidth(180);
 #else
@@ -451,19 +475,27 @@ void RadioHardwarePage::build(FormWindow * window)
   grid.addWindow(new InternalModuleWindow(window, {0, grid.getWindowHeight(), LCD_W, 0}));
 #endif
 
+  new Subtitle(window, grid.getLineSlot(), STR_AUX_SERIAL_MODE, 0,
+               COLOR_THEME_PRIMARY1);
+  grid.nextLine();
+  SerialConfigWindow *scw = new SerialConfigWindow(window, {0, grid.getWindowHeight(), LCD_W, 0});
+  scw->serialOptionChanged(std::bind(&RadioHardwarePage::redraw, this));
+  grid.addWindow(scw);
+
 #if defined(BLUETOOTH)
-  // Bluetooth mode
-  {
+  bool showBluetoothOptions=false;
+  for (uint8_t port_nr = 0; port_nr < MAX_SERIAL_PORTS; port_nr++) {
+    if(serialGetMode(port_nr) == UART_MODE_BLUETOOTH) {
+      showBluetoothOptions = true;
+      break;
+    }
+  }
+  if(showBluetoothOptions) {
     new Subtitle(window, grid.getLineSlot(), STR_BLUETOOTH, 0, COLOR_THEME_PRIMARY1);
     grid.nextLine();
     grid.addWindow(new BluetoothConfigWindow(window, {0, grid.getWindowHeight(), LCD_W, 0}));
   }
 #endif
-
-  new Subtitle(window, grid.getLineSlot(), STR_AUX_SERIAL_MODE, 0,
-               COLOR_THEME_PRIMARY1);
-  grid.nextLine();
-  grid.addWindow(new SerialConfigWindow(window, {0, grid.getWindowHeight(), LCD_W, 0}));
 
   // ADC filter
   new StaticText(window, grid.getLabelSlot(), STR_JITTER_FILTER, 0, COLOR_THEME_PRIMARY1);

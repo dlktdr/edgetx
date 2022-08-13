@@ -413,7 +413,7 @@ static const struct YamlNode struct_RadioData[] = {
   YAML_PADDING( 144 ),
   YAML_STRING("ownerRegistrationID", 8),
   YAML_SIGNED( "uartSampleMode", 2 ),
-  YAML_PADDING( 5 ),
+  YAML_PADDING( 6 ),
   YAML_END
 };
 static const struct YamlNode struct_unsigned_8[] = {
@@ -831,6 +831,7 @@ static const struct YamlNode struct_ModelData[] = {
   YAML_ARRAY("mixData", 160, 64, struct_MixData, NULL),
   YAML_ARRAY("limitData", 88, 32, struct_LimitData, NULL),
   YAML_ARRAY("expoData", 136, 64, struct_ExpoData, NULL),
+  YAML_SIGNED_CUST( "btresetswtch", 16, r_swtchSrc, w_swtchSrc ),
   YAML_ARRAY("curves", 32, 32, struct_CurveHeader, NULL),
   YAML_ARRAY("points", 8, 512, struct_signed_8, NULL),
   YAML_ARRAY("logicalSw", 72, 64, struct_LogicalSwitchData, NULL),
