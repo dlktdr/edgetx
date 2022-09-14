@@ -1,15 +1,12 @@
-
-
-#include <stddef.h>
-
-#include "FreeRTOS/include/FreeRTOS.h"
-#include "FreeRTOS/include/stream_buffer.h"
-#include "FreeRTOS/include/message_buffer.h"
-#include "FreeRTOS/include/task.h"
 #include "esp.h"
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "FreeRTOS/include/FreeRTOS.h"
+#include "FreeRTOS/include/task.h"
+
 
 ESPModule espmodule;
 ESPRoot esproot(espmodule);
@@ -21,29 +18,20 @@ ESPTelemetry esptelemetry(espmodule);
 // Global ESP Settings
 espsettings espSettings;
 const espsettingslink espSettingsIndex[] = {
-  SETTING_LINK_ARR("name",espSettings.name), // Settings must be 4 characters!
-  SETTING_LINK_ARR("wmac",espSettings.wifimac),
-  SETTING_LINK_ARR("btma",espSettings.blemac),
-  SETTING_LINK_ARR("ssid",espSettings.ssid),
-  SETTING_LINK_ARR("ip  ",espSettings.ip),
-  SETTING_LINK_ARR("subn",espSettings.subnet),
-  SETTING_LINK_ARR("stip",espSettings.staticip),
-  SETTING_LINK_VAR("dhcp",espSettings.dhcpMode),
-  SETTING_LINK_VAR("wimd",espSettings.wifiStationMode)};
+    SETTING_LINK_ARR("name", espSettings.name),  // Settings must be 4 characters!
+    SETTING_LINK_ARR("wmac", espSettings.wifimac),
+    SETTING_LINK_ARR("btma", espSettings.blemac),
+    SETTING_LINK_ARR("ssid", espSettings.ssid),
+    SETTING_LINK_ARR("ip  ", espSettings.ip),
+    SETTING_LINK_ARR("subn", espSettings.subnet),
+    SETTING_LINK_ARR("stip", espSettings.staticip),
+    SETTING_LINK_VAR("dhcp", espSettings.dhcpMode),
+    SETTING_LINK_VAR("wimd", espSettings.wifiStationMode)};
 
 //-----------------------------------------------------------------------------
 // AUX Serial Implementation
 
-MessageBufferHandle_t packetBuffer = nullptr;
-constexpr int xMessageBufferSizeBytes = sizeof(packet_s) * 10; // 20 Packets of max length
-static uint8_t ucStorageBuffer[ xMessageBufferSizeBytes + 1];
-StaticMessageBuffer_t xMessageBufferStruct;
-uint8_t buffer[sizeof(packet_s) + 1];
-int bufferpos = 0;
-Fifo<uint8_t, 512> rxFifo;
-packet_s packet;
-
-void (*espReceiveCallBack)(uint8_t *buf, uint32_t len) = nullptr;
+// void (*espReceiveCallBack)(uint8_t *buf, uint32_t len) = nullptr;
 void (*espSendCb)(void *, uint8_t) = nullptr;
 void *espSendCtx = nullptr;
 const etx_serial_driver_t *espSerialDriver = nullptr;
@@ -51,76 +39,23 @@ void *espSerialDriverCtx = nullptr;
 
 void espSetSendCb(void *ctx, void (*cb)(void *, uint8_t))
 {
-  espSendCb = nullptr;
   espSendCtx = ctx;
   espSendCb = cb;
 }
 
-// Called from ISR context (I think?)
-inline void espReceiveData(uint8_t *buf, uint32_t len)
-{
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE; /* Initialised to pdFALSE. */
-  if(!packetBuffer) return;
-
-  // TODO Rework this better, waste of mem + cpu with the FIFO
-  for (uint32_t i = 0; i < len; i++) {
-    rxFifo.push(buf[i]);
-  }
-
-  // Parse RX Data, find null, cobs decode, crc check, write packet into msg buffer
-  uint8_t inb;
-  while (rxFifo.pop(inb)) {
-    if (inb == 0 && bufferpos != 0) { // Find the null
-      int lenout = COBS::decode(buffer, bufferpos, (uint8_t *)&packet);
-      uint16_t packetcrc = packet.crcl | (packet.crch << 8);
-      packet.crcl = 0xBB;
-      packet.crch = 0xAA;
-      uint16_t calccrc = crc16(0, (uint8_t *)&packet, lenout, 0);
-      packet.len = lenout - PACKET_OVERHEAD;
-      if (packetcrc == calccrc) {
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        int rl =
-            xMessageBufferSendFromISR(packetBuffer, (const void *)buf, len,
-                                      &xHigherPriorityTaskWoken);
-        if (rl != packet.len) {
-          // FAULT
-        }
-      } else {
-        //TRACE("CRC Fault");
-      }
-      bufferpos = 0;
-    } else {
-      buffer[bufferpos++] = inb;
-      if (bufferpos == sizeof(buffer)) {
-        //printf("Buffer Overflow\r\n");
-        bufferpos = 0;
-      }
-    }
-  }
-  portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
-}
-
 void espSetSerialDriver(void *ctx, const etx_serial_driver_t *drv)
 {
-  espSerialDriver = nullptr;
   espSerialDriverCtx = ctx;
   espSerialDriver = drv;
 
   if (drv) {
-    if (drv->setReceiveCb) drv->setReceiveCb(ctx, espReceiveData);
     espSetSendCb(ctx, drv->sendByte);
   } else {
     espSetSendCb(nullptr, nullptr);
   }
 }
 
-void InitalizeMessageBuffer()
-{
-  if(!packetBuffer)
-    packetBuffer = xMessageBufferCreateStatic( sizeof( ucStorageBuffer ),
-                                                 ucStorageBuffer,
-                                                 &xMessageBufferStruct );
-}
+void InitalizeMessageBuffer() {}
 
 //-----------------------------------------------------------------------------
 
@@ -134,6 +69,9 @@ ESPModule::ESPModule()
 
 void ESPModule::wakeup()
 {
+  // Do nothing if serial driver not iniatlized
+  if (espSerialDriverCtx == nullptr) return;
+
   // TODO Rework this and GUI to allow multiple modes active if compatible.
   if (currentmode != g_eeGeneral.espMode) {
     if (currentmode != 0) {
@@ -168,21 +106,38 @@ void ESPModule::wakeup()
     g_eeGeneral.espMode = currentmode;
   }
 
+  // Parse Receieved Packets
+  auto _getByte = espSerialDriver->getByte;
+  if (!_getByte) return;
+  uint8_t inb;
+  while (_getByte(espSerialDriverCtx, &inb)) {
+    if (inb == 0 && bufferpos != 0) {  // Find the null
+      int lenout = COBS::decode(buffer, bufferpos, (uint8_t *)&packet);
+      uint16_t packetcrc = packet.crcl | (packet.crch << 8);
+      packet.crcl = 0xBB;
+      packet.crch = 0xAA;
+      uint16_t calccrc = crc16(0, (uint8_t *)&packet, lenout, 0);
+      packet.len = lenout - PACKET_OVERHEAD;
+      if (packetcrc == calccrc) {
+        processPacket(packet);
+      } else {
+        TRACE("CRC Fault");
+      }
+      bufferpos = 0;
+    } else {
+      buffer[bufferpos++] = inb;
+      if (bufferpos == sizeof(buffer)) {
+        TRACE("Buffer Overflow");
+        bufferpos = 0;
+      }
+    }
+  }
+
   // Call all modules wakeup
   for (int i = 0; i < ESP_MAX; i++) {
     if (modes[i] != nullptr) {
       if (isModeStarted(i)) modes[i]->wakeup();
     }
-  }
-
-  // Parse Packets from Buffer
-  packet_s inpacket;
-  int bytesrec = xMessageBufferReceive( packetBuffer,
-                                        ( void * )&inpacket,
-                                        sizeof( packet_s ),
-                                        0 );
-  if(bytesrec) {
-    processPacket(inpacket);
   }
 }
 
@@ -199,7 +154,7 @@ void ESPModule::processPacket(const packet_s &packet)
   int mode = packet.type & ESP_PACKET_TYPE_MSK;
 
   // Root Command, Ack/Nak Packet
-  if(ESP_PACKET_ISACK(packet.type)) {
+  if (ESP_PACKET_ISACK(packet.type)) {
     // Last command sent was received, Module is connected, allow more commands
     // to be sent. Reset the timer
 
@@ -260,7 +215,8 @@ void ESPMode::writeCommand(uint8_t command, const uint8_t *dat, int len)
 
 void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 {
-  if (!esp->isModeStarted(id()) || !esp->hasMode(id()) || len > ESP_MAX_PACKET_DATA) {
+  if (!esp->isModeStarted(id()) || !esp->hasMode(id()) ||
+      len > ESP_MAX_PACKET_DATA) {
     return;
   }
 
@@ -285,20 +241,42 @@ void ESPMode::write(const uint8_t *dat, int len, bool iscmd)
 
 void ESPRoot::cmdReceived(uint8_t command, const uint8_t *data, int len)
 {
-  TRACE("ROOT CMD RECEIVED");
+  TRACE("ESP: RX root command,");
+
   switch (command) {
     // On Receive this means the mode has started
     case ESP_ROOTCMD_START_MODE:
-      TRACE("ESP: Unknown root command");
+      if(len == 1)  {
+        TRACE("    Mode Started %s", STR_ESP_MODES[*data - 1]);
+      } else {
+        TRACE("    Invalid data len on Start Mode");
+      }
       break;
 
     // On Receive this means the mode has stopped
     case ESP_ROOTCMD_STOP_MODE:
-      TRACE("ESP: Unknown root command");
+      if(len == 1)  {
+        TRACE("    Mode Stopped %s", STR_ESP_MODES[*data -1]);
+      } else {
+        TRACE("    Invalid data len on Stop Mode");
+      }
       break;
 
-    // An Event Was Received
+    case ESP_ROOTCMD_ACTIVE_MODES:
+      if(len == 4) { // 32 bits (32 max modes)
+        uint32_t* udata32 = (uint32_t*)data;
+        TRACE_NOCRLF("    Modes Running " );
+        for(int i=ESP_TELEMETRY; i < ESP_MAX; i++) { // Skip Root
+          if(*udata32 & 1 << i)
+            TRACE_NOCRLF("%s ", STR_ESP_MODES[i - 1]);
+        }
+        TRACE_NOCRLF("\r\n");
+      }
+      break;
+
+    // An Event Was Received ESP_EVT_xxxx
     case ESP_ROOTCMD_CON_EVENT:
+      TRACE("    Connection Event");
       espevent evt;
       evt.event = data[0];
       memcpy(evt.data, data + 1, len < 51 ? len - 1 : 50);
@@ -307,27 +285,24 @@ void ESPRoot::cmdReceived(uint8_t command, const uint8_t *data, int len)
       }
       break;
 
-    // A Connection Managment item was received
+    // Does nothing
     case ESP_ROOTCMD_CON_MGMNT:
-      /*if(len == sizeof(espsettings)) {
-        memcpy(&espSettings, data, sizeof(espsettings));
-      } else {
-        TRACE("ESP: Settings struct size does not match");
-      }*/
+      TRACE("    Connection Command.. It shouldn't do this");
       break;
 
     // A setting was returned
     case ESP_ROOTCMD_SET_VALUE: {
+      TRACE("    Setting Value");
       // First 4 Characters are the Variable, Remainder is the Data
-      if(len > 5) {
+      if (len > 5) {
         char variable[5];
         memcpy(variable, data, 4);
         variable[4] = '\0';
-        for(unsigned int i=0; i < SETTINGS_COUNT; i++) {
-          if(!strcmp(variable,espSettingsIndex[i].variable)) {
+        for (unsigned int i = 0; i < SETTINGS_COUNT; i++) {
+          if (!strcmp(variable, espSettingsIndex[i].variable)) {
             // Found the variable, make sure it's the same size
-            if(len - SETTING_LEN == espSettingsIndex[i].len) {
-              memcpy(espSettingsIndex[i].ptr, data+4,len-4);
+            if (len - SETTING_LEN == espSettingsIndex[i].len) {
+              memcpy(espSettingsIndex[i].ptr, data + 4, len - 4);
             }
             break;
           }
@@ -338,10 +313,11 @@ void ESPRoot::cmdReceived(uint8_t command, const uint8_t *data, int len)
 
     // Does nothing, all values stored on the ESP
     case ESP_ROOTCMD_GET_VALUE:
+      TRACE("    Requesting value.. It shouldn't Do This");
       break;
 
     default:
-      TRACE("ESP: Unknown root command");
+      TRACE("    Unknown root command");
       break;
   }
 }
@@ -359,8 +335,9 @@ void ESPRoot::setConnMgrValue(uint8_t value, char *data, int len)
 // Request all Settings
 void ESPRoot::getSettings()
 {
-  for(unsigned int i=0; i < SETTINGS_COUNT; i++) {
-    writeCommand(ESP_ROOTCMD_GET_VALUE, (uint8_t*)espSettingsIndex[i].variable, SETTING_LEN);
+  for (unsigned int i = 0; i < SETTINGS_COUNT; i++) {
+    writeCommand(ESP_ROOTCMD_GET_VALUE, (uint8_t *)espSettingsIndex[i].variable,
+                 SETTING_LEN);
   }
 }
 
@@ -368,9 +345,10 @@ void ESPRoot::getSettings()
 void ESPRoot::sendSettings()
 {
   uint8_t buffer[50];
-  for(unsigned int i=0; i < SETTINGS_COUNT; i++) {
+  for (unsigned int i = 0; i < SETTINGS_COUNT; i++) {
     memcpy(buffer, espSettingsIndex[i].variable, SETTING_LEN);
-    memcpy(buffer+4, espSettingsIndex[i].ptr, espSettingsIndex[i].len);
-    writeCommand(ESP_ROOTCMD_SET_VALUE, buffer, espSettingsIndex[i].len+SETTING_LEN);
+    memcpy(buffer + 4, espSettingsIndex[i].ptr, espSettingsIndex[i].len);
+    writeCommand(ESP_ROOTCMD_SET_VALUE, buffer,
+                 espSettingsIndex[i].len + SETTING_LEN);
   }
 }

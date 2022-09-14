@@ -246,7 +246,7 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
 
 #if defined(ESP)
   case UART_MODE_ESP:
-    espSetSerialDriver(ctx,drv);
+    espSetSerialDriver(ctx, drv);
     break;
 #endif
 

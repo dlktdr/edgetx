@@ -18,14 +18,18 @@ enum ESPModes {
   ESP_MAX
 };
 
+#if ESP_MAX > 31
+#error "Too Many Modes"
+#endif
+
 enum ESPRootCmds {
-  ESP_ROOTCMD_START_MODE,
-  ESP_ROOTCMD_STOP_MODE,
-  ESP_ROOTCMD_ACTIVE_MODES, // Request & return mask of running modes
+  ESP_ROOTCMD_START_MODE,   // On TX->ESP, start the mode, on RX mode has started
+  ESP_ROOTCMD_STOP_MODE,    // On TX->ESP, stop the mode, on RX mode has stopped
+  ESP_ROOTCMD_ACTIVE_MODES, // On TX->ESP, Request the modes, RX return mask of started modes
   ESP_ROOTCMD_RESTART,      // Reboot ESP
   ESP_ROOTCMD_VERSION,      // Request Version
   ESP_ROOTCMD_CON_EVENT,    // ESP Connection event
-  ESP_ROOTCMD_CON_MGMNT,    // Set ESP Connection Parameters
+  ESP_ROOTCMD_CON_MGMNT,    // Discover Start/Stop, Connection Start/Stop
   ESP_ROOTCMD_SET_VALUE,    // Set a value
   ESP_ROOTCMD_GET_VALUE,    // Request a value
 };
@@ -57,7 +61,6 @@ enum ESPTrainerCmds {
   ESP_TRAINERCMD_SET_MASTER,
   ESP_TRAINERCMD_SET_SLAVE,
 };
-
 
 // Channel Format
 typedef struct {
