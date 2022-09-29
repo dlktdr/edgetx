@@ -51,5 +51,7 @@ class LabelsStorageFormat : public StorageFormat
     virtual bool loadYaml(RadioData & radioData);
     virtual bool writeYaml(const RadioData & radioData);
 
+    bool moveFile(QString src, QString dest);
+
     StorageType probeFormat();
 };

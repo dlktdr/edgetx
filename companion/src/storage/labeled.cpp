@@ -228,6 +228,22 @@ bool LabelsStorageFormat::loadYaml(RadioData & radioData)
     }
   }
 
+  // Get Models in /models/models.yml
+  EtxModelfiles oldModelFiles;
+  bool moveModels=false;
+
+  // Check if Models/Models.yml exists
+  if (loadFile(labelslistBuffer, "MODELS/models.yml")) {
+    moveModels = true;
+    try {
+      if (!loadModelsListFromYaml(oldModelFiles, labelslistBuffer)) {
+        setError(tr("Can't load MODELS/models.yml"));
+      }
+    } catch(const std::runtime_error& e) {
+      setError(tr("Can't load MODELS/models.yml") + ":\n" + QString(e.what()));
+    }
+  }
+
   // Scan for all models
   std::list<std::string> filelist;
   if (!getFileList(filelist)) {
@@ -243,6 +259,45 @@ bool LabelsStorageFormat::loadYaml(RadioData & radioData)
         std::ssub_match modelIdx = match[2];
            modelFiles.push_back({ modelFile.str(), "", std::stoi(modelIdx.str()) });
       }
+    }
+  }
+
+  // If models.yml exists, move any models not referenced to /models/unused
+  if(moveModels) {
+    EtxModelfiles newModelFiles;
+    bool moveRequired = false;
+    // All Found models
+    for(const auto &model: modelFiles) {
+      bool found = false;
+      for(const auto &oldmodel: oldModelFiles) {
+        if(model.filename == oldmodel.filename) {
+          found = true;
+          break;
+        }
+      }
+      if(!found) {
+        if(!moveRequired) {
+          // Create the /Models/unused??
+          moveRequired = true;
+        }
+
+        QString src = "MODELS/" + QString::fromStdString(model.filename);
+        QString dest = "MODELS/UNUSED/" + QString::fromStdString(model.filename);
+        if(!moveFile(src, dest)) {
+          setError(tr("Couldn't move file ") + src);
+          return false;
+        }
+      } else {
+        newModelFiles.push_back(model);
+      }
+    }
+    // Remove
+    if(!moveFile("/MODELS/models.yml", "/MODELS/UNUSED/models.yml")) {
+      setError(tr("Couldn't move models.yml to /MODELS/UNUSED"));
+      return false;
+    }
+    if(moveRequired) {
+      modelFiles = newModelFiles;
     }
   }
 
@@ -369,5 +424,25 @@ bool LabelsStorageFormat::writeYaml(const RadioData & radioData)
     }
   }
 
+  return true;
+}
+
+bool LabelsStorageFormat::moveFile(QString src, QString dest)
+{
+  QByteArray buffer;
+
+  // Move it
+  if(!loadFile(buffer, src)) {
+    setError(tr("Cannot load ") + src);
+    return false;
+  }
+  if(!writeFile(buffer, dest)) {
+    setError(tr("Cannot write ") + dest);
+    return false;
+  }
+  if(!deleteFile(src)) {
+    setError(tr("Cannot delete ") + src);
+    return false;
+  }
   return true;
 }

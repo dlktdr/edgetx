@@ -89,6 +89,38 @@ static void writeYamlToByteArray(const YAML::Node& node, QByteArray& data, bool 
     qDebug() << data.toStdString().c_str();
 }
 
+bool loadModelsListFromYaml(EtxModelfiles& modelFiles,
+                            const QByteArray& data)
+{
+  if (data.size() == 0)
+    return true;
+
+  YAML::Node node = loadYamlFromByteArray(data);
+  if (!node.IsSequence()) return false;
+
+  int modelIdx = 0;
+  for (const auto& cat : node) {
+    if (!cat.IsMap()) continue;
+
+    for (const auto& cat_map : cat) {
+
+      const auto& models = cat_map.second;
+      if (!models.IsSequence()) continue;
+
+      for (const auto& model : models) {
+        std::string filename, name;
+        model["filename"] >> filename;
+        model["name"] >> name;
+        modelFiles.push_back(
+            {filename, name, modelIdx++});
+      }
+    }
+  }
+
+  return true;
+}
+
+
 bool loadLabelsListFromYaml(QStringList& labels,
                             EtxModelfiles& modelFiles,
                             const QByteArray& data)
