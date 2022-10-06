@@ -32,6 +32,9 @@
 #include "standalone_lua.h"
 #include "str_functions.h"
 
+#include "storage/yaml/yaml_datastructs.h"
+#include "storage/sdcard_yaml.h"
+
 // bitmaps for toolbar
 const uint8_t _mask_sort_alpha_up[] = {
 #include "mask_sort_alpha_up.lbm"
@@ -395,15 +398,69 @@ void ModelsPageBody::selectModel(ModelCell *model)
 void ModelsPageBody::duplicateModel(ModelCell* model)
 {
   char duplicatedFilename[LEN_MODEL_FILENAME + 1];
+
   memcpy(duplicatedFilename, model->modelFilename,
          sizeof(duplicatedFilename));
+
+  // See if the fileaname already has a ##-
+  std::string curName = model->modelName;
+  int modelNameLen = strlen(model->modelName);
+  for (int i=0; i < modelNameLen; i++) {
+    if (model->modelName[i] >= '0' && model->modelName[i] <= '9')
+      continue;
+    if (model->modelName[i] == '-') {
+      curName = curName.substr(i+1);
+      if(curName.size() == 0) {
+        curName = model->modelFilename; // If no name
+      }
+    }
+    break;
+  }
+
+  // Find a unused model name
+  int nameExtension = 1;
+  std::string newName;
+  bool duplicate = true;
+  while (duplicate) {
+    std::string nameExt = std::to_string(nameExtension) + "-";
+    newName = curName;
+    newName = nameExt + newName.substr(0,LEN_MODEL_NAME-nameExt.size());
+    duplicate = false;
+    for (const auto &model: modelslist) {
+      if (std::string(model->modelName) == newName) {
+        duplicate = true;
+        break;
+      }
+    }
+    nameExtension++;
+  }
+
+  // Find unused model number
   if (findNextFileIndex(duplicatedFilename, LEN_MODEL_FILENAME,
                         MODELS_PATH)) {
     sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
                MODELS_PATH);
+
+    ModelData *modeldata = (ModelData *)malloc(sizeof(ModelData));
+    if (!modeldata) {
+      TRACE("Labels: Out Of Memory");
+      return;
+    }
+
+    // Open the new model, change the name and save it
+    char path[256];
+    getModelPath(path, duplicatedFilename);
+    readModelYaml(duplicatedFilename, (uint8_t *)modeldata,
+                  sizeof(ModelData));
+    strncpy(modeldata->header.name, newName.c_str(), LEN_MODEL_NAME);
+    writeFileYaml(path, get_modeldata_nodes(), (uint8_t *)modeldata, 0);
+    free(modeldata);
+
     // Make a new model which is a copy of the selected one, set the same
     // labels
     auto new_model = modelslist.addModel(duplicatedFilename, true, model);
+    strncpy(new_model->modelName, newName.c_str(), LEN_MODEL_NAME);
+    new_model->modelName[LEN_MODEL_NAME] = '\0';
     for (const auto &lbl : modelslabels.getLabelsByModel(model)) {
       modelslabels.addLabelToModel(lbl, new_model);
     }
