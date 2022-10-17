@@ -238,8 +238,8 @@ class ButtonHolder : public FormWindow
 class ModelButton : public Button
 {
  public:
-  ModelButton(FormGroup *parent, const rect_t &rect, ModelCell *modelCell) :
-      Button(parent, rect), modelCell(modelCell)
+  ModelButton(FormGroup *parent, const rect_t &rect, ModelCell *modelCell,bool showFilenames=false) :
+      Button(parent, rect), modelCell(modelCell), showFilenames(showFilenames)
   {
     lv_obj_clear_flag(lvobj, LV_OBJ_FLAG_CLICK_FOCUSABLE);
     setWidth(MODEL_SELECT_CELL_WIDTH);
@@ -294,21 +294,28 @@ class ModelButton : public Button
     }
     FormField::paint(dc);
 
-    if (buffer) dc->drawBitmap(0, 0, buffer);
+    int textheight = 20;
+    if(showFilenames) {
+      setHeight(MODEL_SELECT_CELL_HEIGHT+20);
+      textheight = 40;
+    } else {
+      setHeight(MODEL_SELECT_CELL_HEIGHT);
+    }
+
+    if (buffer) dc->drawBitmap(0, textheight-20, buffer);
 
     if (modelCell == modelslist.getCurrentModel()) {
-      dc->drawSolidFilledRect(0, 0, width(), 20, COLOR_THEME_ACTIVE);
-      dc->drawSizedText(width() / 2, 2, modelCell->modelName, LEN_MODEL_NAME,
-                        COLOR_THEME_SECONDARY1 | CENTERED);
+      dc->drawSolidFilledRect(0, 0, width(), textheight, COLOR_THEME_ACTIVE);
     } else {
-      LcdFlags textColor;
-      dc->drawFilledRect(0, 0, width(), 20, SOLID, COLOR_THEME_PRIMARY2);
-
-      textColor = COLOR_THEME_SECONDARY1;
-
-      dc->drawSizedText(width() / 2, 2, modelCell->modelName, LEN_MODEL_NAME,
-                        textColor | CENTERED);
+      dc->drawFilledRect(0, 0, width(), textheight, SOLID, COLOR_THEME_PRIMARY2);
     }
+
+
+    dc->drawSizedText(width() / 2, 2, modelCell->modelName, LEN_MODEL_NAME,
+                      COLOR_THEME_SECONDARY1 | CENTERED);
+    if(showFilenames)
+      dc->drawSizedText(width() / 2, 20, modelCell->modelFilename, LEN_MODEL_FILENAME,
+                        COLOR_THEME_SECONDARY1 | CENTERED | FONT(XS));
 
     if (!hasFocus()) {
       dc->drawSolidRect(0, 0, width(), height(), 1, COLOR_THEME_SECONDARY2);
@@ -332,6 +339,7 @@ class ModelButton : public Button
       Button::onClicked();
     }
   }
+  bool showFilenames;
 };
 
 //-----------------------------------------------------------------------------
@@ -478,7 +486,7 @@ void ModelsPageBody::update(int selected)
   }
 
   for (auto &model : models) {
-    auto button = new ModelButton(this, rect_t{}, model);
+    auto button = new ModelButton(this, rect_t{}, model, showFilenames);
 
     // Long Press Handler for Models
     button->setPressHandler([=]() -> uint8_t {
@@ -495,6 +503,13 @@ void ModelsPageBody::update(int selected)
       return 0;
     });
   }
+
+  auto chkShwFiles = new StaticText(this, rect_t{}, "Show Filenames");
+  lv_obj_add_flag(chkShwFiles->getLvObj(), LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
+  new CheckBox(this, rect_t{}, GET_DEFAULT(showFilenames), [=](uint8_t newValue) {
+    showFilenames = newValue;
+    update();
+  });
 }
 
 //-----------------------------------------------------------------------------

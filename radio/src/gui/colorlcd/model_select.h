@@ -59,6 +59,7 @@ class ModelsPageBody : public FormWindow
   ModelsSortBy _sortOrder;
   bool isDirty = false;
   bool refresh = false;
+  bool showFilenames = false;;
   std::string selectedLabel;
   LabelsVector selectedLabels;
   std::function<void()> refreshLabels = nullptr;
