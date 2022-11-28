@@ -467,6 +467,15 @@
   #define AUX2_SERIAL_DMA_Stream_RX            DMA1_Stream2
   #define AUX2_SERIAL_DMA_Channel_RX           DMA_Channel_4
   #define AUX2_SERIAL_DMA_Stream_RX_LL         LL_DMA_STREAM_2
+  #if PCBREV >= 13
+    #define AUX2_SERIAL_EN_RCC_AHB1Periph        RCC_AHB1Periph_GPIOG
+    #define AUX2_SERIAL_EN_GPIO                  GPIOI
+    #define AUX2_SERIAL_EN_GPIO_PIN              GPIO_Pin_10 // PI.10
+  #else
+    #define AUX2_SERIAL_EN_RCC_AHB1Periph        RCC_AHB1Periph_GPIOA
+    #define AUX2_SERIAL_EN_GPIO                  GPIOA
+    #define AUX2_SERIAL_EN_GPIO_PIN              GPIO_Pin_6 // PA.06
+  #endif
 #else
   #define AUX2_SERIAL_RCC_AHB1Periph           (RCC_AHB1Periph_GPIOB | RCC_AHB1Periph_GPIOG | RCC_AHB1Periph_DMA2)
   #define AUX2_SERIAL_USART                    USART6
@@ -485,6 +494,11 @@
   #define AUX2_SERIAL_DMA_Stream_RX_LL         LL_DMA_STREAM_1
   #define AUX2_SERIAL_PWR_GPIO                 GPIOB
   #define AUX2_SERIAL_PWR_GPIO_PIN             GPIO_Pin_0  // PB.00
+  #if defined(PCBX10)
+    #define AUX2_SERIAL_EN_RCC_AHB1Periph        RCC_AHB1Periph_GPIOG
+    #define AUX2_SERIAL_EN_GPIO                  GPIOG
+    #define AUX2_SERIAL_EN_GPIO_PIN              GPIO_Pin_10 // PG.10
+  #endif
 #endif
 #else // AUX2_SERIAL
   #define AUX2_SERIAL_RCC_AHB1Periph           0
@@ -997,20 +1011,6 @@
 
 // Bluetooth
 #define STORAGE_BLUETOOTH
-#if defined(BLUETOOTH)
-#define BT_RCC_APB2Periph               RCC_APB2Periph_USART6
-#define BT_USART                        USART6
-#define BT_GPIO_AF                      GPIO_AF_USART6
-#define BT_USART_IRQn                   USART6_IRQn
-#define BT_USART_GPIO                   GPIOG
-#define BT_TX_GPIO_PIN                  GPIO_Pin_14 // PG.14
-#define BT_RX_GPIO_PIN                  GPIO_Pin_9  // PG.09
-#define BT_TX_GPIO_PinSource            GPIO_PinSource14
-#define BT_RX_GPIO_PinSource            GPIO_PinSource9
-#define BT_USART_IRQHandler             USART6_IRQHandler
-#else
-#define BT_RCC_APB2Periph               0
-#endif
 #if defined(PCBX12S)
   #if PCBREV >= 13
     #define BT_RCC_AHB1Periph           (RCC_AHB1Periph_GPIOI | RCC_AHB1Periph_GPIOG)

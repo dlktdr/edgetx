@@ -75,6 +75,9 @@ enum BluetoothStates {
 #endif
 #endif
 
+void bluetoothEnable(bool enable=true);
+void bluetoothSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
+
 class Bluetooth
 {
   public:
@@ -98,20 +101,6 @@ class Bluetooth
     void processTrainerByte(uint8_t data);
     void sendTrainer();
     void receiveTrainer();
-
-    uint8_t bootloaderChecksum(uint8_t command, const uint8_t * data, uint8_t size);
-    void bootloaderSendCommand(uint8_t command, const void *data = nullptr, uint8_t size = 0);
-    void bootloaderSendCommandResponse(uint8_t response);
-    const char * bootloaderWaitCommandResponse(uint32_t timeout=1000/*ms*/);
-    const char * bootloaderWaitResponseData(uint8_t *data, uint8_t size);
-    const char * bootloaderSetAutoBaud();
-    const char * bootloaderReadStatus(uint8_t &status);
-    const char * bootloaderCheckStatus();
-    const char * bootloaderSendData(const uint8_t * data, uint8_t size);
-    const char * bootloaderEraseFlash(uint32_t start, uint32_t size);
-    const char * bootloaderStartWriteFlash(uint32_t start, uint32_t size);
-    const char * bootloaderWriteFlash(const uint8_t * data, uint32_t size);
-    const char * doFlashFirmware(const char * filename, ProgressHandler progressHandler);
 
     uint8_t buffer[BLUETOOTH_LINE_LENGTH+1];
     uint8_t bufferIndex = 0;
