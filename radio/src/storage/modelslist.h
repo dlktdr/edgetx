@@ -107,11 +107,11 @@ typedef std::vector<std::pair<uint16_t, ModelCell *>> ModelLabelsVector;
 typedef std::vector<std::string> LabelsVector;
 typedef std::vector<ModelCell *> ModelsVector;
 typedef enum {
-  NO_SORT,
-  NAME_ASC,
-  NAME_DES,
-  DATE_ASC,
-  DATE_DES,
+  NO_SORT,  // 0
+  NAME_ASC, // 1
+  NAME_DES, // 2
+  DATE_ASC, // 3
+  DATE_DES, // 4
   SORT_COUNT
 } ModelsSortBy;
 

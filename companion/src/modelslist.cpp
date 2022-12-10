@@ -342,7 +342,7 @@ bool ModelsListModel::dropMimeData(const QMimeData * data, Qt::DropAction action
   if (!canDropMimeData(data, action, row, column, parent))
     return false;
 
-  if (action == Qt::IgnoreAction)
+  if (action == Qt::IgnoreAction || hasOwnMimeData(data))
     return true;
 
   QModelIndex idx;

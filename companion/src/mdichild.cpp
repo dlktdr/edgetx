@@ -43,12 +43,13 @@ MdiChild::MdiChild(QWidget * parent, QWidget * parentWin, Qt::WindowFlags f):
   ui(new Ui::MdiChild),
   modelsListModel(NULL),
   labelsListModel(NULL),
+  modelsProxySort(NULL),
   parentWindow(parentWin),
   radioToolbar(NULL),
   modelsToolbar(NULL),
   labelsToolbar(NULL),
   lblLabels(NULL),
-
+  cmbSortModels(NULL),
   firmware(getCurrentFirmware()),
   lastSelectedModel(-1),
   isUntitled(true),
@@ -266,8 +267,20 @@ void MdiChild::setupNavigation()
   labelsToolbar->addAction(getAction(ACT_LBL_DEL));
   labelsToolbar->addAction(getAction(ACT_LBL_REN));
   labelsToolbar->addAction(getAction(ACT_LBL_MVU));
-  labelsToolbar->addAction(getAction(ACT_LBL_MVD));
+  labelsToolbar->addAction(getAction(ACT_LBL_MVD));  
   ui->bottomLayout->addWidget(labelsToolbar);
+
+  if(cmbSortModels)
+    cmbSortModels->deleteLater();
+  cmbSortModels = new QComboBox;
+  cmbSortModels->addItem(tr("No Sort")); // 0
+  cmbSortModels->addItem(tr("Name ↑")); // 1
+  cmbSortModels->addItem(tr("Name ↓")); // 2
+  cmbSortModels->addItem(tr("Last Opened ↑")); // 3
+  cmbSortModels->addItem(tr("Last Opened ↓")); // 4
+  //cmbSortModels->addItem(tr("Frequently Used ↑")); // 5
+  //cmbSortModels->addItem(tr("Frequently Used ↓")); // 6
+  //connect(cmbSortModels, &QComboBox::currentIndexChanged, this, &MdiChild::sortOrderChanged);
 
   if (radioToolbar)
     radioToolbar->deleteLater();
@@ -300,6 +313,7 @@ void MdiChild::setupNavigation()
   modelsToolbar->addActions(getEditActions());
   modelsToolbar->addSeparator();
   modelsToolbar->addActions(getModelActions());
+  modelsToolbar->addWidget(cmbSortModels);
   if ((btn = qobject_cast<QToolButton *>(modelsToolbar->widgetForAction(action[ACT_MDL_ADD])))) {
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   }
@@ -327,6 +341,7 @@ void MdiChild::updateNavigation()
 
   labelsToolbar->setVisible(hasLabels);
   ui->lstLabels->setVisible(hasLabels);
+  cmbSortModels->setVisible(hasLabels);
   lblLabels->setVisible(hasLabels);
   action[ACT_GEN_PST]->setEnabled(hasClipboardData(1));
 
@@ -516,8 +531,16 @@ void MdiChild::initModelsList()
   connect(modelsListModel, &ModelsListModel::refreshRequested, this, &MdiChild::refresh);
   connect(modelsListModel, &QAbstractItemModel::dataChanged, this, &MdiChild::onDataChanged);
 
+  if(modelsProxySort)
+    delete modelsProxySort;
+
+  modelsProxySort = new QSortFilterProxyModel(this);
+  modelsProxySort->setSourceModel(modelsListModel);
+
   ui->modelsList->setModel(modelsListModel);
   ui->modelsList->selectionModel()->currentIndex().row();
+
+  modelsProxySort->invalidate();
 
   // Labels Editor + Model
   if(labelsListModel)
@@ -1096,6 +1119,11 @@ void MdiChild::modelDuplicate()
   else {
     showWarning(tr("Cannot duplicate model, could not find an available model slot."));
   }
+}
+
+void MdiChild::sortOrderChanged(int index)
+{
+  radioData.sortOrder = (uint8_t)index;
 }
 
 void MdiChild::modelEdit()

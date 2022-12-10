@@ -150,6 +150,7 @@ class MdiChild : public QWidget
     void labelsFault(QString msg);
     void wizardEdit();
     void modelDuplicate();
+    void sortOrderChanged(int index);
 
     void openModelWizard(int row = -1);
     void openModelEditWindow(int row = -1);
@@ -204,6 +205,7 @@ class MdiChild : public QWidget
     Ui::MdiChild * ui;
     ModelsListModel * modelsListModel;
     LabelsModel * labelsListModel;
+    QSortFilterProxyModel * modelsProxySort;
     QWidget * parentWindow;
 
     QString curFile;
@@ -213,6 +215,7 @@ class MdiChild : public QWidget
     QToolBar * modelsToolbar;
     QToolBar * labelsToolbar;
     QLabel *lblLabels;
+    QComboBox *cmbSortModels;
 
     Firmware * firmware;
     RadioData radioData;

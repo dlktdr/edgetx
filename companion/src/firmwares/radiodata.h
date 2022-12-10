@@ -18,6 +18,7 @@ class RadioData {
 
     GeneralSettings generalSettings;
     QStringList labels;
+    uint8_t sortOrder;
     std::vector<ModelData> models;
 
     void convert(RadioDataConversionState & cstate);
