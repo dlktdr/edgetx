@@ -54,6 +54,13 @@ enum BluetoothStates {
 #define BLUETOOTH_PACKET_SIZE           14
 #define BLUETOOTH_LINE_LENGTH           32
 #define BLUETOOTH_TRAINER_CHANNELS      8
+#define BLUETOOTH_BAUDRATE              115200
+#define BLUETOOTH_BOOTLOADER_BAUDRATE   230400
+#if defined(PCBX9E)
+#define BLUETOOTH_FACTORY_BAUDRATE      9600
+#else
+#define BLUETOOTH_FACTORY_BAUDRATE      57600
+#endif
 
 #if defined(LOG_BLUETOOTH)
   #define BLUETOOTH_TRACE(...)  \

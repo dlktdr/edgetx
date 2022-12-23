@@ -300,7 +300,7 @@ static void serialSetupPort(int mode, etx_serial_init& params)
 
 #if defined(BLUETOOTH)
   case UART_MODE_BLUETOOTH:
-    params.baudrate = BLUETOOTH_DEFAULT_BAUDRATE;
+    params.baudrate = BLUETOOTH_BAUDRATE;
     params.rx_enable = true;
     break;
 #endif

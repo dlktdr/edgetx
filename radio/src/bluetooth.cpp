@@ -379,7 +379,7 @@ void Bluetooth::wakeup(void)
     static tmr10ms_t waitEnd = 0;
     if (state != BLUETOOTH_STATE_IDLE) {
       if (state == BLUETOOTH_INIT) {
-        bluetoothInit(BLUETOOTH_DEFAULT_BAUDRATE, true);
+        bluetoothInit(BLUETOOTH_BAUDRATE, true);
         char command[32];
         char * cur = strAppend(command, BLUETOOTH_COMMAND_NAME);
         uint8_t len = ZLEN(g_eeGeneral.bluetoothName);
