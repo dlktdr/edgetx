@@ -33,13 +33,8 @@
 extern FIL g_bluetoothFile;
 #endif
 
-#if defined(PCBX9E)
-#define BLUETOOTH_COMMAND_NAME         "TTM:REN-"
-#define BLUETOOTH_ANSWER_NAME          "TTM:REN"
-#else
 #define BLUETOOTH_COMMAND_NAME         "AT+NAME"
 #define BLUETOOTH_ANSWER_NAME          "OK+"
-#endif
 
 #if defined(_MSC_VER)
   #define SWAP32(val)      (_byteswap_ulong(val))
@@ -104,30 +99,10 @@ char * Bluetooth::readline(bool error_reset)
 
   while (true) {
     if (!_getByte(btSerialCtx, &byte)) {
-#if defined(PCBX9E)
-      // X9E BT module can get unresponsive
-      BLUETOOTH_TRACE("NO RESPONSE FROM BT MODULE" CRLF);
-#endif
       return nullptr;
     }
 
     BLUETOOTH_TRACE_VERBOSE("%02X ", byte);
-
-#if 0
-    if (error_reset && byte == 'R' && bufferIndex == 4 && memcmp(buffer, "ERRO", 4)) {
-#if defined(PCBX9E)  // X9E enter BT reset loop if following code is implemented
-      BLUETOOTH_TRACE("BT Error..." CRLF);
-#else
-      BLUETOOTH_TRACE("BT Reset..." CRLF);
-      bufferIndex = 0;
-      bluetoothDisable();
-      state = BLUETOOTH_STATE_OFF;
-      wakeupTime = get_tmr10ms() + 100; /* 1s */
-#endif
-      return nullptr;
-    }
-    else
-#endif
 
     if (byte == '\n') {
       if (bufferIndex > 2 && buffer[bufferIndex-1] == '\r') {
@@ -135,14 +110,10 @@ char * Bluetooth::readline(bool error_reset)
         bufferIndex = 0;
         BLUETOOTH_TRACE("BT< %s" CRLF, buffer);
         if (error_reset && !strcmp((char *)buffer, "ERROR")) {
-#if defined(PCBX9E) // X9E enter BT reset loop if following code is implemented
-          BLUETOOTH_TRACE("BT Error..." CRLF);
-#else
           BLUETOOTH_TRACE("BT Reset..." CRLF);
           bluetoothEnable(false);
           state = BLUETOOTH_STATE_OFF;
           wakeupTime = get_tmr10ms() + 100; /* 1s */
-#endif
           return nullptr;
         }
         else {
@@ -365,66 +336,6 @@ void Bluetooth::receiveTrainer()
   }
 }
 
-#if defined(PCBX9E)
-void Bluetooth::wakeup(void)
-{
-#if !defined(SIMU)
-  if (!g_eeGeneral.bluetoothMode) {
-    if (state != BLUETOOTH_INIT) {
-      bluetoothDisable();
-      state = BLUETOOTH_INIT;
-    }
-  }
-  else {
-    static tmr10ms_t waitEnd = 0;
-    if (state != BLUETOOTH_STATE_IDLE) {
-      if (state == BLUETOOTH_INIT) {
-        bluetoothInit(BLUETOOTH_BAUDRATE, true);
-        char command[32];
-        char * cur = strAppend(command, BLUETOOTH_COMMAND_NAME);
-        uint8_t len = ZLEN(g_eeGeneral.bluetoothName);
-        if (len > 0) {
-          for (int i = 0; i < len; i++) {
-            *cur++ = char2lower(g_eeGeneral.bluetoothName[i]);
-          }
-          *cur = '\0';
-        }
-        else {
-          cur = strAppend(cur, FLAVOUR);
-        }
-        writeString(command);
-        state = BLUETOOTH_WAIT_TTM;
-        waitEnd = get_tmr10ms() + 25; // 250ms
-      }
-      else if (state == BLUETOOTH_WAIT_TTM) {
-        if (get_tmr10ms() > waitEnd) {
-          char * line = readline();
-          if (strncmp(line, "OK+", 3)) {
-            state = BLUETOOTH_STATE_IDLE;
-          }
-          else {
-            bluetoothInit(BLUETOOTH_FACTORY_BAUDRATE, true);
-            writeString("TTM:BPS-115200");
-            state = BLUETOOTH_WAIT_BAUDRATE_CHANGE;
-            waitEnd = get_tmr10ms() + 250; // 2.5s
-          }
-        }
-      }
-      else if (state == BLUETOOTH_WAIT_BAUDRATE_CHANGE) {
-        if (get_tmr10ms() > waitEnd) {
-          state = BLUETOOTH_INIT;
-        }
-      }
-    }
-    else if (IS_BLUETOOTH_TRAINER()){
-      state = BLUETOOTH_STATE_CONNECTED;
-      bluetoothWriteWakeup();
-      sendTrainer();
-    }
-  }
-#endif
-}
-#else // PCBX9E
 void Bluetooth::wakeup()
 {
   if (state != BLUETOOTH_STATE_OFF) {
@@ -562,5 +473,3 @@ void Bluetooth::wakeup()
     }
   }
 }
-#endif
-
