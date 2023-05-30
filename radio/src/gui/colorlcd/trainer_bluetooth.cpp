@@ -22,6 +22,23 @@
 #include "trainer_bluetooth.h"
 #include "opentx.h"
 
+#if defined(ESP)
+#include "esp.h"
+// Use the C Style callback here in this method
+template <typename T>
+struct Callback;
+
+template <typename Ret, typename... Params>
+struct Callback<Ret(Params...)> {
+   template <typename... Args>
+   static Ret callback(Args... args) {
+      return func(args...);
+   }
+   static std::function<Ret(Params...)> func;
+};
+template <typename Ret, typename... Params>
+std::function<Ret(Params...)> Callback<Ret(Params...)>::func;
+#endif
 
 #define SET_DIRTY()     storageDirty(EE_MODEL)
 
@@ -30,27 +47,70 @@ static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(2),
 static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT,
                                      LV_GRID_TEMPLATE_LAST};
 
+
 class BTDiscoverMenu : public Menu
 {
   uint8_t devCount = 0;
-  
-  void checkEvents() override;
+
   void selectAddr(const char* addr);
+
+#if defined(ESP)
+  void espEvent(const espevent *evt, void *user);
+#elif defined(BLUETOOTH)
+  void checkEvents() override;
+#endif
 
 public:
   BTDiscoverMenu();
+
+#if defined(ESP)
+  ~BTDiscoverMenu() {
+    esproot.setEventCB(nullptr, nullptr);
+  }
+#endif
 };
 
 BTDiscoverMenu::BTDiscoverMenu() :
   Menu(Layer::back())
 {
+#if defined(ESP)
+  Callback<void(const espevent *evt, void *user)>::func = std::bind(&BTDiscoverMenu::espEvent, this, std::placeholders::_1, std::placeholders::2);
+  esproot.setEventCB(static_cast<callback_t>(Callback<void(const espevent *evt, void *user)>::callback));
+#endif
   setTitle(STR_BT_SELECT_DEVICE);
   // TODO: set minimum height
-
 }
+
+#if defined(ESP)
+void BTDiscoverMenu::espEvent(const espevent *evt, void *user)
+{
+  switch(evt->type) {
+    case ESP_EVT_MESSAGE:
+      break;
+    case ESP_EVT_DISCOVER_STARTED:
+      break;
+    case ESP_EVT_DISCOVER_COMPLETE:
+      break;
+    case ESP_EVT_DEVICE_FOUND:
+      break;
+    case ESP_EVT_CONNECTED:
+      break;
+    case ESP_EVT_DISCONNECTED:
+      break;
+    case ESP_EVT_PIN_REQUEST:
+      break;
+    case ESP_EVT_IP_OBTAINE:
+      break;
+    default:
+      break;
+  }
+}
+#endif
+
 
 void BTDiscoverMenu::checkEvents()
 {
+  #if defined(BLUETOOTH)
   if (bluetooth.state == BLUETOOTH_STATE_DISCOVER_START ||
       bluetooth.state == BLUETOOTH_STATE_DISCOVER_END) {
     int cnt = min<uint8_t>(reusableBuffer.moduleSetup.bt.devicesCount,
@@ -65,13 +125,16 @@ void BTDiscoverMenu::checkEvents()
       devCount = cnt;
     }
   }
+  #elif defined(ESP)
+
+  #endif
 }
 
 void BTDiscoverMenu::selectAddr(const char* addr)
 {
   strncpy(bluetooth.distantAddr, addr, LEN_BLUETOOTH_ADDR);
   bluetooth.state = BLUETOOTH_STATE_BIND_REQUESTED;
-  SET_DIRTY();  
+  SET_DIRTY();
 }
 
 BluetoothTrainerWindow::BluetoothTrainerWindow(Window* parent) :

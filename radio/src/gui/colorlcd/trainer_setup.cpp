@@ -32,7 +32,7 @@
 #include "channel_range.h"
 #include "ppm_settings.h"
 
-#if defined(BLUETOOTH)
+#if defined(BLUETOOTH) || defined(ESP)
 #include "trainer_bluetooth.h"
 #endif
 
@@ -51,23 +51,6 @@ class TrainerModuleWindow : public FormGroup
 
  protected:
   ChannelRange* chRange = nullptr;
-
-#if defined(BLUETOOTH)
-  // StaticText *btChannelEnd = nullptr;
-  // StaticText *btDistAddress = nullptr;
-  // TextButton *btMasterButton = nullptr;
-  // Menu *btPopUpMenu = nullptr;
-  // bool btCanceled = false;
-
- private:
-  // bool popupopen = false;
-  // int devicecount = 0;
-  // uint8_t lastbluetoothstate = BLUETOOTH_STATE_OFF;
-
-  // void btDiscoverMenuItemChosen();
-  // void btDiscoverMenuAddItem(const char *itm);
-
-#endif
 };
 
 TrainerModuleWindow::TrainerModuleWindow(FormGroup* parent) :
@@ -90,8 +73,7 @@ void TrainerModuleWindow::update()
   auto td = &g_model.trainerData;
   if (td->mode == TRAINER_MODE_OFF) return;
 
-#if defined(BLUETOOTH) || defined(ESPMODULE)
-  espmodule.
+#if defined(BLUETOOTH)
   if (td->mode == TRAINER_MODE_MASTER_BLUETOOTH ||
       td->mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
 
@@ -103,6 +85,20 @@ void TrainerModuleWindow::update()
     // TODO: slave: channel range
   }
 #endif
+
+#if defined(BLUETOOTH)
+  if (td->mode == TRAINER_MODE_MASTER_BLUETOOTH ||
+      td->mode == TRAINER_MODE_SLAVE_BLUETOOTH) {
+
+    auto bt = new BluetoothTrainerWindow(this);
+    if (td->mode == TRAINER_MODE_SLAVE_BLUETOOTH)
+      bt->setMaster(false);
+
+    bt->refresh();
+    // TODO: slave: channel range
+  }
+#endif
+
 
   if (td->mode == TRAINER_MODE_SLAVE) {
 

@@ -7,7 +7,6 @@
 #include "FreeRTOS/include/FreeRTOS.h"
 #include "FreeRTOS/include/task.h"
 
-
 ESPModule espmodule;
 ESPRoot esproot(espmodule);
 ESPAudio espaudio(espmodule);
